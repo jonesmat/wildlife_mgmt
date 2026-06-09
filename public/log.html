@@ -136,8 +136,8 @@
 
       <div class="form-row">
         <div class="form-group">
-          <label>Date &amp; Time</label>
-          <input type="datetime-local" id="fDatetime">
+          <label>Date</label>
+          <input type="date" id="fDatetime">
         </div>
         <div class="form-group">
           <label>Event Type</label>
@@ -574,7 +574,7 @@ function editEntry(id) {
   document.getElementById('formTitle').textContent = 'Edit Entry';
   document.getElementById('deleteBtn').style.display = '';
   resetForm();
-  document.getElementById('fDatetime').value = e.datetime || '';
+  document.getElementById('fDatetime').value = (e.datetime || '').slice(0, 10);
   document.getElementById('fType').value = e.type || 'General';
   switchType();
   // Populate type-specific fields
@@ -698,7 +698,7 @@ function getTypeFields(type) {
 async function saveEntry() {
   var type = document.getElementById('fType').value;
   var entry = {
-    datetime: document.getElementById('fDatetime').value,
+    datetime: datePickerToDatetime(document.getElementById('fDatetime').value),
     type: type,
     photos: pendingPhotos.filter(function(p) { return p.uploaded; }).map(function(p) { return p.filename; })
   };
@@ -849,16 +849,22 @@ function formatDatetime(s) {
   if (!s) return '';
   try {
     var d = new Date(s);
-    return d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) +
-      ' ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+    return d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
   } catch(e) { return s; }
 }
 
 function nowDatetimeLocal() {
   var d = new Date();
   var pad = function(n) { return String(n).padStart(2,'0'); };
-  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) +
-    'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+}
+
+function datePickerToDatetime(dateVal) {
+  // Combine chosen date with current time so same-day entries sort by entry order
+  if (!dateVal) return dateVal;
+  var d = new Date();
+  var pad = function(n) { return String(n).padStart(2,'0'); };
+  return dateVal + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
 }
 
 function escHtml(s) {
