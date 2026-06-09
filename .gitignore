@@ -45,6 +45,9 @@ jspm_packages/
 # Property data and uploaded photos
 data/
 
+# Distribution zips
+*.zip
+
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
