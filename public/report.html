@@ -392,8 +392,7 @@ function formatDatetime(s) {
   if (!s) return '';
   try {
     var d = new Date(s);
-    return d.toLocaleDateString('en-US', { month:'short', day:'numeric' }) +
-      ' ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+    return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
   } catch(err) { return s; }
 }
 
