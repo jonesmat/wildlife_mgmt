@@ -6,7 +6,7 @@ const app = express();
 const PORT = 3000;
 const DATA_FILE = path.join(__dirname, 'data', 'property.json');
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 function loadData() {
@@ -817,6 +817,92 @@ function renderActivitiesPrint(a) {
   `;
 }
 
+function renderLogEntries(entries) {
+  if (!entries || !entries.length) return '<div style="font-size:9pt;color:#666;font-style:italic">No log entries for this year.</div>';
+
+  function entryTitle(e) {
+    if (e.type === 'General') return e.name || e['f-name'] || 'General Entry';
+    if (e.type === 'Harvest') return (e['hv-species'] || 'Harvest') + (e['hv-sex'] ? ' — ' + e['hv-sex'] : '');
+    if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + '× ' : '') + (e['si-species'] || 'Sighting');
+    if (e.type === 'Activity') return e['ac-name'] || e['ac-category'] || 'Activity';
+    if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
+    if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
+    if (e.type === 'Maintenance') return e['ma-item'] || 'Maintenance';
+    if (e.type === 'Weather') return (e['we-type'] || 'Weather') + (e['we-severity'] ? ' — ' + e['we-severity'] : '');
+    return e.type;
+  }
+
+  function fmtDate(s) {
+    if (!s) return '';
+    var d = new Date(s);
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear() +
+      ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function detailPairs(e) {
+    var pairs = [];
+    if (e.type === 'General') {
+      if (e.description || e['f-description']) pairs.push(['Notes', e.description || e['f-description']]);
+    } else if (e.type === 'Harvest') {
+      if (e['hv-age']) pairs.push(['Age', e['hv-age'] + ' yrs']);
+      if (e['hv-weight']) pairs.push(['Weight', e['hv-weight'] + ' lbs']);
+      var antler = [e['hv-mainBeam'] && 'Beam: '+e['hv-mainBeam'], e['hv-tines'] && 'Tines: '+e['hv-tines'], e['hv-spread'] && 'Spread: '+e['hv-spread']].filter(Boolean).join(' | ');
+      if (antler) pairs.push(['Antler', antler]);
+      if (e['hv-location']) pairs.push(['Location', e['hv-location']]);
+      if (e['hv-method']) pairs.push(['Method', e['hv-method']]);
+      if (e['hv-notes']) pairs.push(['Notes', e['hv-notes']]);
+    } else if (e.type === 'Sighting') {
+      if (e['si-sexAge']) pairs.push(['Detail', e['si-sexAge']]);
+      if (e['si-location']) pairs.push(['Location', e['si-location']]);
+      if (e['si-method']) pairs.push(['Method', e['si-method']]);
+      if (e['si-notes']) pairs.push(['Notes', e['si-notes']]);
+    } else if (e.type === 'Activity') {
+      if (e['ac-category']) pairs.push(['Category', e['ac-category']]);
+      if (e['ac-acres']) pairs.push(['Acres', e['ac-acres']]);
+      if (e['ac-notes']) pairs.push(['Notes', e['ac-notes']]);
+    } else if (e.type === 'Census') {
+      if (e['ce-route']) pairs.push(['Route/Stand', e['ce-route']]);
+      if (e['ce-total']) pairs.push(['Observed', e['ce-total']]);
+      if (e['ce-conditions']) pairs.push(['Conditions', e['ce-conditions']]);
+      if (e['ce-notes']) pairs.push(['Notes', e['ce-notes']]);
+    } else if (e.type === 'Predator Control') {
+      if (e['pc-count']) pairs.push(['Removed', e['pc-count']]);
+      if (e['pc-notes']) pairs.push(['Notes', e['pc-notes']]);
+    } else if (e.type === 'Maintenance') {
+      if (e['ma-action']) pairs.push(['Action', e['ma-action']]);
+      if (e['ma-notes']) pairs.push(['Notes', e['ma-notes']]);
+    } else if (e.type === 'Weather') {
+      if (e['we-rainfall']) pairs.push(['Rainfall', e['we-rainfall'] + ' in']);
+      if (e['we-notes']) pairs.push(['Notes', e['we-notes']]);
+    }
+    return pairs;
+  }
+
+  return entries.map(function(e) {
+    var pairs = detailPairs(e);
+    var detailHtml = pairs.map(function(p) {
+      return '<span style="margin-right:12pt"><strong>' + esc(p[0]) + ':</strong> ' + esc(String(p[1])) + '</span>';
+    }).join('');
+    var photosHtml = '';
+    if (e.photos && e.photos.length) {
+      photosHtml = '<div style="margin-top:4pt;display:flex;gap:6pt;flex-wrap:wrap">' +
+        e.photos.map(function(f) {
+          return '<img src="/photos/' + esc(f) + '" style="width:72pt;height:72pt;object-fit:cover;border:0.5pt solid #ccc;border-radius:3pt">';
+        }).join('') +
+      '</div>';
+    }
+    return '<div style="border:0.5pt solid #ccc;border-radius:3pt;margin-bottom:6pt;overflow:hidden;page-break-inside:avoid">' +
+      '<div style="background:#f0f0f0;padding:4pt 8pt;display:flex;gap:8pt;align-items:baseline">' +
+        '<span style="font-size:7pt;font-weight:700;padding:1pt 5pt;border-radius:8pt;background:#ddd;white-space:nowrap">' + esc(e.type) + '</span>' +
+        '<span style="font-weight:700;font-size:9pt">' + esc(entryTitle(e)) + '</span>' +
+        '<span style="margin-left:auto;font-size:8pt;color:#666">' + esc(fmtDate(e.datetime)) + '</span>' +
+      '</div>' +
+      (detailHtml || photosHtml ? '<div style="padding:4pt 8pt;font-size:8pt">' + detailHtml + photosHtml + '</div>' : '') +
+    '</div>';
+  }).join('');
+}
+
 // ── End print helpers ──
 
 // Print view for the plan (PWD 885)
@@ -995,6 +1081,9 @@ app.get('/report-print/:year', (req, res) => {
   const qa = reportData.qualifyingActivities || {};
   const assoc = reportData.association || {};
   const activities = reportData;
+  const logEntries = (data.log || [])
+    .filter(function(e) { return e.datetime && e.datetime.startsWith(year); })
+    .sort(function(a, b) { return a.datetime < b.datetime ? -1 : 1; });
 
   res.send(`<!DOCTYPE html>
 <html lang="en"><head>
@@ -1043,6 +1132,10 @@ app.get('/report-print/:year', (req, res) => {
   <div class="section-head">Part IV. Wildlife Management Activities</div>
   <div style="font-size:9pt;margin-bottom:8pt">Check the activities you have implemented during the year to support each of the wildlife management activities listed in Part II.</div>
   ${renderActivitiesPrint(activities, '')}
+
+  <div class="section-head">Activity Log — ${esc(year)}</div>
+  <div style="font-size:9pt;margin-bottom:6pt">Entries recorded throughout the year. Photos are embedded below each entry.</div>
+  ${renderLogEntries(logEntries)}
 
   <div class="section-head">Part V. Supporting Documentation</div>
   <div class="box" style="min-height:80pt">Attach copies of supporting documentation such as receipts, maps, photos, etc. Use additional pages if necessary.</div>

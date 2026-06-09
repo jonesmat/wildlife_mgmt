@@ -165,9 +165,30 @@
       <!-- Harvest -->
       <div id="fields-Harvest" style="display:none">
         <div class="form-row">
-          <div class="form-group"><label>Species</label><input type="text" id="hv-species" placeholder="White-tailed deer"></div>
+          <div class="form-group">
+            <label>Species</label>
+            <select id="hv-speciesSelect" onchange="speciesSelectChange('hv')">
+              <option value="">-- Select --</option>
+              <option>White-tailed Deer</option>
+              <option>Mule Deer</option>
+              <option>Wild Turkey</option>
+              <option>Mourning Dove</option>
+              <option>White-winged Dove</option>
+              <option>Northern Bobwhite</option>
+              <option>Rio Grande Turkey</option>
+              <option>Pronghorn</option>
+              <option>Feral Hog</option>
+              <option>Aoudad</option>
+              <option>Axis Deer</option>
+              <option>Nilgai</option>
+              <option>Blackbuck</option>
+              <option>Other</option>
+            </select>
+            <input type="text" id="hv-speciesOther" placeholder="Specify species" style="display:none;margin-top:6px">
+            <input type="hidden" id="hv-species">
+          </div>
           <div class="form-group"><label>Sex</label>
-            <select id="hv-sex"><option value="">--</option><option>Buck</option><option>Doe</option><option>Unknown</option></select>
+            <select id="hv-sex"><option value="">--</option><option>Buck</option><option>Doe</option><option>Tom</option><option>Hen</option><option>Male</option><option>Female</option><option>Unknown</option></select>
           </div>
           <div class="form-group"><label>Est. Age (yrs)</label><input type="text" id="hv-age" placeholder="3.5"></div>
           <div class="form-group"><label>Weight (lbs)</label><input type="number" id="hv-weight"></div>
@@ -189,7 +210,32 @@
       <!-- Sighting -->
       <div id="fields-Sighting" style="display:none">
         <div class="form-row">
-          <div class="form-group"><label>Species</label><input type="text" id="si-species" placeholder="White-tailed deer"></div>
+          <div class="form-group">
+            <label>Species</label>
+            <select id="si-speciesSelect" onchange="speciesSelectChange('si')">
+              <option value="">-- Select --</option>
+              <option>White-tailed Deer</option>
+              <option>Mule Deer</option>
+              <option>Wild Turkey</option>
+              <option>Mourning Dove</option>
+              <option>White-winged Dove</option>
+              <option>Northern Bobwhite</option>
+              <option>Pronghorn</option>
+              <option>Feral Hog</option>
+              <option>Coyote</option>
+              <option>Axis Deer</option>
+              <option>Nilgai</option>
+              <option>Aoudad</option>
+              <option>American Alligator</option>
+              <option>Canada Goose</option>
+              <option>Sandhill Crane</option>
+              <option>Mallard</option>
+              <option>Other Waterfowl</option>
+              <option>Other</option>
+            </select>
+            <input type="text" id="si-speciesOther" placeholder="Specify species" style="display:none;margin-top:6px">
+            <input type="hidden" id="si-species">
+          </div>
           <div class="form-group"><label>Count</label><input type="number" id="si-count" min="1" value="1"></div>
           <div class="form-group"><label>Sex / Age Description</label><input type="text" id="si-sexAge" placeholder="2 bucks, 3 does"></div>
         </div>
@@ -253,7 +299,30 @@
       <!-- Predator Control -->
       <div id="fields-Predator Control" style="display:none">
         <div class="form-row">
-          <div class="form-group"><label>Species Targeted</label><input type="text" id="pc-species" placeholder="Coyote"></div>
+          <div class="form-group">
+            <label>Species Targeted</label>
+            <select id="pc-speciesSelect" onchange="speciesSelectChange('pc')">
+              <option value="">-- Select --</option>
+              <option>Coyote</option>
+              <option>Feral Hog</option>
+              <option>Raccoon</option>
+              <option>Striped Skunk</option>
+              <option>Bobcat</option>
+              <option>Mountain Lion</option>
+              <option>Rat Snake</option>
+              <option>Bull Snake</option>
+              <option>Feral Cat</option>
+              <option>Feral Dog</option>
+              <option>Brown-headed Cowbird</option>
+              <option>Common Grackle</option>
+              <option>European Starling</option>
+              <option>House Sparrow</option>
+              <option>Red Imported Fire Ant</option>
+              <option>Other</option>
+            </select>
+            <input type="text" id="pc-speciesOther" placeholder="Specify species" style="display:none;margin-top:6px">
+            <input type="hidden" id="pc-species">
+          </div>
           <div class="form-group"><label>Method</label>
             <select id="pc-method"><option value="">--</option><option>Trap</option><option>Shooting</option><option>M-44</option><option>Poison collar (1080)</option><option>Nest/egg removal</option><option>Other</option></select>
           </div>
@@ -496,8 +565,12 @@ function editEntry(id) {
     document.getElementById('f-name').value = e['f-name'] || e.name || '';
     document.getElementById('f-description').value = e['f-description'] || e.description || '';
   }
+  // Populate species dropdowns
+  populateSpeciesField('hv', e['hv-species']);
+  populateSpeciesField('pc', e['pc-species']);
+  populateSpeciesField('si', e['si-species']);
   // Photos already on server
-  pendingPhotos = (e.photos || []).map(function(f) { return { filename: f, uploaded: true }; });
+  pendingPhotos = (e.photos || []).map(function(f) { return { filename: f, uploaded: true, localUrl: '/photos/' + f }; });
   renderFormPhotos();
   document.getElementById('newEntrySection').style.display = 'block';
   document.getElementById('newEntrySection').scrollIntoView({ behavior: 'smooth' });
@@ -517,14 +590,63 @@ function resetForm() {
   document.getElementById('fDatetime').value = nowDatetimeLocal();
   document.getElementById('fType').value = 'General';
   switchType();
-  // Clear all text fields
   document.querySelectorAll('#newEntrySection input[type="text"], #newEntrySection input[type="number"], #newEntrySection textarea, #newEntrySection select').forEach(function(el) {
     if (el.id === 'fDatetime' || el.id === 'fType' || el.id === 'editingId') return;
     el.value = '';
   });
   document.getElementById('f-description').value = '';
+  ['hv','pc','si'].forEach(function(p) {
+    var o = document.getElementById(p + '-speciesOther');
+    if (o) o.style.display = 'none';
+  });
   pendingPhotos = [];
   renderFormPhotos();
+}
+
+// ── Species select+other helpers ──
+function speciesSelectChange(prefix) {
+  var sel = document.getElementById(prefix + '-speciesSelect');
+  var other = document.getElementById(prefix + '-speciesOther');
+  var hidden = document.getElementById(prefix + '-species');
+  if (sel.value === 'Other') {
+    other.style.display = '';
+    other.focus();
+    hidden.value = other.value;
+  } else {
+    other.style.display = 'none';
+    hidden.value = sel.value;
+  }
+}
+
+function populateSpeciesField(prefix, value) {
+  if (!value) return;
+  var sel = document.getElementById(prefix + '-speciesSelect');
+  var other = document.getElementById(prefix + '-speciesOther');
+  var hidden = document.getElementById(prefix + '-species');
+  if (!sel) return;
+  // Check if value matches one of the options
+  var matched = false;
+  for (var i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value === value) { sel.value = value; matched = true; break; }
+  }
+  if (!matched) {
+    sel.value = 'Other';
+    other.style.display = '';
+    other.value = value;
+  }
+  hidden.value = value;
+}
+
+function resolveSpeciesFields(entry, type) {
+  var prefixMap = { 'Harvest': 'hv', 'Predator Control': 'pc', 'Sighting': 'si' };
+  var prefix = prefixMap[type];
+  if (!prefix) return;
+  var sel = document.getElementById(prefix + '-speciesSelect');
+  var other = document.getElementById(prefix + '-speciesOther');
+  var hidden = document.getElementById(prefix + '-species');
+  if (!sel) return;
+  entry[prefix + '-species'] = (sel.value === 'Other') ? other.value : sel.value;
+  hidden.value = entry[prefix + '-species'];
 }
 
 function switchType() {
@@ -563,6 +685,7 @@ async function saveEntry() {
     entry['f-description'] = document.getElementById('f-description').value;
     entry.description = entry['f-description'];
   } else {
+    resolveSpeciesFields(entry, type);
     getTypeFields(type).forEach(function(f) {
       var el = document.getElementById(f);
       if (el) entry[f] = el.value;
@@ -612,13 +735,21 @@ async function handlePhotoFiles(input) {
     pendingPhotos.push(pending);
     renderFormPhotos();
     // Upload to server
-    var res = await (await fetch('/api/photos', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dataUrl: dataUrl, filename: file.name })
-    })).json();
-    pending.filename = res.filename;
-    pending.uploaded = true;
-    pending.localUrl = '/photos/' + res.filename;
+    try {
+      var resp = await fetch('/api/photos', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataUrl: dataUrl, filename: file.name })
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var res = await resp.json();
+      pending.filename = res.filename;
+      pending.uploaded = true;
+      pending.localUrl = '/photos/' + res.filename;
+    } catch (err) {
+      pending.error = true;
+      console.error('Photo upload failed:', err);
+      alert('Photo upload failed: ' + file.name + '\n' + err.message);
+    }
     renderFormPhotos();
   }
   input.value = '';
@@ -635,10 +766,21 @@ function readFileAsDataUrl(file) {
 function renderFormPhotos() {
   var grid = document.getElementById('formPhotoGrid');
   var html = pendingPhotos.map(function(p, i) {
-    var src = p.localUrl || (p.uploaded ? '/photos/' + p.filename : '');
+    if (p.error) {
+      return '<div class="photo-item">' +
+        '<div style="width:100px;height:100px;background:#fde8e8;border:1px solid #f5a0a0;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:#a00;text-align:center;padding:6px">Upload<br>failed</div>' +
+        '<button class="photo-remove" onclick="removeFormPhoto(' + i + ')" title="Remove">&#10005;</button>' +
+      '</div>';
+    }
+    var src = p.localUrl || '';
+    if (!src) {
+      return '<div class="photo-item">' +
+        '<div style="width:100px;height:100px;background:#f5f5f5;border:1px dashed #ccc;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;color:#999">Uploading...</div>' +
+      '</div>';
+    }
     return '<div class="photo-item">' +
       '<img src="' + src + '" onclick="openLightbox(\'' + src + '\')">' +
-      (p.uploaded ? '<button class="photo-remove" onclick="removeFormPhoto(' + i + ')" title="Remove">&#10005;</button>' : '<button class="photo-remove" style="background:#aaa" disabled>...</button>') +
+      '<button class="photo-remove" onclick="removeFormPhoto(' + i + ')" title="Remove">&#10005;</button>' +
     '</div>';
   }).join('');
   html += '<button type="button" class="photo-add-btn" onclick="document.getElementById(\'photoFileInput\').click()">' +
