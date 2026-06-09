@@ -1082,8 +1082,10 @@ app.get('/report-print/:year', (req, res) => {
   const qa = reportData.qualifyingActivities || {};
   const assoc = reportData.association || {};
   const activities = reportData;
+  const excludedIds = (reportData.excludedLogIds || []);
   const logEntries = (data.log || [])
     .filter(function(e) { return e.datetime && e.datetime.startsWith(year); })
+    .filter(function(e) { return excludedIds.indexOf(e.id) === -1; })
     .sort(function(a, b) { return a.datetime < b.datetime ? -1 : 1; });
 
   res.send(`<!DOCTYPE html>
