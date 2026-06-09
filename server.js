@@ -1155,6 +1155,17 @@ app.get('/report-print/:year', (req, res) => {
 </body></html>`);
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Wildlife Management Tool running at http://localhost:${PORT}`);
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.log(`\n Port ${PORT} is already in use.`);
+    console.log(` The app is probably already running.`);
+    console.log(` Open http://localhost:${PORT} in your browser.\n`);
+    process.exit(0);
+  } else {
+    throw err;
+  }
 });
