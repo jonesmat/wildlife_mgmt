@@ -45,6 +45,9 @@ jspm_packages/
 # Property data and uploaded photos
 data/
 
+# Portable Node.js runtime (download separately; see README)
+_runtime/
+
 # Distribution zips
 *.zip
 

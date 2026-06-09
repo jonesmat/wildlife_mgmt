@@ -7,52 +7,93 @@ throughout the year.
 
 ---
 
-## Requirements
+## Starting the App
 
-**Node.js** — the only thing you need to install.
+### Windows — double-click `start.bat`
 
-1. Go to **https://nodejs.org/en/download/**
-2. Download the **LTS** version for your operating system
-3. Run the installer (accept all defaults)
+### Mac / Linux — run `./start.sh` in a terminal
 
-You only need to do this once. Dependencies are downloaded automatically
-the first time you start the app.
+The script will:
+1. Locate Node.js (system install or bundled portable runtime — see below)
+2. Install dependencies automatically on the first run
+3. Start the server and open `http://localhost:3000` in your browser
+
+Keep the window open while using the app. Press **Ctrl+C** to stop.
 
 ---
 
-## Starting the App
+## Node.js
 
-### Windows
+The app requires Node.js. You have two options:
 
-Double-click **`start.bat`**
+### Option A — Install Node.js (recommended if you use this regularly)
 
-A command window will open and your browser will launch automatically
-at `http://localhost:3000`. Keep the command window open while you use
-the app — closing it stops the server.
+Download the **LTS** installer from **https://nodejs.org/en/download/**  
+Run it once; no further setup needed.
 
-### Mac / Linux
+### Option B — Portable runtime (no installation, no admin rights)
 
-Open a Terminal, navigate to this folder, and run:
+Download the **pre-built binary** zip/tarball and drop it into a `_runtime/`
+folder inside the app directory. The start script finds it automatically.
 
-```bash
-chmod +x start.sh   # first time only
-./start.sh
+1. Open **https://nodejs.org/en/download/prebuilt-binaries**
+2. Select your OS, x64 (or ARM64 for Apple Silicon), and the zip/tar.gz format
+3. Extract the archive into `_runtime/` so the layout looks like this:
+
+**Windows:**
+```
+wildlife_mgmt\
+  _runtime\
+    node-vXX.X.X-win-x64\    <-- extracted folder
+      node.exe
+      npm.cmd
+  start.bat
+  server.js
 ```
 
-Or right-click `start.sh` → Open With → Terminal (macOS).
+**Mac / Linux:**
+```
+wildlife_mgmt/
+  _runtime/
+    node-vXX.X.X-<os>-x64/   <-- extracted folder
+      bin/
+        node
+        npm
+  start.sh
+  server.js
+```
+
+4. Run `start.bat` / `./start.sh` — it will detect the runtime automatically.
+
+> **Note:** `_runtime/` is excluded from version control. When sharing the app
+> as a zip, include the `_runtime/` folder so the recipient can run it
+> without installing anything.
+
+---
+
+## Sharing the App
+
+To send the app to someone else:
+
+1. Zip the entire `wildlife_mgmt/` folder
+2. Include `_runtime/` if you want zero-install for the recipient (Option B above)
+3. Exclude `data/` — the recipient starts with a blank property
+
+The recipient only needs to unzip and run the start script.
 
 ---
 
 ## Your Data
 
-All property data and uploaded photos are stored in the **`data/`** folder
-inside this directory. Back this folder up to keep your records safe.
+All data is stored in the **`data/`** folder — back it up to keep your records.
 
-- `data/property.json` — plan, annual reports, and log entries
-- `data/photos/` — uploaded photos
+| Path | Contents |
+|------|----------|
+| `data/property.json` | Plan, annual reports, and log entries |
+| `data/photos/` | Uploaded photos |
 
 ---
 
 ## Stopping the App
 
-Press **Ctrl+C** in the terminal/command window, or simply close it.
+Press **Ctrl+C** in the terminal/command window, or close it.
