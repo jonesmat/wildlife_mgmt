@@ -286,7 +286,30 @@
               <option>Other</option>
             </select>
           </div>
-          <div class="form-group"><label>Target Species</label><input type="text" id="ce-species"></div>
+          <div class="form-group">
+            <label>Target Species</label>
+            <select id="ce-speciesSelect" onchange="speciesSelectChange('ce')">
+              <option value="">-- Select --</option>
+              <option>White-tailed Deer</option>
+              <option>Mule Deer</option>
+              <option>Wild Turkey</option>
+              <option>Mourning Dove</option>
+              <option>White-winged Dove</option>
+              <option>Northern Bobwhite</option>
+              <option>Pronghorn</option>
+              <option>Feral Hog</option>
+              <option>Axis Deer</option>
+              <option>Nilgai</option>
+              <option>Aoudad</option>
+              <option>American Alligator</option>
+              <option>Canada Goose</option>
+              <option>Sandhill Crane</option>
+              <option>Other Waterfowl</option>
+              <option>Other</option>
+            </select>
+            <input type="text" id="ce-speciesOther" placeholder="Specify species" style="display:none;margin-top:6px">
+            <input type="hidden" id="ce-species">
+          </div>
           <div class="form-group"><label>Route / Stand ID</label><input type="text" id="ce-route"></div>
         </div>
         <div class="form-row">
@@ -569,6 +592,7 @@ function editEntry(id) {
   populateSpeciesField('hv', e['hv-species']);
   populateSpeciesField('pc', e['pc-species']);
   populateSpeciesField('si', e['si-species']);
+  populateSpeciesField('ce', e['ce-species']);
   // Photos already on server
   pendingPhotos = (e.photos || []).map(function(f) { return { filename: f, uploaded: true, localUrl: '/photos/' + f }; });
   renderFormPhotos();
@@ -595,7 +619,7 @@ function resetForm() {
     el.value = '';
   });
   document.getElementById('f-description').value = '';
-  ['hv','pc','si'].forEach(function(p) {
+  ['hv','pc','si','ce'].forEach(function(p) {
     var o = document.getElementById(p + '-speciesOther');
     if (o) o.style.display = 'none';
   });
@@ -638,7 +662,7 @@ function populateSpeciesField(prefix, value) {
 }
 
 function resolveSpeciesFields(entry, type) {
-  var prefixMap = { 'Harvest': 'hv', 'Predator Control': 'pc', 'Sighting': 'si' };
+  var prefixMap = { 'Harvest': 'hv', 'Predator Control': 'pc', 'Sighting': 'si', 'Census': 'ce' };
   var prefix = prefixMap[type];
   if (!prefix) return;
   var sel = document.getElementById(prefix + '-speciesSelect');
