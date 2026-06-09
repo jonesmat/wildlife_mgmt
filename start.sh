@@ -70,6 +70,16 @@ if [ ! -d "node_modules" ]; then
     echo ""
 fi
 
+# ── Stop any existing instance on port 3000 ──────────────────────────────────
+
+EXISTING_PID=$(lsof -ti :3000 2>/dev/null)
+if [ -n "$EXISTING_PID" ]; then
+    echo " Restarting server..."
+    kill "$EXISTING_PID" 2>/dev/null
+    sleep 1
+    echo ""
+fi
+
 # ── Start server and open browser ────────────────────────────────────────────
 
 echo " Server starting at http://localhost:3000"

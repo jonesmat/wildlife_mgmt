@@ -75,18 +75,18 @@ if not exist "node_modules\" (
     echo.
 )
 
-:: --- Start -------------------------------------------------------------------
+:: --- Stop any existing instance on port 3000 ---------------------------------
 
-:: If something is already listening on port 3000, just open the browser
-netstat -an 2>nul | findstr /C:":3000 " | findstr /C:"LISTENING" >nul 2>nul
-if not errorlevel 1 (
-    echo  App is already running - opening browser.
+call :kill_port
+if "%KILLED%"=="1" (
+    echo  Restarting server...
     echo.
-    start http://localhost:3000
-    exit /b 0
+    timeout /t 1 /nobreak >nul
 )
 
-echo  Starting server at http://localhost:3000
+:: --- Start -------------------------------------------------------------------
+
+echo  Server starting at http://localhost:3000
 echo  Your browser will open in a moment.
 echo.
 echo  Keep this window open while using the app.
@@ -99,3 +99,16 @@ node server.js
 echo.
 echo  Server stopped.
 pause >nul
+exit /b 0
+
+:: --- Subroutine: kill whatever is on port 3000 -------------------------------
+:kill_port
+set "KILLED=0"
+for /f "tokens=5" %%P in ('netstat -ano 2^>nul ^| findstr /C:":3000 "') do (
+    echo %%P | findstr /r "^[1-9][0-9]*$" >nul 2>nul
+    if not errorlevel 1 (
+        taskkill /PID %%P /F >nul 2>nul
+        if not errorlevel 1 set "KILLED=1"
+    )
+)
+exit /b 0
