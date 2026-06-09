@@ -37,7 +37,6 @@
 .badge-Census     { background: #f0e8fd; color: #5a1a8b; }
 .badge-Predator   { background: #fde8f5; color: #8b1a6a; }
 .badge-Maintenance{ background: #e8eefd; color: #1a3a8b; }
-.badge-Weather    { background: #fdf0e8; color: #7a4010; }
 
 .entry-meta { flex: 1; min-width: 0; }
 .entry-title { font-weight: 600; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -117,7 +116,6 @@
           <option>Census</option>
           <option>Predator Control</option>
           <option>Maintenance</option>
-          <option>Weather</option>
         </select>
       </div>
       <button class="btn btn-secondary" style="width:100%;margin-top:4px" onclick="applyFilter()">Apply</button>
@@ -149,7 +147,6 @@
             <option>Census</option>
             <option>Predator Control</option>
             <option>Maintenance</option>
-            <option>Weather</option>
           </select>
         </div>
       </div>
@@ -363,19 +360,6 @@
         <div class="form-group"><label>Description &amp; Notes</label><textarea id="ma-notes" rows="2"></textarea></div>
       </div>
 
-      <!-- Weather -->
-      <div id="fields-Weather" style="display:none">
-        <div class="form-row">
-          <div class="form-group"><label>Event Type</label>
-            <select id="we-type"><option value="">--</option><option>Rain</option><option>Drought</option><option>Freeze</option><option>Fire</option><option>Flood</option><option>Severe Storm</option><option>High Wind</option><option>Other</option></select>
-          </div>
-          <div class="form-group"><label>Rainfall (inches)</label><input type="number" id="we-rainfall" step="0.01"></div>
-          <div class="form-group"><label>Severity</label>
-            <select id="we-severity"><option value="">--</option><option>Minor</option><option>Moderate</option><option>Significant</option><option>Severe</option></select>
-          </div>
-        </div>
-        <div class="form-group"><label>Observed Effects / Notes</label><textarea id="we-notes" rows="2"></textarea></div>
-      </div>
 
       <!-- Photos (all types) -->
       <div class="entry-photos-section">
@@ -520,9 +504,7 @@ function renderDetail(e) {
   } else if (e.type === 'Maintenance') {
     rows += twoCol('Item', e['ma-item'], 'Action', e['ma-action']);
     rows += labelVal('Notes', e['ma-notes']);
-  } else if (e.type === 'Weather') {
-    rows += twoCol('Event', e['we-type'], 'Severity', e['we-severity']);
-    rows += labelVal('Rainfall', e['we-rainfall'] ? e['we-rainfall'] + ' in' : '');
+
     rows += labelVal('Notes', e['we-notes']);
   }
 
@@ -675,7 +657,7 @@ function resolveSpeciesFields(entry, type) {
 
 function switchType() {
   var t = document.getElementById('fType').value;
-  var types = ['General','Harvest','Sighting','Activity','Census','Predator Control','Maintenance','Weather'];
+  var types = ['General','Harvest','Sighting','Activity','Census','Predator Control','Maintenance'];
   types.forEach(function(typ) {
     var el = document.getElementById('fields-' + typ);
     if (el) el.style.display = (typ === t) ? '' : 'none';
@@ -689,8 +671,7 @@ function getTypeFields(type) {
     'Activity':  ['ac-category','ac-name','ac-acres','ac-notes'],
     'Census':    ['ce-surveyType','ce-species','ce-route','ce-total','ce-conditions','ce-notes'],
     'Predator Control': ['pc-species','pc-method','pc-count','pc-notes'],
-    'Maintenance': ['ma-item','ma-action','ma-notes'],
-    'Weather':   ['we-type','we-rainfall','we-severity','we-notes']
+    'Maintenance': ['ma-item','ma-action','ma-notes']
   };
   return map[type] || [];
 }
@@ -841,7 +822,6 @@ function entryTitle(e) {
   if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
   if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
   if (e.type === 'Maintenance') return (e['ma-item'] || 'Maintenance');
-  if (e.type === 'Weather') return (e['we-type'] || 'Weather') + (e['we-severity'] ? ' — ' + e['we-severity'] : '');
   return e.type;
 }
 

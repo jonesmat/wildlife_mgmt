@@ -828,7 +828,6 @@ function renderLogEntries(entries) {
     if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
     if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
     if (e.type === 'Maintenance') return e['ma-item'] || 'Maintenance';
-    if (e.type === 'Weather') return (e['we-type'] || 'Weather') + (e['we-severity'] ? ' — ' + e['we-severity'] : '');
     return e.type;
   }
 
@@ -871,9 +870,6 @@ function renderLogEntries(entries) {
     } else if (e.type === 'Maintenance') {
       if (e['ma-action']) pairs.push(['Action', e['ma-action']]);
       if (e['ma-notes']) pairs.push(['Notes', e['ma-notes']]);
-    } else if (e.type === 'Weather') {
-      if (e['we-rainfall']) pairs.push(['Rainfall', e['we-rainfall'] + ' in']);
-      if (e['we-notes']) pairs.push(['Notes', e['we-notes']]);
     }
     return pairs;
   }

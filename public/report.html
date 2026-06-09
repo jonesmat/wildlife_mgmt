@@ -208,7 +208,7 @@ var ALL_LOG_ENTRIES = [];
 var TYPE_COLORS = {
   'General':'#1a4a1a', 'Harvest':'#8b1a1a', 'Sighting':'#1a398b',
   'Activity':'#8b5a1a', 'Census':'#5a1a8b', 'Predator Control':'#8b1a6a',
-  'Maintenance':'#1a3a8b', 'Weather':'#7a4010'
+  'Maintenance':'#1a3a8b'
 };
 
 async function loadLogEntries() {
@@ -345,7 +345,6 @@ function entryTitle(e) {
   if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
   if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
   if (e.type === 'Maintenance') return e['ma-item'] || 'Maintenance';
-  if (e.type === 'Weather') return (e['we-type'] || 'Weather') + (e['we-severity'] ? ' — ' + e['we-severity'] : '');
   return e.type;
 }
 
@@ -379,9 +378,6 @@ function entryDetailLines(e) {
   } else if (e.type === 'Maintenance') {
     if (e['ma-action']) pairs.push(['Action', e['ma-action']]);
     if (e['ma-notes']) pairs.push(['Notes', e['ma-notes']]);
-  } else if (e.type === 'Weather') {
-    if (e['we-rainfall']) pairs.push(['Rainfall', e['we-rainfall'] + ' in']);
-    if (e['we-notes']) pairs.push(['Notes', e['we-notes']]);
   }
   return pairs.map(function(p) {
     return '<span style="color:#777;font-size:0.78rem;font-weight:600">' + escHtml(p[0]) + ':</span> ' + escHtml(p[1]) + '&nbsp;&nbsp;';
