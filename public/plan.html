@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wildlife Management Plan - PWD 885</title>
+<link rel="stylesheet" href="/form-shared.css">
+</head>
+<body>
+<header>
+  <h1>Wildlife Management Plan (PWD 885-W7000)</h1>
+  <div class="header-actions">
+    <span class="saved-indicator" id="savedIndicator"></span>
+    <button class="btn btn-white" onclick="saveData()">Save</button>
+    <button class="btn btn-secondary" onclick="window.open('/plan-print','_blank')">Generate PDF</button>
+    <a href="/" class="btn btn-white">Home</a>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">Plan</div>
+    <div class="sidebar-item active" data-target="owner" onclick="navTo('owner')">I. Owner Information</div>
+    <div class="sidebar-item" data-target="property" onclick="navTo('property')">II. Property Description</div>
+    <div class="sidebar-item" data-target="species" onclick="navTo('species')">III. Target Species</div>
+    <div class="sidebar-item" data-target="goals" onclick="navTo('goals')">IV. Goals &amp; Objectives</div>
+    <div class="sidebar-item" data-target="qualifying" onclick="navTo('qualifying')">V. Qualifying Activities</div>
+    <div class="sidebar-item" data-target="deer" onclick="navTo('deer')">VI. Deer Management</div>
+    <div class="sidebar-item" data-target="association" onclick="navTo('association')">VII. Association</div>
+    <div class="sidebar-section">Activities (Part VIII)</div>
+    <div class="sidebar-item" data-target="habitat" onclick="navTo('habitat')">1. Habitat Control</div>
+    <div class="sidebar-item" data-target="erosion" onclick="navTo('erosion')">2. Erosion Control</div>
+    <div class="sidebar-item" data-target="predator" onclick="navTo('predator')">3. Predator Control</div>
+    <div class="sidebar-item" data-target="water" onclick="navTo('water')">4. Supplemental Water</div>
+    <div class="sidebar-item" data-target="food" onclick="navTo('food')">5. Supplemental Food</div>
+    <div class="sidebar-item" data-target="shelter" onclick="navTo('shelter')">6. Supplemental Shelter</div>
+    <div class="sidebar-item" data-target="census" onclick="navTo('census')">7. Census</div>
+  </nav>
+
+  <main class="main" id="mainContent">
+    <!-- I. Owner Information -->
+    <div class="section" id="owner">
+      <div class="section-title">Part I. Owner Information</div>
+      <div class="row">
+        <div class="form-group"><label>Owner's Name</label><input type="text" data-path="plan.owner.name"></div>
+        <div class="form-group"><label>Account Number</label><input type="text" data-path="plan.owner.accountNumber"><div class="hint">Your county appraisal district (CAD) account number for this property</div></div>
+      </div>
+      <div class="form-group"><label>Current Mailing Address</label><input type="text" data-path="plan.owner.address"></div>
+      <div class="row">
+        <div class="form-group" style="flex:2"><label>City, State, Zip</label><input type="text" data-path="plan.owner.cityStateZip"></div>
+        <div class="form-group"><label>Phone Number</label><input type="text" data-path="plan.owner.phone"></div>
+      </div>
+      <div class="row">
+        <div class="form-group"><label>Tract Name</label><input type="text" data-path="plan.owner.tractName"></div>
+        <div class="form-group"><label>Majority County</label><input type="text" data-path="plan.owner.majorityCounty"></div>
+        <div class="form-group"><label>Additional Counties</label><input type="text" data-path="plan.owner.additionalCounties"></div>
+      </div>
+    </div>
+
+    <!-- II. Property Description -->
+    <div class="section" id="property">
+      <div class="section-title">Part II. Property Description</div>
+      <div class="form-group"><label>Legal Description of Property</label><input type="text" data-path="plan.property.legalDescription"><div class="hint">As it appears on the deed or county appraisal records (e.g., Abstract 123, Survey Name, County)</div></div>
+      <div class="form-group"><label>Location (distance/direction from nearest town, highway/road numbers)</label><textarea data-path="plan.property.location" style="min-height:60px"></textarea><div class="hint">Example: "5 miles northeast of Uvalde on FM 117, then 2 miles east on County Road 422"</div></div>
+      <div class="row">
+        <div class="form-group">
+          <label>Is Acreage Under High Fence?</label>
+          <div class="radio-group">
+            <label class="radio-item"><input type="radio" name="highFence" value="yes" data-path="plan.property.highFence"> Yes</label>
+            <label class="radio-item"><input type="radio" name="highFence" value="no" data-path="plan.property.highFence"> No</label>
+            <label class="radio-item"><input type="radio" name="highFence" value="partial" data-path="plan.property.highFence"> Partial</label>
+          </div>
+        </div>
+        <div class="form-group" id="highFenceDesc" style="display:none">
+          <label>Description</label><input type="text" data-path="plan.property.highFenceDescription"><div class="hint">Describe which portions or pastures are enclosed by high fence</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="form-group"><label>Total Acreage</label><input type="number" data-path="plan.property.totalAcreage" step="0.1"><div class="hint">Total acres under this wildlife management plan</div></div>
+        <div class="form-group" style="flex:2"><label>Ecoregion <span style="font-weight:normal;color:#666">(refer to Comprehensive Wildlife Management Planning Guidelines)</span></label><input type="text" data-path="plan.property.ecoregion"><div class="hint">See the TPWD Comprehensive Wildlife Management Planning Guidelines map. Examples: Edwards Plateau, Rolling Plains, South Texas Plains, Post Oak Savanna</div></div>
+      </div>
+      <div class="form-group">
+        <label>Habitat Types and Amounts of Acres</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+          <div class="checkbox-item"><input type="checkbox" data-path="plan.property.habitatTypes.cropland" id="hCropland"><label for="hCropland">Cropland</label><input type="number" data-path="plan.property.habitatTypes.croplandAcres" placeholder="acres" style="width:80px;margin-left:8px;padding:3px 6px;border:1px solid #ccc;border-radius:3px"></div>
+          <div class="checkbox-item"><input type="checkbox" data-path="plan.property.habitatTypes.bottomlandRiparian" id="hBottomland"><label for="hBottomland">Bottomland/Riparian (Native)</label><input type="number" data-path="plan.property.habitatTypes.bottomlandRiparianAcres" placeholder="acres" style="width:80px;margin-left:8px;padding:3px 6px;border:1px solid #ccc;border-radius:3px"></div>
+          <div class="checkbox-item"><input type="checkbox" data-path="plan.property.habitatTypes.wetlands" id="hWetlands"><label for="hWetlands">Wetlands</label><input type="number" data-path="plan.property.habitatTypes.wetlandsAcres" placeholder="acres" style="width:80px;margin-left:8px;padding:3px 6px;border:1px solid #ccc;border-radius:3px"></div>
+          <div class="checkbox-item"><input type="checkbox" data-path="plan.property.habitatTypes.nonNativePasture" id="hNonNative"><label for="hNonNative">Non-native Pasture</label><input type="number" data-path="plan.property.habitatTypes.nonNativePastureAcres" placeholder="acres" style="width:80px;margin-left:8px;padding:3px 6px;border:1px solid #ccc;border-radius:3px"></div>
+          <div class="checkbox-item"><input type="checkbox" data-path="plan.property.habitatTypes.pastureGrassland" id="hPasture"><label for="hPasture">Pasture/Grassland</label><input type="number" data-path="plan.property.habitatTypes.pastureGrasslandAcres" placeholder="acres" style="width:80px;margin-left:8px;padding:3px 6px;border:1px solid #ccc;border-radius:3px"></div>
+          <div class="checkbox-item"><input type="checkbox" data-path="plan.property.habitatTypes.timberlands" id="hTimber"><label for="hTimber">Timberlands</label><input type="number" data-path="plan.property.habitatTypes.timberlandsAcres" placeholder="acres" style="width:80px;margin-left:8px;padding:3px 6px;border:1px solid #ccc;border-radius:3px"></div>
+          <div class="checkbox-item"><input type="checkbox" data-path="plan.property.habitatTypes.nativeRangeBrush" id="hNativeRange"><label for="hNativeRange">Native Range/Brush</label><input type="number" data-path="plan.property.habitatTypes.nativeRangeBrushAcres" placeholder="acres" style="width:80px;margin-left:8px;padding:3px 6px;border:1px solid #ccc;border-radius:3px"></div>
+          <div class="checkbox-item"><input type="checkbox" data-path="plan.property.habitatTypes.other" id="hOther"><label for="hOther">Other:</label><input type="text" data-path="plan.property.habitatTypes.otherDescription" placeholder="describe" style="width:120px;margin-left:8px;padding:3px 6px;border:1px solid #ccc;border-radius:3px"><input type="number" data-path="plan.property.habitatTypes.otherAcres" placeholder="acres" style="width:80px;margin-left:4px;padding:3px 6px;border:1px solid #ccc;border-radius:3px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- III. Species -->
+    <div class="section" id="species">
+      <div class="section-title">Part III. Species Targeted for Management</div>
+      <div class="hint-block">Check all species you intend to actively manage. Your management activities in Part VIII should support the species you list here. Attach additional pages if needed.</div>
+      <div class="checkbox-grid">
+        <label class="checkbox-item"><input type="checkbox" data-path="plan.species.deer"> Deer</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="plan.species.turkey"> Turkey</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="plan.species.quail"> Quail</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="plan.species.songbirds"> Songbirds</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="plan.species.waterfowl"> Waterfowl</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="plan.species.doves"> Doves</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="plan.species.bats"> Bats</label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div class="form-group"><label><input type="checkbox" data-path="plan.species.neotropical"> Neotropical Songbirds (list)</label><input type="text" data-path="plan.species.neotropical_list"></div>
+        <div class="form-group"><label><input type="checkbox" data-path="plan.species.reptiles"> Reptiles (list)</label><input type="text" data-path="plan.species.reptiles_list"></div>
+        <div class="form-group"><label><input type="checkbox" data-path="plan.species.amphibians"> Amphibians (list)</label><input type="text" data-path="plan.species.amphibians_list"></div>
+        <div class="form-group"><label><input type="checkbox" data-path="plan.species.smallMammals"> Small Mammals (list)</label><input type="text" data-path="plan.species.smallMammals_list"></div>
+        <div class="form-group"><label><input type="checkbox" data-path="plan.species.insects"> Insects (list)</label><input type="text" data-path="plan.species.insects_list"></div>
+        <div class="form-group"><label><input type="checkbox" data-path="plan.species.speciesOfConcern"> Identified Species of Concern (list)</label><input type="text" data-path="plan.species.speciesOfConcern_list"></div>
+        <div class="form-group"><label><input type="checkbox" data-path="plan.species.other"> Other (list)</label><input type="text" data-path="plan.species.other_list"></div>
+      </div>
+    </div>
+
+    <!-- IV. Goals -->
+    <div class="section" id="goals">
+      <div class="section-title">Part IV. Management Plan Goals and Objectives</div>
+      <div class="hint-block">
+        <strong>Goals</strong> — what you want the property to look like or what you want to be able to do with it.<br>
+        <strong>Objectives</strong> — specific, measurable actions you will take to achieve those goals.<br>
+        Example: <em>"Goal: Maintain a healthy white-tailed deer population at 1 deer per 30 acres with a 1:1 sex ratio. Objective: Implement a trophy deer management program harvesting 3 does and 2 spike bucks annually, maintain 4 protein feeders year-round, and conduct 3 spotlight surveys each fall."</em>
+      </div>
+      <div class="form-group"><textarea data-path="plan.goals" style="min-height:160px"></textarea></div>
+    </div>
+
+    <!-- V. Qualifying Activities -->
+    <div class="section" id="qualifying">
+      <div class="section-title">Part V. Qualifying Wildlife Management Activities</div>
+      <div class="hint-block">A minimum of <strong>three (3)</strong> qualifying practices must be implemented each year to maintain wildlife management valuation. Check all you plan to implement this coming year. The detailed activities in Part VIII should correspond to what you check here.</div>
+      <div class="checkbox-grid" style="flex-direction:column;gap:8px">
+        <label class="checkbox-item"><input type="checkbox" data-path="plan.qualifyingActivities.habitatControl"> Habitat control</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="plan.qualifyingActivities.erosionControl"> Erosion control</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="plan.qualifyingActivities.predatorControl"> Predator control</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="plan.qualifyingActivities.censusCountsPopulation"> Making census counts to determine population</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="plan.qualifyingActivities.supplementalWater"> Provide supplemental supplies of water</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="plan.qualifyingActivities.supplementalFood"> Provide supplemental supplies of food</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="plan.qualifyingActivities.supplementalShelter"> Provide shelters</label>
+      </div>
+    </div>
+
+    <!-- VI. Deer Management -->
+    <div class="section" id="deer">
+      <div class="section-title">Part VI. White-tail Deer and Mule Deer Population Management</div>
+      <div class="hint-block">Complete this section only if deer are among your target species. Harvest history and population goals help the appraiser understand your management approach over time.</div>
+      <div class="form-group">
+        <label>Is hunting to be a part of this wildlife management plan?</label>
+        <div class="radio-group">
+          <label class="radio-item"><input type="radio" name="huntingIncluded" value="true" data-path="plan.deerManagement.huntingIncluded"> Yes</label>
+          <label class="radio-item"><input type="radio" name="huntingIncluded" value="false" data-path="plan.deerManagement.huntingIncluded"> No</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>If YES, type of hunting:</label>
+        <div class="radio-group">
+          <label class="radio-item"><input type="radio" name="huntingType" value="lease" data-path="plan.deerManagement.huntingType"> Lease hunting</label>
+          <label class="radio-item"><input type="radio" name="huntingType" value="family" data-path="plan.deerManagement.huntingType"> Family/guests only</label>
+          <label class="radio-item"><input type="radio" name="huntingType" value="both" data-path="plan.deerManagement.huntingType"> Both</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>List deer harvest for past three seasons:</label>
+        <div class="hint">Enter the three most recent hunting seasons. If no harvest occurred, enter 0. Leave blank if no hunting history exists.</div>
+        <table class="harvest-table">
+          <tr><th>Year</th><th>Bucks</th><th>Does</th></tr>
+          <tr><td><input type="text" data-path="plan.deerManagement.harvestHistory.0.year"></td><td><input type="number" data-path="plan.deerManagement.harvestHistory.0.bucks"></td><td><input type="number" data-path="plan.deerManagement.harvestHistory.0.does"></td></tr>
+          <tr><td><input type="text" data-path="plan.deerManagement.harvestHistory.1.year"></td><td><input type="number" data-path="plan.deerManagement.harvestHistory.1.bucks"></td><td><input type="number" data-path="plan.deerManagement.harvestHistory.1.does"></td></tr>
+          <tr><td><input type="text" data-path="plan.deerManagement.harvestHistory.2.year"></td><td><input type="number" data-path="plan.deerManagement.harvestHistory.2.bucks"></td><td><input type="number" data-path="plan.deerManagement.harvestHistory.2.does"></td></tr>
+        </table>
+      </div>
+      <div class="section-subtitle">Population Management Goals</div>
+      <div class="row">
+        <div class="form-group"><label>Target Density (fall pre-season)</label><input type="text" data-path="plan.deerManagement.targetDensity"><div class="hint">Acres per deer, e.g. "1 deer/50 ac" or "30 deer total"</div></div>
+        <div class="form-group"><label>Target Sex Ratio (does/buck)</label><input type="text" data-path="plan.deerManagement.targetSexRatio"><div class="hint">Adult does per antlered buck, e.g. "1.5:1"</div></div>
+        <div class="form-group"><label>Target Production (fawns/doe)</label><input type="text" data-path="plan.deerManagement.targetProduction"><div class="hint">Average fawns per adult doe per year, e.g. "0.8"</div></div>
+      </div>
+      <div class="form-group"><label>Other Goals (age, weight, antler measurements, browse conditions, etc.)</label><input type="text" data-path="plan.deerManagement.otherGoals"><div class="hint">Examples: minimum age at harvest (3.5+ years), minimum Boone &amp; Crockett score, desired browse utilization level</div></div>
+      <div class="form-group"><label>Deer Harvest Strategy (numbers, types of deer to be harvested to achieve goals)</label><textarea data-path="plan.deerManagement.harvestStrategy" style="min-height:60px"></textarea><div class="hint">Example: "Harvest 4 does and 2 bucks (spikes or 3.5+ year class only) to maintain target density and sex ratio"</div></div>
+    </div>
+
+    <!-- VII. Association -->
+    <div class="section" id="association">
+      <div class="section-title">Part VII. Wildlife Management Association Membership</div>
+      <div class="form-group">
+        <label>Are you a member of a wildlife management association (co-op)?</label>
+        <div class="radio-group">
+          <label class="radio-item"><input type="radio" name="mgmtAssoc" value="true" data-path="plan.association.managementAssociation"> Yes</label>
+          <label class="radio-item"><input type="radio" name="mgmtAssoc" value="false" data-path="plan.association.managementAssociation"> No</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Are you a member of a wildlife property association?</label>
+        <div class="radio-group">
+          <label class="radio-item"><input type="radio" name="propAssoc" value="true" data-path="plan.association.propertyAssociation"> Yes</label>
+          <label class="radio-item"><input type="radio" name="propAssoc" value="false" data-path="plan.association.propertyAssociation"> No</label>
+        </div>
+      </div>
+      <div class="form-group"><label>Name of wildlife property co-op/association (if Yes)</label><input type="text" data-path="plan.association.associationName"></div>
+    </div>
+
+    <!-- Part VIII Activities - shared via include -->
+    <div id="activitiesSection"></div>
+
+  </main>
+</div>
+
+<script src="/activities-form.js"></script>
+<script>
+let appData = {};
+
+async function init() {
+  const res = await fetch('/api/data');
+  appData = await res.json();
+  populateForm(appData);
+  renderActivities('activities', appData.activities);
+  setupHighFence();
+  setupAutoSave();
+  setupScrollSpy();
+}
+
+function getNestedValue(obj, path) {
+  return path.split('.').reduce((o, k) => (o && o[k] !== undefined ? o[k] : ''), obj);
+}
+
+function setNestedValue(obj, path, value) {
+  const keys = path.split('.');
+  let cur = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    if (cur[keys[i]] === undefined) cur[keys[i]] = {};
+    cur = cur[keys[i]];
+  }
+  cur[keys[keys.length - 1]] = value;
+}
+
+function populateForm(data) {
+  document.querySelectorAll('[data-path]').forEach(el => {
+    const path = el.getAttribute('data-path');
+    const val = getNestedValue(data, path);
+    if (el.type === 'checkbox') el.checked = !!val;
+    else if (el.type === 'radio') el.checked = (String(val) === el.value);
+    else el.value = val || '';
+  });
+}
+
+function collectForm(data) {
+  document.querySelectorAll('[data-path]').forEach(el => {
+    const path = el.getAttribute('data-path');
+    let val;
+    if (el.type === 'checkbox') val = el.checked;
+    else if (el.type === 'radio') { if (!el.checked) return; val = el.value; }
+    else val = el.value;
+    setNestedValue(data, path, val);
+  });
+  return data;
+}
+
+async function saveData() {
+  collectForm(appData);
+  await fetch('/api/data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(appData)
+  });
+  const ind = document.getElementById('savedIndicator');
+  ind.textContent = 'Saved';
+  setTimeout(() => ind.textContent = '', 2000);
+}
+
+function setupHighFence() {
+  document.querySelectorAll('[name="highFence"]').forEach(r => {
+    r.addEventListener('change', () => {
+      document.getElementById('highFenceDesc').style.display =
+        document.querySelector('[name="highFence"]:checked')?.value === 'partial' ? 'block' : 'none';
+    });
+  });
+  const val = getNestedValue(appData, 'plan.property.highFence');
+  if (val === 'partial') document.getElementById('highFenceDesc').style.display = 'block';
+}
+
+function navTo(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth' });
+  setActiveNav(id);
+}
+
+function setActiveNav(id) {
+  document.querySelectorAll('.sidebar-item').forEach(el => {
+    el.classList.toggle('active', el.getAttribute('data-target') === id);
+  });
+}
+
+function setupScrollSpy() {
+  const sections = document.querySelectorAll('.section[id]');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) setActiveNav(entry.target.id);
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+}
+
+function setupAutoSave() {
+  let timer;
+  document.addEventListener('change', () => {
+    clearTimeout(timer);
+    timer = setTimeout(saveData, 1500);
+  });
+}
+
+init();
+</script>
+</body>
+</html>

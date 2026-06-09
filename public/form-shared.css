@@ -1,0 +1,112 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #f0f2f5; color: #222; font-size: 14px; }
+header {
+  background: #1a4a1a; color: white; padding: 12px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 { font-size: 1.1rem; }
+.header-actions { display: flex; gap: 8px; }
+
+.layout { display: flex; min-height: calc(100vh - 48px); }
+
+.sidebar {
+  width: 220px; background: #fff; border-right: 1px solid #ddd;
+  position: sticky; top: 48px; height: calc(100vh - 48px); overflow-y: auto;
+  flex-shrink: 0;
+}
+.sidebar-item {
+  padding: 10px 16px; cursor: pointer; border-left: 3px solid transparent;
+  font-size: 0.85rem; color: #444; transition: all 0.1s;
+}
+.sidebar-item:hover { background: #f5f5f5; }
+.sidebar-item.active { background: #f0f7f0; border-left-color: #1a4a1a; color: #1a4a1a; font-weight: 600; }
+.sidebar-section {
+  padding: 8px 16px 4px; font-size: 0.7rem; font-weight: 700; color: #999;
+  text-transform: uppercase; letter-spacing: 0.5px; margin-top: 8px;
+}
+
+.main { flex: 1; padding: 24px; max-width: 800px; }
+
+.section { margin-bottom: 32px; scroll-margin-top: 60px; }
+.section-title {
+  font-size: 1.05rem; font-weight: 700; color: #1a4a1a;
+  padding-bottom: 8px; border-bottom: 2px solid #1a4a1a;
+  margin-bottom: 16px;
+}
+.section-subtitle {
+  font-size: 0.85rem; font-weight: 700; color: #333;
+  margin: 12px 0 8px; background: #e8f0e8; padding: 6px 10px; border-radius: 4px;
+}
+
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; color: #333; }
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group input[type="date"],
+.form-group select,
+.form-group textarea {
+  width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px;
+  font-size: 0.9rem; font-family: Arial, sans-serif;
+}
+.form-group textarea { min-height: 80px; resize: vertical; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  outline: none; border-color: #1a4a1a; box-shadow: 0 0 0 2px rgba(26,74,26,0.15);
+}
+
+.row { display: flex; gap: 12px; flex-wrap: wrap; }
+.row .form-group { flex: 1; min-width: 140px; }
+.row .form-group.w-full { flex: 100%; }
+
+.checkbox-grid { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 6px 0; }
+.checkbox-item { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+.checkbox-item input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: #1a4a1a; }
+.checkbox-item label { cursor: pointer; }
+
+.radio-group { display: flex; gap: 20px; flex-wrap: wrap; margin: 6px 0; }
+.radio-item { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+.radio-item input[type="radio"] { accent-color: #1a4a1a; }
+
+.sub-section {
+  border: 1px solid #ddd; border-radius: 6px; padding: 12px; margin-bottom: 10px;
+  background: #fafafa;
+}
+.sub-section.disabled { opacity: 0.5; pointer-events: none; }
+
+.indent { margin-left: 24px; }
+.indent2 { margin-left: 48px; }
+
+.conditional { display: none; margin-top: 10px; padding: 10px; background: #f5f8f5; border-radius: 4px; border-left: 3px solid #1a4a1a; }
+
+.btn {
+  padding: 10px 20px; border-radius: 5px; font-size: 0.9rem; font-weight: 600;
+  cursor: pointer; border: none; transition: background 0.15s;
+}
+.btn-primary { background: #1a4a1a; color: white; }
+.btn-primary:hover { background: #256325; }
+.btn-secondary { background: #e8f0e8; color: #1a4a1a; }
+.btn-secondary:hover { background: #d0e4d0; }
+.btn-white { background: rgba(255,255,255,0.9); color: #1a4a1a; }
+.btn-white:hover { background: white; }
+
+.saved-indicator {
+  font-size: 0.8rem; color: rgba(255,255,255,0.7); transition: opacity 0.3s;
+}
+
+.hint {
+  font-size: 0.78rem; color: #666; margin-top: 3px; line-height: 1.4;
+  font-style: italic;
+}
+.hint-block {
+  font-size: 0.82rem; color: #555; background: #f0f7f0; border-left: 3px solid #5a9a5a;
+  padding: 6px 10px; border-radius: 0 4px 4px 0; margin: 6px 0 10px;
+  line-height: 1.5;
+}
+
+.harvest-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.harvest-table th {
+  background: #e8f0e8; padding: 6px 10px; text-align: left;
+  font-size: 0.85rem; border: 1px solid #ccc;
+}
+.harvest-table td { border: 1px solid #ccc; padding: 4px; }
+.harvest-table td input { border: none; width: 100%; padding: 4px 6px; background: transparent; }

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wildlife Management Annual Report - PWD 888</title>
+<link rel="stylesheet" href="/form-shared.css">
+</head>
+<body>
+<header>
+  <h1 id="pageTitle">Wildlife Management Annual Report (PWD 888-W7000)</h1>
+  <div class="header-actions">
+    <span class="saved-indicator" id="savedIndicator"></span>
+    <button class="btn btn-white" onclick="saveData()">Save</button>
+    <button class="btn btn-secondary" id="pdfBtn">Generate PDF</button>
+    <a href="/" class="btn btn-white">Home</a>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">Report</div>
+    <div class="sidebar-item active" data-target="owner" onclick="navTo('owner')">I. Owner Information</div>
+    <div class="sidebar-item" data-target="qualifying" onclick="navTo('qualifying')">II. Qualifying Activities</div>
+    <div class="sidebar-item" data-target="association" onclick="navTo('association')">III. Association</div>
+    <div class="sidebar-section">Activities (Part IV)</div>
+    <div class="sidebar-item" data-target="habitat" onclick="navTo('habitat')">1. Habitat Control</div>
+    <div class="sidebar-item" data-target="erosion" onclick="navTo('erosion')">2. Erosion Control</div>
+    <div class="sidebar-item" data-target="predator" onclick="navTo('predator')">3. Predator Control</div>
+    <div class="sidebar-item" data-target="water" onclick="navTo('water')">4. Supplemental Water</div>
+    <div class="sidebar-item" data-target="food" onclick="navTo('food')">5. Supplemental Food</div>
+    <div class="sidebar-item" data-target="shelter" onclick="navTo('shelter')">6. Supplemental Shelter</div>
+    <div class="sidebar-item" data-target="census" onclick="navTo('census')">7. Census</div>
+    <div class="sidebar-section">Log Entries</div>
+    <div class="sidebar-item" data-target="logEntries" onclick="navTo('logEntries')">Activity Log</div>
+  </nav>
+
+  <main class="main">
+    <!-- I. Owner Info (read from plan, display only) -->
+    <div class="section" id="owner">
+      <div class="section-title">Part I. Owner Information</div>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:12px">Owner information is pulled from your Wildlife Management Plan. Edit it there if needed.</p>
+      <div style="background:#f5f8f5;border:1px solid #ccc;border-radius:6px;padding:14px;font-size:0.9rem;line-height:1.8">
+        <div><strong>Owner:</strong> <span id="dispName"></span> &nbsp;&nbsp; <strong>Account #:</strong> <span id="dispAccount"></span></div>
+        <div><strong>Address:</strong> <span id="dispAddress"></span>, <span id="dispCity"></span></div>
+        <div><strong>Phone:</strong> <span id="dispPhone"></span></div>
+        <div><strong>Tract:</strong> <span id="dispTract"></span> &nbsp;&nbsp; <strong>County:</strong> <span id="dispCounty"></span></div>
+      </div>
+    </div>
+
+    <!-- II. Qualifying Activities -->
+    <div class="section" id="qualifying">
+      <div class="section-title">Part II. Qualifying Wildlife Management Activities</div>
+      <div class="hint-block">Check all practices actually implemented during the reporting year. A minimum of <strong>three (3)</strong> is required. Only check what was actually done — not what was planned. Supporting documentation (receipts, photos, logs) should be attached.</div>
+      <div class="checkbox-grid" style="flex-direction:column;gap:8px">
+        <label class="checkbox-item"><input type="checkbox" data-path="qualifyingActivities.habitatControl"> Habitat control</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="qualifyingActivities.erosionControl"> Erosion control</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="qualifyingActivities.predatorControl"> Predator control</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="qualifyingActivities.censusCountsPopulation"> Making census counts to determine population</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="qualifyingActivities.supplementalWater"> Provide supplemental supplies of water</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="qualifyingActivities.supplementalFood"> Provide supplemental supplies of food</label>
+        <label class="checkbox-item"><input type="checkbox" data-path="qualifyingActivities.supplementalShelter"> Provide shelters</label>
+      </div>
+    </div>
+
+    <!-- III. Association -->
+    <div class="section" id="association">
+      <div class="section-title">Part III. Wildlife Management Association Membership</div>
+      <div class="form-group">
+        <label>Are you a member of a wildlife property association?</label>
+        <div class="radio-group">
+          <label class="radio-item"><input type="radio" name="propAssoc" value="true" data-path="association.propertyAssociation"> Yes</label>
+          <label class="radio-item"><input type="radio" name="propAssoc" value="false" data-path="association.propertyAssociation"> No</label>
+        </div>
+      </div>
+      <div class="form-group"><label>Name of wildlife property co-op/association (if Yes)</label><input type="text" data-path="association.associationName"></div>
+    </div>
+
+    <!-- Part IV Activities -->
+    <div id="activitiesSection"></div>
+
+    <!-- Activity Log Entries -->
+    <div class="section" id="logEntries">
+      <div class="section-title">Activity Log Entries</div>
+      <div class="hint-block">All log entries recorded during <span id="logYearLabel"></span>. Edit entries in the <a href="/log" target="_blank">Activity Log</a>. These will be included in the printed report.</div>
+      <div id="logEntriesBody" style="margin-top:12px">
+        <div style="color:#999;font-size:0.9rem">Loading...</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/activities-form.js"></script>
+<script>
+const year = location.pathname.split('/').pop();
+document.getElementById('pageTitle').textContent = `${year} Annual Report (PWD 888-W7000)`;
+document.getElementById('pdfBtn').onclick = () => window.open(`/report-print/${year}`, '_blank');
+
+let reportData = {};
+let planOwner = {};
+
+async function init() {
+  const allData = await (await fetch('/api/data')).json();
+  planOwner = allData.plan.owner;
+
+  // Fill owner display
+  document.getElementById('dispName').textContent = planOwner.name;
+  document.getElementById('dispAccount').textContent = planOwner.accountNumber;
+  document.getElementById('dispAddress').textContent = planOwner.address;
+  document.getElementById('dispCity').textContent = planOwner.cityStateZip;
+  document.getElementById('dispPhone').textContent = planOwner.phone;
+  document.getElementById('dispTract').textContent = planOwner.tractName;
+  document.getElementById('dispCounty').textContent = planOwner.majorityCounty;
+
+  reportData = (allData.reports && allData.reports[year]) || {};
+  renderActivities('', reportData);
+  populateForm(reportData);
+  setupAutoSave();
+  setupScrollSpy();
+  loadLogEntries();
+}
+
+function getNestedValue(obj, path) {
+  return path.split('.').reduce((o, k) => (o && o[k] !== undefined ? o[k] : ''), obj);
+}
+
+function setNestedValue(obj, path, value) {
+  const keys = path.split('.');
+  let cur = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    if (cur[keys[i]] === undefined) cur[keys[i]] = {};
+    cur = cur[keys[i]];
+  }
+  cur[keys[keys.length - 1]] = value;
+}
+
+function populateForm(data) {
+  document.querySelectorAll('[data-path]').forEach(el => {
+    const path = el.getAttribute('data-path');
+    const val = getNestedValue(data, path);
+    if (el.type === 'checkbox') el.checked = !!val;
+    else if (el.type === 'radio') el.checked = (String(val) === el.value);
+    else el.value = val || '';
+  });
+}
+
+function collectForm(data) {
+  document.querySelectorAll('[data-path]').forEach(el => {
+    const path = el.getAttribute('data-path');
+    let val;
+    if (el.type === 'checkbox') val = el.checked;
+    else if (el.type === 'radio') { if (!el.checked) return; val = el.value; }
+    else val = el.value;
+    setNestedValue(data, path, val);
+  });
+  return data;
+}
+
+async function saveData() {
+  collectForm(reportData);
+  await fetch(`/api/reports/${year}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(reportData)
+  });
+  const ind = document.getElementById('savedIndicator');
+  ind.textContent = 'Saved';
+  setTimeout(() => ind.textContent = '', 2000);
+}
+
+function navTo(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth' });
+  setActiveNav(id);
+}
+
+function setActiveNav(id) {
+  document.querySelectorAll('.sidebar-item').forEach(el => {
+    el.classList.toggle('active', el.getAttribute('data-target') === id);
+  });
+}
+
+function setupScrollSpy() {
+  const sections = document.querySelectorAll('.section[id]');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) setActiveNav(entry.target.id);
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+}
+
+function setupAutoSave() {
+  let timer;
+  document.addEventListener('change', () => {
+    clearTimeout(timer);
+    timer = setTimeout(saveData, 1500);
+  });
+}
+
+async function loadLogEntries() {
+  document.getElementById('logYearLabel').textContent = year;
+  var entries = await (await fetch('/api/log')).json();
+  entries = entries.filter(function(e) { return e.datetime && e.datetime.startsWith(year); });
+  entries.sort(function(a, b) { return a.datetime < b.datetime ? -1 : 1; });
+
+  var body = document.getElementById('logEntriesBody');
+  if (!entries.length) {
+    body.innerHTML = '<div style="color:#999;font-style:italic">No log entries for ' + year + '. <a href="/log" target="_blank">Add entries in the Activity Log.</a></div>';
+    return;
+  }
+
+  var TYPE_COLORS = {
+    'General':'#1a4a1a', 'Harvest':'#8b1a1a', 'Sighting':'#1a398b',
+    'Activity':'#8b5a1a', 'Census':'#5a1a8b', 'Predator Control':'#8b1a6a',
+    'Maintenance':'#1a3a8b', 'Weather':'#7a4010'
+  };
+
+  body.innerHTML = entries.map(function(e) {
+    var color = TYPE_COLORS[e.type] || '#444';
+    var title = entryTitle(e);
+    var dt = formatDatetime(e.datetime);
+    var details = entryDetailLines(e);
+    var photosHtml = '';
+    if (e.photos && e.photos.length) {
+      photosHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' +
+        e.photos.map(function(f) {
+          return '<a href="/photos/' + f + '" target="_blank"><img src="/photos/' + f + '" style="width:72px;height:72px;object-fit:cover;border-radius:4px;border:1px solid #ddd"></a>';
+        }).join('') + '</div>';
+    }
+    return '<div style="border:1px solid #ddd;border-radius:6px;margin-bottom:10px;overflow:hidden">' +
+      '<div style="background:#f5f8f5;padding:10px 14px;display:flex;align-items:center;gap:10px">' +
+        '<span style="font-size:0.72rem;font-weight:700;padding:3px 8px;border-radius:10px;background:' + color + '20;color:' + color + '">' + e.type + '</span>' +
+        '<span style="font-weight:600;font-size:0.92rem">' + escHtml(title) + '</span>' +
+        '<span style="margin-left:auto;font-size:0.8rem;color:#777">' + dt + '</span>' +
+      '</div>' +
+      (details || photosHtml ? '<div style="padding:10px 14px;font-size:0.88rem">' + details + photosHtml + '</div>' : '') +
+    '</div>';
+  }).join('');
+}
+
+function entryTitle(e) {
+  if (e.type === 'General') return e.name || e['f-name'] || 'General Entry';
+  if (e.type === 'Harvest') return (e['hv-species'] || 'Harvest') + (e['hv-sex'] ? ' — ' + e['hv-sex'] : '');
+  if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + '× ' : '') + (e['si-species'] || 'Sighting');
+  if (e.type === 'Activity') return e['ac-name'] || e['ac-category'] || 'Activity';
+  if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
+  if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
+  if (e.type === 'Maintenance') return e['ma-item'] || 'Maintenance';
+  if (e.type === 'Weather') return (e['we-type'] || 'Weather') + (e['we-severity'] ? ' — ' + e['we-severity'] : '');
+  return e.type;
+}
+
+function entryDetailLines(e) {
+  var pairs = [];
+  if (e.type === 'General') {
+    if (e.description || e['f-description']) pairs.push(['Notes', e.description || e['f-description']]);
+  } else if (e.type === 'Harvest') {
+    if (e['hv-age']) pairs.push(['Age', e['hv-age'] + ' yrs']);
+    if (e['hv-weight']) pairs.push(['Weight', e['hv-weight'] + ' lbs']);
+    if (e['hv-mainBeam'] || e['hv-tines'] || e['hv-spread'])
+      pairs.push(['Antler', [e['hv-mainBeam'] && 'Beam: '+e['hv-mainBeam'], e['hv-tines'] && 'Tines: '+e['hv-tines'], e['hv-spread'] && 'Spread: '+e['hv-spread']].filter(Boolean).join(' | ')]);
+    if (e['hv-location']) pairs.push(['Location', e['hv-location']]);
+    if (e['hv-notes']) pairs.push(['Notes', e['hv-notes']]);
+  } else if (e.type === 'Sighting') {
+    if (e['si-sexAge']) pairs.push(['Detail', e['si-sexAge']]);
+    if (e['si-location']) pairs.push(['Location', e['si-location']]);
+    if (e['si-notes']) pairs.push(['Notes', e['si-notes']]);
+  } else if (e.type === 'Activity') {
+    if (e['ac-category']) pairs.push(['Category', e['ac-category']]);
+    if (e['ac-acres']) pairs.push(['Acres', e['ac-acres']]);
+    if (e['ac-notes']) pairs.push(['Notes', e['ac-notes']]);
+  } else if (e.type === 'Census') {
+    if (e['ce-route']) pairs.push(['Route/Stand', e['ce-route']]);
+    if (e['ce-total']) pairs.push(['Observed', e['ce-total']]);
+    if (e['ce-conditions']) pairs.push(['Conditions', e['ce-conditions']]);
+    if (e['ce-notes']) pairs.push(['Notes', e['ce-notes']]);
+  } else if (e.type === 'Predator Control') {
+    if (e['pc-count']) pairs.push(['Removed', e['pc-count']]);
+    if (e['pc-notes']) pairs.push(['Notes', e['pc-notes']]);
+  } else if (e.type === 'Maintenance') {
+    if (e['ma-action']) pairs.push(['Action', e['ma-action']]);
+    if (e['ma-notes']) pairs.push(['Notes', e['ma-notes']]);
+  } else if (e.type === 'Weather') {
+    if (e['we-rainfall']) pairs.push(['Rainfall', e['we-rainfall'] + ' in']);
+    if (e['we-notes']) pairs.push(['Notes', e['we-notes']]);
+  }
+  return pairs.map(function(p) {
+    return '<span style="color:#777;font-size:0.78rem;font-weight:600">' + escHtml(p[0]) + ':</span> ' + escHtml(p[1]) + '&nbsp;&nbsp;';
+  }).join('');
+}
+
+function formatDatetime(s) {
+  if (!s) return '';
+  try {
+    var d = new Date(s);
+    return d.toLocaleDateString('en-US', { month:'short', day:'numeric' }) +
+      ' ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+  } catch(err) { return s; }
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+init();
+</script>
+</body>
+</html>

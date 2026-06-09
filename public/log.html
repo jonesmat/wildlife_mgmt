@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Activity Log</title>
+<link rel="stylesheet" href="/form-shared.css">
+<style>
+/* ── log-specific ── */
+.log-toolbar {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 20px;
+}
+.log-toolbar select, .log-toolbar input[type="number"] {
+  padding: 7px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem;
+}
+.log-toolbar input[type="number"] { width: 90px; }
+
+.log-empty { color: #999; font-style: italic; text-align: center; padding: 40px 0; }
+
+.entry-card {
+  background: white; border: 1px solid #ddd; border-radius: 8px;
+  margin-bottom: 12px; overflow: hidden;
+}
+.entry-head {
+  display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px;
+  cursor: pointer; user-select: none;
+}
+.entry-head:hover { background: #fafafa; }
+.entry-type-badge {
+  font-size: 0.72rem; font-weight: 700; padding: 3px 8px; border-radius: 10px;
+  white-space: nowrap; flex-shrink: 0; margin-top: 2px;
+}
+.badge-General    { background: #e8f0e8; color: #1a4a1a; }
+.badge-Harvest    { background: #fde8e8; color: #8b1a1a; }
+.badge-Sighting   { background: #e8f0fd; color: #1a398b; }
+.badge-Activity   { background: #fdf5e8; color: #8b5a1a; }
+.badge-Census     { background: #f0e8fd; color: #5a1a8b; }
+.badge-Predator   { background: #fde8f5; color: #8b1a6a; }
+.badge-Maintenance{ background: #e8eefd; color: #1a3a8b; }
+.badge-Weather    { background: #fdf0e8; color: #7a4010; }
+
+.entry-meta { flex: 1; min-width: 0; }
+.entry-title { font-weight: 600; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.entry-datetime { font-size: 0.8rem; color: #777; margin-top: 2px; }
+.entry-thumb-row { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+.entry-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; }
+.entry-chevron { color: #aaa; font-size: 1.1rem; margin-top: 2px; transition: transform 0.2s; flex-shrink: 0; }
+.entry-card.open .entry-chevron { transform: rotate(90deg); }
+
+.entry-body { display: none; padding: 0 16px 16px; border-top: 1px solid #eee; }
+.entry-card.open .entry-body { display: block; }
+.entry-detail-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.entry-detail-row .form-group { flex: 1; min-width: 140px; margin-bottom: 8px; }
+.entry-photos-section { margin-top: 12px; }
+.photo-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.photo-item { position: relative; }
+.photo-item img { width: 100px; height: 100px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; cursor: pointer; }
+.photo-remove {
+  position: absolute; top: -6px; right: -6px; background: #cc2222; color: white;
+  border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 0.8rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;
+}
+.photo-add-btn {
+  width: 100px; height: 100px; border: 2px dashed #ccc; border-radius: 6px;
+  background: #fafafa; cursor: pointer; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; color: #999; font-size: 0.75rem;
+  gap: 4px; transition: border-color 0.15s;
+}
+.photo-add-btn:hover { border-color: #1a4a1a; color: #1a4a1a; }
+.photo-add-icon { font-size: 1.6rem; line-height: 1; }
+
+/* New entry form */
+.new-entry-section {
+  background: white; border: 2px solid #1a4a1a; border-radius: 8px;
+  padding: 20px; margin-bottom: 24px;
+}
+.new-entry-section h3 { color: #1a4a1a; margin-bottom: 16px; font-size: 1rem; }
+.form-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.form-row .form-group { flex: 1; min-width: 140px; }
+
+.entry-actions { display: flex; gap: 8px; margin-top: 14px; justify-content: flex-end; }
+.btn-danger { background: #fde8e8; color: #8b1a1a; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+.btn-danger:hover { background: #f5c8c8; }
+
+/* lightbox */
+.lightbox { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:999; align-items:center; justify-content:center; }
+.lightbox.open { display:flex; }
+.lightbox img { max-width:90vw; max-height:90vh; border-radius:4px; }
+.lightbox-close { position:fixed; top:16px; right:20px; color:white; font-size:2rem; cursor:pointer; z-index:1000; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="pageTitle">Activity Log</h1>
+  <div class="header-actions">
+    <button class="btn btn-white" onclick="showNewForm()">+ New Entry</button>
+    <a href="/" class="btn btn-white">Home</a>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">Filter</div>
+    <div style="padding: 8px 12px;">
+      <div class="form-group" style="margin-bottom:10px">
+        <label style="font-size:0.78rem">Year</label>
+        <input type="number" id="filterYear" style="width:100%;padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-size:0.85rem">
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label style="font-size:0.78rem">Type</label>
+        <select id="filterType" style="width:100%;padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-size:0.85rem">
+          <option value="">All Types</option>
+          <option>General</option>
+          <option>Harvest</option>
+          <option>Sighting</option>
+          <option>Activity</option>
+          <option>Census</option>
+          <option>Predator Control</option>
+          <option>Maintenance</option>
+          <option>Weather</option>
+        </select>
+      </div>
+      <button class="btn btn-secondary" style="width:100%;margin-top:4px" onclick="applyFilter()">Apply</button>
+      <button class="btn btn-white" style="width:100%;margin-top:6px;border:1px solid #ccc;color:#555" onclick="clearFilter()">Clear</button>
+    </div>
+    <div class="sidebar-section" style="margin-top:16px">Stats</div>
+    <div id="statsPanel" style="padding:8px 12px;font-size:0.82rem;color:#555;line-height:1.9"></div>
+  </nav>
+
+  <main class="main" style="max-width:860px">
+
+    <!-- New entry form (hidden until button clicked) -->
+    <div class="new-entry-section" id="newEntrySection" style="display:none">
+      <h3 id="formTitle">New Entry</h3>
+      <input type="hidden" id="editingId">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date &amp; Time</label>
+          <input type="datetime-local" id="fDatetime">
+        </div>
+        <div class="form-group">
+          <label>Event Type</label>
+          <select id="fType" onchange="switchType()">
+            <option>General</option>
+            <option>Harvest</option>
+            <option>Sighting</option>
+            <option>Activity</option>
+            <option>Census</option>
+            <option>Predator Control</option>
+            <option>Maintenance</option>
+            <option>Weather</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- General -->
+      <div id="fields-General">
+        <div class="form-row">
+          <div class="form-group"><label>Name / Title</label><input type="text" id="f-name" placeholder="e.g. Site visit"></div>
+        </div>
+        <div class="form-group"><label>Description / Notes</label><textarea id="f-description" rows="3"></textarea></div>
+      </div>
+
+      <!-- Harvest -->
+      <div id="fields-Harvest" style="display:none">
+        <div class="form-row">
+          <div class="form-group"><label>Species</label><input type="text" id="hv-species" placeholder="White-tailed deer"></div>
+          <div class="form-group"><label>Sex</label>
+            <select id="hv-sex"><option value="">--</option><option>Buck</option><option>Doe</option><option>Unknown</option></select>
+          </div>
+          <div class="form-group"><label>Est. Age (yrs)</label><input type="text" id="hv-age" placeholder="3.5"></div>
+          <div class="form-group"><label>Weight (lbs)</label><input type="number" id="hv-weight"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Main Beam (in)</label><input type="text" id="hv-mainBeam"></div>
+          <div class="form-group"><label>Tines (G1/G2/G3/G4)</label><input type="text" id="hv-tines" placeholder="5/4.5/4/3"></div>
+          <div class="form-group"><label>Inside Spread (in)</label><input type="text" id="hv-spread"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Location on Property</label><input type="text" id="hv-location"></div>
+          <div class="form-group"><label>Method</label>
+            <select id="hv-method"><option value="">--</option><option>Rifle</option><option>Bow</option><option>Crossbow</option><option>Muzzleloader</option><option>Other</option></select>
+          </div>
+        </div>
+        <div class="form-group"><label>Notes</label><textarea id="hv-notes" rows="2"></textarea></div>
+      </div>
+
+      <!-- Sighting -->
+      <div id="fields-Sighting" style="display:none">
+        <div class="form-row">
+          <div class="form-group"><label>Species</label><input type="text" id="si-species" placeholder="White-tailed deer"></div>
+          <div class="form-group"><label>Count</label><input type="number" id="si-count" min="1" value="1"></div>
+          <div class="form-group"><label>Sex / Age Description</label><input type="text" id="si-sexAge" placeholder="2 bucks, 3 does"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Location on Property</label><input type="text" id="si-location"></div>
+          <div class="form-group"><label>Observation Method</label>
+            <select id="si-method"><option value="">--</option><option>Visual</option><option>Camera trap</option><option>Spotlight</option><option>Track</option><option>Other</option></select>
+          </div>
+        </div>
+        <div class="form-group"><label>Notes</label><textarea id="si-notes" rows="2"></textarea></div>
+      </div>
+
+      <!-- Activity -->
+      <div id="fields-Activity" style="display:none">
+        <div class="form-row">
+          <div class="form-group"><label>Category</label>
+            <select id="ac-category">
+              <option value="">--</option>
+              <option>Habitat Control</option>
+              <option>Erosion Control</option>
+              <option>Predator Control</option>
+              <option>Supplemental Water</option>
+              <option>Supplemental Food</option>
+              <option>Supplemental Shelter</option>
+              <option>Census</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Activity / Practice Name</label><input type="text" id="ac-name" placeholder="Prescribed Burning"></div>
+          <div class="form-group"><label>Acres Treated</label><input type="number" id="ac-acres"></div>
+        </div>
+        <div class="form-group"><label>Description &amp; Notes</label><textarea id="ac-notes" rows="3"></textarea></div>
+      </div>
+
+      <!-- Census -->
+      <div id="fields-Census" style="display:none">
+        <div class="form-row">
+          <div class="form-group"><label>Survey Type</label>
+            <select id="ce-surveyType">
+              <option value="">--</option>
+              <option>Spotlight Count</option>
+              <option>Stand Count</option>
+              <option>Aerial Count</option>
+              <option>Track Count</option>
+              <option>Browse Utilization</option>
+              <option>Incidental Observation</option>
+              <option>Camera Survey</option>
+              <option>Harvest Data</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Target Species</label><input type="text" id="ce-species"></div>
+          <div class="form-group"><label>Route / Stand ID</label><input type="text" id="ce-route"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Total Observed</label><input type="text" id="ce-total" placeholder="12 deer (8M/4F)"></div>
+          <div class="form-group"><label>Conditions (visibility, temp)</label><input type="text" id="ce-conditions"></div>
+        </div>
+        <div class="form-group"><label>Notes</label><textarea id="ce-notes" rows="2"></textarea></div>
+      </div>
+
+      <!-- Predator Control -->
+      <div id="fields-Predator Control" style="display:none">
+        <div class="form-row">
+          <div class="form-group"><label>Species Targeted</label><input type="text" id="pc-species" placeholder="Coyote"></div>
+          <div class="form-group"><label>Method</label>
+            <select id="pc-method"><option value="">--</option><option>Trap</option><option>Shooting</option><option>M-44</option><option>Poison collar (1080)</option><option>Nest/egg removal</option><option>Other</option></select>
+          </div>
+          <div class="form-group"><label>Number Removed</label><input type="number" id="pc-count" min="0"></div>
+        </div>
+        <div class="form-group"><label>Notes</label><textarea id="pc-notes" rows="2"></textarea></div>
+      </div>
+
+      <!-- Maintenance -->
+      <div id="fields-Maintenance" style="display:none">
+        <div class="form-row">
+          <div class="form-group"><label>Item / Facility</label><input type="text" id="ma-item" placeholder="Water trough, fence, feeder..."></div>
+          <div class="form-group"><label>Action Taken</label><input type="text" id="ma-action" placeholder="Repaired, replaced, installed..."></div>
+        </div>
+        <div class="form-group"><label>Description &amp; Notes</label><textarea id="ma-notes" rows="2"></textarea></div>
+      </div>
+
+      <!-- Weather -->
+      <div id="fields-Weather" style="display:none">
+        <div class="form-row">
+          <div class="form-group"><label>Event Type</label>
+            <select id="we-type"><option value="">--</option><option>Rain</option><option>Drought</option><option>Freeze</option><option>Fire</option><option>Flood</option><option>Severe Storm</option><option>High Wind</option><option>Other</option></select>
+          </div>
+          <div class="form-group"><label>Rainfall (inches)</label><input type="number" id="we-rainfall" step="0.01"></div>
+          <div class="form-group"><label>Severity</label>
+            <select id="we-severity"><option value="">--</option><option>Minor</option><option>Moderate</option><option>Significant</option><option>Severe</option></select>
+          </div>
+        </div>
+        <div class="form-group"><label>Observed Effects / Notes</label><textarea id="we-notes" rows="2"></textarea></div>
+      </div>
+
+      <!-- Photos (all types) -->
+      <div class="entry-photos-section">
+        <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px">Photos</label>
+        <div class="photo-grid" id="formPhotoGrid">
+          <button type="button" class="photo-add-btn" onclick="document.getElementById('photoFileInput').click()">
+            <span class="photo-add-icon">+</span><span>Add Photo</span>
+          </button>
+        </div>
+        <input type="file" id="photoFileInput" accept="image/*" multiple style="display:none" onchange="handlePhotoFiles(this)">
+      </div>
+
+      <div class="entry-actions">
+        <button class="btn btn-danger" id="deleteBtn" style="display:none;margin-right:auto" onclick="deleteEntry()">Delete</button>
+        <button class="btn btn-secondary" onclick="cancelForm()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEntry()">Save Entry</button>
+      </div>
+    </div>
+
+    <!-- Log list -->
+    <div id="logList">
+      <div class="log-empty">Loading...</div>
+    </div>
+  </main>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <span class="lightbox-close">&times;</span>
+  <img id="lightboxImg" src="">
+</div>
+
+<script>
+// ── State ──
+var allEntries = [];
+var pendingPhotos = []; // { dataUrl, filename, uploaded } — uploaded means already on server (filename is server filename)
+var filterYear = '';
+var filterType = '';
+
+// ── Init ──
+async function init() {
+  document.getElementById('filterYear').value = new Date().getFullYear();
+  allEntries = await (await fetch('/api/log')).json();
+  allEntries.sort(function(a,b) { return b.datetime < a.datetime ? -1 : 1; });
+  applyFilter();
+}
+
+// ── Filter ──
+function applyFilter() {
+  filterYear = document.getElementById('filterYear').value;
+  filterType = document.getElementById('filterType').value;
+  renderList();
+}
+function clearFilter() {
+  document.getElementById('filterYear').value = '';
+  document.getElementById('filterType').value = '';
+  filterYear = '';
+  filterType = '';
+  renderList();
+}
+
+// ── Render list ──
+function renderList() {
+  var entries = allEntries.filter(function(e) {
+    if (filterYear && !e.datetime.startsWith(filterYear)) return false;
+    if (filterType && e.type !== filterType) return false;
+    return true;
+  });
+
+  // Stats
+  var statCounts = {};
+  entries.forEach(function(e) { statCounts[e.type] = (statCounts[e.type] || 0) + 1; });
+  var statsHtml = '<strong>' + entries.length + ' entries</strong>';
+  Object.keys(statCounts).sort().forEach(function(t) {
+    statsHtml += '<br>' + t + ': ' + statCounts[t];
+  });
+  document.getElementById('statsPanel').innerHTML = statsHtml;
+
+  var list = document.getElementById('logList');
+  if (!entries.length) {
+    list.innerHTML = '<div class="log-empty">No entries found.</div>';
+    return;
+  }
+  list.innerHTML = entries.map(function(e) { return renderCard(e); }).join('');
+}
+
+function renderCard(e) {
+  var title = entryTitle(e);
+  var dt = formatDatetime(e.datetime);
+  var thumbHtml = '';
+  if (e.photos && e.photos.length) {
+    thumbHtml = '<div class="entry-thumb-row">' +
+      e.photos.slice(0,5).map(function(f) {
+        return '<img class="entry-thumb" src="/photos/' + f + '" alt="">';
+      }).join('') +
+    '</div>';
+  }
+  return '<div class="entry-card" id="card-' + e.id + '">' +
+    '<div class="entry-head" onclick="toggleCard(\'' + e.id + '\')">' +
+      '<span class="entry-type-badge badge-' + e.type.split(' ')[0] + '">' + e.type + '</span>' +
+      '<div class="entry-meta">' +
+        '<div class="entry-title">' + escHtml(title) + '</div>' +
+        '<div class="entry-datetime">' + dt + '</div>' +
+        thumbHtml +
+      '</div>' +
+      '<span class="entry-chevron">&#9654;</span>' +
+    '</div>' +
+    '<div class="entry-body">' + renderDetail(e) + '</div>' +
+  '</div>';
+}
+
+function renderDetail(e) {
+  var rows = '';
+
+  if (e.type === 'General') {
+    rows += labelVal('Description', e.description);
+  } else if (e.type === 'Harvest') {
+    rows += twoCol('Species', e['hv-species'], 'Sex', e['hv-sex']);
+    rows += twoCol('Age', e['hv-age'], 'Weight', e['hv-weight'] ? e['hv-weight'] + ' lbs' : '');
+    rows += twoCol('Main Beam', e['hv-mainBeam'], 'Tines', e['hv-tines']);
+    rows += twoCol('Inside Spread', e['hv-spread'], 'Method', e['hv-method']);
+    rows += twoCol('Location', e['hv-location'], '', '');
+    rows += labelVal('Notes', e['hv-notes']);
+  } else if (e.type === 'Sighting') {
+    rows += twoCol('Species', e['si-species'], 'Count', e['si-count']);
+    rows += twoCol('Sex/Age', e['si-sexAge'], 'Method', e['si-method']);
+    rows += twoCol('Location', e['si-location'], '', '');
+    rows += labelVal('Notes', e['si-notes']);
+  } else if (e.type === 'Activity') {
+    rows += twoCol('Category', e['ac-category'], 'Activity', e['ac-name']);
+    rows += labelVal('Acres', e['ac-acres']);
+    rows += labelVal('Notes', e['ac-notes']);
+  } else if (e.type === 'Census') {
+    rows += twoCol('Survey Type', e['ce-surveyType'], 'Species', e['ce-species']);
+    rows += twoCol('Route/Stand', e['ce-route'], 'Total Observed', e['ce-total']);
+    rows += labelVal('Conditions', e['ce-conditions']);
+    rows += labelVal('Notes', e['ce-notes']);
+  } else if (e.type === 'Predator Control') {
+    rows += twoCol('Species', e['pc-species'], 'Method', e['pc-method']);
+    rows += labelVal('Number Removed', e['pc-count']);
+    rows += labelVal('Notes', e['pc-notes']);
+  } else if (e.type === 'Maintenance') {
+    rows += twoCol('Item', e['ma-item'], 'Action', e['ma-action']);
+    rows += labelVal('Notes', e['ma-notes']);
+  } else if (e.type === 'Weather') {
+    rows += twoCol('Event', e['we-type'], 'Severity', e['we-severity']);
+    rows += labelVal('Rainfall', e['we-rainfall'] ? e['we-rainfall'] + ' in' : '');
+    rows += labelVal('Notes', e['we-notes']);
+  }
+
+  var photosHtml = '';
+  if (e.photos && e.photos.length) {
+    photosHtml = '<div class="entry-photos-section"><div class="photo-grid">' +
+      e.photos.map(function(f) {
+        return '<div class="photo-item"><img src="/photos/' + f + '" onclick="openLightbox(\'/photos/' + f + '\')" title="Click to enlarge"></div>';
+      }).join('') +
+    '</div></div>';
+  }
+
+  return '<div style="margin-top:10px">' + rows + photosHtml + '</div>' +
+    '<div class="entry-actions">' +
+      '<button class="btn btn-secondary btn-sm" onclick="editEntry(\'' + e.id + '\');event.stopPropagation()">Edit</button>' +
+    '</div>';
+}
+
+function labelVal(label, val) {
+  if (!val && val !== 0) return '';
+  return '<div style="margin-bottom:6px"><span style="font-size:0.78rem;color:#777;font-weight:600">' + escHtml(label) + ':</span> ' + escHtml(String(val)) + '</div>';
+}
+function twoCol(l1, v1, l2, v2) {
+  var a = v1 ? '<div style="flex:1"><span style="font-size:0.78rem;color:#777;font-weight:600">' + escHtml(l1) + ':</span> ' + escHtml(String(v1)) + '</div>' : '';
+  var b = v2 ? '<div style="flex:1"><span style="font-size:0.78rem;color:#777;font-weight:600">' + escHtml(l2) + ':</span> ' + escHtml(String(v2)) + '</div>' : '';
+  if (!a && !b) return '';
+  return '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:6px">' + a + b + '</div>';
+}
+
+function toggleCard(id) {
+  var card = document.getElementById('card-' + id);
+  if (card) card.classList.toggle('open');
+}
+
+// ── New / Edit form ──
+function showNewForm() {
+  document.getElementById('editingId').value = '';
+  document.getElementById('formTitle').textContent = 'New Entry';
+  document.getElementById('deleteBtn').style.display = 'none';
+  resetForm();
+  document.getElementById('newEntrySection').style.display = 'block';
+  document.getElementById('newEntrySection').scrollIntoView({ behavior: 'smooth' });
+}
+
+function editEntry(id) {
+  var e = allEntries.find(function(x) { return x.id === id; });
+  if (!e) return;
+  document.getElementById('editingId').value = id;
+  document.getElementById('formTitle').textContent = 'Edit Entry';
+  document.getElementById('deleteBtn').style.display = '';
+  resetForm();
+  document.getElementById('fDatetime').value = e.datetime || '';
+  document.getElementById('fType').value = e.type || 'General';
+  switchType();
+  // Populate type-specific fields
+  var fields = getTypeFields(e.type);
+  fields.forEach(function(f) {
+    var el = document.getElementById(f);
+    if (el) el.value = e[f] || '';
+  });
+  // Shared name field for General
+  if (e.type === 'General') {
+    document.getElementById('f-name').value = e['f-name'] || e.name || '';
+    document.getElementById('f-description').value = e['f-description'] || e.description || '';
+  }
+  // Photos already on server
+  pendingPhotos = (e.photos || []).map(function(f) { return { filename: f, uploaded: true }; });
+  renderFormPhotos();
+  document.getElementById('newEntrySection').style.display = 'block';
+  document.getElementById('newEntrySection').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelForm() {
+  // Remove any newly uploaded photos that haven't been saved to an entry yet
+  pendingPhotos.forEach(function(p) {
+    if (!p.uploaded) return; // skip — not actually on server yet (shouldn't happen)
+    // We only remove photos that were uploaded in this session (not pre-existing)
+  });
+  pendingPhotos = [];
+  document.getElementById('newEntrySection').style.display = 'none';
+}
+
+function resetForm() {
+  document.getElementById('fDatetime').value = nowDatetimeLocal();
+  document.getElementById('fType').value = 'General';
+  switchType();
+  // Clear all text fields
+  document.querySelectorAll('#newEntrySection input[type="text"], #newEntrySection input[type="number"], #newEntrySection textarea, #newEntrySection select').forEach(function(el) {
+    if (el.id === 'fDatetime' || el.id === 'fType' || el.id === 'editingId') return;
+    el.value = '';
+  });
+  document.getElementById('f-description').value = '';
+  pendingPhotos = [];
+  renderFormPhotos();
+}
+
+function switchType() {
+  var t = document.getElementById('fType').value;
+  var types = ['General','Harvest','Sighting','Activity','Census','Predator Control','Maintenance','Weather'];
+  types.forEach(function(typ) {
+    var el = document.getElementById('fields-' + typ);
+    if (el) el.style.display = (typ === t) ? '' : 'none';
+  });
+}
+
+function getTypeFields(type) {
+  var map = {
+    'Harvest':   ['hv-species','hv-sex','hv-age','hv-weight','hv-mainBeam','hv-tines','hv-spread','hv-location','hv-method','hv-notes'],
+    'Sighting':  ['si-species','si-count','si-sexAge','si-location','si-method','si-notes'],
+    'Activity':  ['ac-category','ac-name','ac-acres','ac-notes'],
+    'Census':    ['ce-surveyType','ce-species','ce-route','ce-total','ce-conditions','ce-notes'],
+    'Predator Control': ['pc-species','pc-method','pc-count','pc-notes'],
+    'Maintenance': ['ma-item','ma-action','ma-notes'],
+    'Weather':   ['we-type','we-rainfall','we-severity','we-notes']
+  };
+  return map[type] || [];
+}
+
+async function saveEntry() {
+  var type = document.getElementById('fType').value;
+  var entry = {
+    datetime: document.getElementById('fDatetime').value,
+    type: type,
+    photos: pendingPhotos.filter(function(p) { return p.uploaded; }).map(function(p) { return p.filename; })
+  };
+
+  if (type === 'General') {
+    entry['f-name'] = document.getElementById('f-name').value;
+    entry.name = entry['f-name'];
+    entry['f-description'] = document.getElementById('f-description').value;
+    entry.description = entry['f-description'];
+  } else {
+    getTypeFields(type).forEach(function(f) {
+      var el = document.getElementById(f);
+      if (el) entry[f] = el.value;
+    });
+  }
+
+  var editingId = document.getElementById('editingId').value;
+  if (editingId) {
+    entry.id = editingId;
+    await fetch('/api/log/' + editingId, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry)
+    });
+    var idx = allEntries.findIndex(function(x) { return x.id === editingId; });
+    if (idx !== -1) allEntries[idx] = entry;
+  } else {
+    var res = await (await fetch('/api/log', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry)
+    })).json();
+    entry.id = res.id;
+    allEntries.unshift(entry);
+  }
+  pendingPhotos = [];
+  document.getElementById('newEntrySection').style.display = 'none';
+  renderList();
+}
+
+async function deleteEntry() {
+  var id = document.getElementById('editingId').value;
+  if (!id || !confirm('Delete this entry?')) return;
+  await fetch('/api/log/' + id, { method: 'DELETE' });
+  allEntries = allEntries.filter(function(x) { return x.id !== id; });
+  pendingPhotos = [];
+  document.getElementById('newEntrySection').style.display = 'none';
+  renderList();
+}
+
+// ── Photos ──
+async function handlePhotoFiles(input) {
+  var files = Array.from(input.files);
+  for (var i = 0; i < files.length; i++) {
+    var file = files[i];
+    var dataUrl = await readFileAsDataUrl(file);
+    // Show optimistic preview
+    var pending = { dataUrl: dataUrl, filename: file.name, uploaded: false, localUrl: dataUrl };
+    pendingPhotos.push(pending);
+    renderFormPhotos();
+    // Upload to server
+    var res = await (await fetch('/api/photos', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataUrl: dataUrl, filename: file.name })
+    })).json();
+    pending.filename = res.filename;
+    pending.uploaded = true;
+    pending.localUrl = '/photos/' + res.filename;
+    renderFormPhotos();
+  }
+  input.value = '';
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise(function(resolve) {
+    var reader = new FileReader();
+    reader.onload = function(e) { resolve(e.target.result); };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderFormPhotos() {
+  var grid = document.getElementById('formPhotoGrid');
+  var html = pendingPhotos.map(function(p, i) {
+    var src = p.localUrl || (p.uploaded ? '/photos/' + p.filename : '');
+    return '<div class="photo-item">' +
+      '<img src="' + src + '" onclick="openLightbox(\'' + src + '\')">' +
+      (p.uploaded ? '<button class="photo-remove" onclick="removeFormPhoto(' + i + ')" title="Remove">&#10005;</button>' : '<button class="photo-remove" style="background:#aaa" disabled>...</button>') +
+    '</div>';
+  }).join('');
+  html += '<button type="button" class="photo-add-btn" onclick="document.getElementById(\'photoFileInput\').click()">' +
+    '<span class="photo-add-icon">+</span><span>Add Photo</span>' +
+  '</button>';
+  grid.innerHTML = html;
+}
+
+function removeFormPhoto(i) {
+  var p = pendingPhotos[i];
+  if (p && p.uploaded) {
+    // If this was a pre-existing photo on an entry being edited, it will just not be included in the save
+    // Only delete from server if it was newly added in this session (we can't easily tell, so just remove from list)
+  }
+  pendingPhotos.splice(i, 1);
+  renderFormPhotos();
+}
+
+// ── Lightbox ──
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+}
+
+// ── Helpers ──
+function entryTitle(e) {
+  if (e.type === 'General') return e.name || e['f-name'] || 'General Entry';
+  if (e.type === 'Harvest') return (e['hv-species'] || 'Harvest') + (e['hv-sex'] ? ' — ' + e['hv-sex'] : '');
+  if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + ' ' : '') + (e['si-species'] || 'Sighting');
+  if (e.type === 'Activity') return (e['ac-name'] || e['ac-category'] || 'Activity');
+  if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
+  if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
+  if (e.type === 'Maintenance') return (e['ma-item'] || 'Maintenance');
+  if (e.type === 'Weather') return (e['we-type'] || 'Weather') + (e['we-severity'] ? ' — ' + e['we-severity'] : '');
+  return e.type;
+}
+
+function formatDatetime(s) {
+  if (!s) return '';
+  try {
+    var d = new Date(s);
+    return d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) +
+      ' ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+  } catch(e) { return s; }
+}
+
+function nowDatetimeLocal() {
+  var d = new Date();
+  var pad = function(n) { return String(n).padStart(2,'0'); };
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) +
+    'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+init();
+</script>
+</body>
+</html>

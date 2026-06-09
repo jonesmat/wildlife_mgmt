@@ -1,0 +1,80 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; font-size: 10pt; color: #000; background: white; }
+
+.page { width: 8.5in; min-height: 11in; padding: 0.75in; margin: 0 auto; }
+@media print {
+  .no-print { display: none !important; }
+  .page { padding: 0.6in; page-break-after: always; }
+  .page:last-child { page-break-after: avoid; }
+}
+
+.print-header { text-align: center; margin-bottom: 16pt; }
+.print-header .logo-area { display: flex; align-items: center; justify-content: center; gap: 12pt; margin-bottom: 6pt; }
+.print-header .tpwd-box {
+  border: 2px solid #000; padding: 4pt 8pt; font-size: 8pt; font-weight: 700;
+  line-height: 1.2; text-align: center;
+}
+.print-header h1 { font-size: 16pt; font-weight: 700; margin-bottom: 2pt; }
+.print-header h2 { font-size: 14pt; font-weight: 700; margin-bottom: 4pt; }
+.print-header .submit-note { font-style: italic; font-size: 9pt; }
+
+.section-head {
+  font-size: 10pt; font-weight: 700; margin: 12pt 0 6pt;
+  text-decoration: underline;
+}
+
+.box { border: 1.5pt solid #000; padding: 8pt; margin-bottom: 8pt; }
+.box-inner { border: 1pt solid #000; padding: 6pt; margin: 4pt 0; background: #fff; }
+
+.field-row { display: flex; gap: 8pt; margin-bottom: 5pt; align-items: flex-end; }
+.field { flex: 1; }
+.field label { font-size: 9pt; font-weight: 700; display: block; margin-bottom: 1pt; }
+.field .line {
+  border-bottom: 1pt solid #000; min-height: 14pt; padding-bottom: 1pt;
+  font-size: 10pt; white-space: pre-wrap; word-break: break-word;
+}
+.field .multiline {
+  border: 1pt solid #000; min-height: 40pt; padding: 3pt;
+  font-size: 10pt; white-space: pre-wrap; word-break: break-word;
+}
+
+.checkbox-row { display: flex; flex-wrap: wrap; gap: 4pt 16pt; margin: 4pt 0; }
+.cb { display: flex; align-items: center; gap: 4pt; font-size: 9.5pt; }
+.cb .box-check {
+  width: 10pt; height: 10pt; border: 1pt solid #000; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 9pt; font-weight: 700;
+}
+.checked::after { content: "X"; }
+
+.sub-section-title { font-weight: 700; font-size: 9.5pt; margin: 6pt 0 3pt; }
+.activity-block { border: 1pt solid #000; margin-bottom: 6pt; }
+.activity-header { background: #ddd; font-weight: 700; font-size: 9.5pt; padding: 3pt 6pt; }
+.activity-body { padding: 4pt 6pt; }
+
+.indent { margin-left: 16pt; }
+.indent2 { margin-left: 32pt; }
+
+.sig-area { margin-top: 20pt; }
+.sig-row { display: flex; gap: 24pt; margin-top: 12pt; }
+.sig-field { flex: 1; }
+.sig-field .sig-line { border-bottom: 1pt solid #000; height: 18pt; }
+.sig-field label { font-size: 9pt; margin-top: 2pt; display: block; }
+
+.footer-note {
+  font-size: 7.5pt; border: 1pt solid #000; padding: 4pt; margin-top: 12pt;
+}
+
+.form-num { font-size: 8pt; margin-top: 8pt; }
+
+.print-btn-bar {
+  position: fixed; top: 0; left: 0; right: 0; background: #1a4a1a; color: white;
+  padding: 10px 20px; display: flex; gap: 12px; align-items: center; z-index: 100;
+}
+.print-btn-bar button {
+  padding: 6px 16px; border-radius: 4px; border: none; cursor: pointer;
+  font-size: 0.9rem; font-weight: 600;
+}
+.print-btn-bar .btn-print { background: white; color: #1a4a1a; }
+.print-btn-bar .btn-close { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.5) !important; }
+.print-spacer { margin-top: 48px; }
+@media print { .print-btn-bar { display: none; } .print-spacer { margin-top: 0; } }

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TPWD Wildlife Management Tool</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f0f2f5; color: #222; }
+  header {
+    background: #1a4a1a; color: white; padding: 16px 32px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  header h1 { font-size: 1.4rem; }
+  header .subtitle { font-size: 0.85rem; opacity: 0.8; }
+  .container { max-width: 900px; margin: 40px auto; padding: 0 24px; }
+  .card {
+    background: white; border-radius: 8px; padding: 32px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 24px;
+  }
+  .card h2 { font-size: 1.2rem; color: #1a4a1a; margin-bottom: 8px; }
+  .card p { color: #555; font-size: 0.95rem; margin-bottom: 20px; }
+  .btn {
+    display: inline-block; padding: 12px 24px; border-radius: 6px;
+    font-size: 0.95rem; font-weight: 600; cursor: pointer;
+    text-decoration: none; border: none; transition: background 0.15s;
+  }
+  .btn-primary { background: #1a4a1a; color: white; }
+  .btn-primary:hover { background: #256325; }
+  .btn-secondary { background: #e8f0e8; color: #1a4a1a; }
+  .btn-secondary:hover { background: #d0e4d0; }
+  .btn-outline { background: white; color: #1a4a1a; border: 2px solid #1a4a1a; }
+  .btn-outline:hover { background: #f0f7f0; }
+  .btn-sm { padding: 8px 16px; font-size: 0.85rem; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .years-list { margin-top: 16px; }
+  .year-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border: 1px solid #ddd; border-radius: 6px;
+    margin-bottom: 8px; background: #fafafa;
+  }
+  .year-item .year-label { font-weight: 600; color: #1a4a1a; }
+  .new-year-row { margin-top: 16px; display: flex; gap: 12px; align-items: center; }
+  input[type="number"], input[type="text"] {
+    padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px;
+    font-size: 0.95rem; width: 120px;
+  }
+  .badge {
+    font-size: 0.75rem; padding: 2px 8px; border-radius: 10px;
+    background: #e8f0e8; color: #1a4a1a; font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div style="font-size:0.7rem;opacity:0.7;text-transform:uppercase;letter-spacing:1px;">Texas Parks & Wildlife</div>
+    <h1>1-D-1 Wildlife Management Tool</h1>
+    <div class="subtitle">Generate PWD 885 Plans and PWD 888 Annual Reports</div>
+  </div>
+</header>
+<div class="container">
+  <div class="card">
+    <h2>Wildlife Management Plan (PWD 885)</h2>
+    <p>Enter your property information, management goals, and planned activities. This is your base plan — data entered here carries over to annual reports automatically.</p>
+    <div class="row">
+      <a href="/plan" class="btn btn-primary">Edit Plan</a>
+      <button class="btn btn-secondary" onclick="generatePDF('/plan-print')">Generate Plan PDF</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Activity Log</h2>
+    <p>Record harvest events, wildlife sightings, management activities, census surveys, and more throughout the year. Attach photos. Log entries are automatically included in the annual report for that year.</p>
+    <div class="row">
+      <a href="/log" class="btn btn-primary">Open Log</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Annual Reports (PWD 888)</h2>
+    <p>Create a new annual report for a given year, or open an existing one. The report pre-fills from your plan — you only need to update what actually happened.</p>
+    <div class="new-year-row">
+      <input type="number" id="newYear" placeholder="Year" min="2000" max="2099" value="">
+      <button class="btn btn-primary" onclick="createReport()">Create New Report</button>
+    </div>
+    <div class="years-list" id="yearsList">
+      <div style="color:#999;font-size:0.9rem;margin-top:12px;">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('newYear').value = new Date().getFullYear();
+
+  async function loadYears() {
+    const res = await fetch('/api/years');
+    const years = await res.json();
+    const list = document.getElementById('yearsList');
+    if (!years.length) {
+      list.innerHTML = '<div style="color:#999;font-size:0.9rem;margin-top:12px;">No annual reports yet. Create one above.</div>';
+      return;
+    }
+    list.innerHTML = years.map(y => `
+      <div class="year-item">
+        <span class="year-label">${y} Annual Report</span>
+        <div class="row">
+          <a href="/report/${y}" class="btn btn-outline btn-sm">Edit</a>
+          <button class="btn btn-secondary btn-sm" onclick="generatePDF('/report-print/${y}')">Generate PDF</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function createReport() {
+    const year = document.getElementById('newYear').value;
+    if (!year) return alert('Enter a year');
+    // Load base activities from plan to seed the report
+    const data = await (await fetch('/api/data')).json();
+    const reportData = JSON.parse(JSON.stringify(data.activities));
+    reportData.qualifyingActivities = JSON.parse(JSON.stringify(data.plan.qualifyingActivities));
+    reportData.association = JSON.parse(JSON.stringify(data.plan.association));
+    await fetch(`/api/reports/${year}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reportData)
+    });
+    window.location.href = `/report/${year}`;
+  }
+
+  function generatePDF(url) {
+    window.open(url, '_blank');
+  }
+
+  loadYears();
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "wildlife-mgmt",
+  "version": "1.0.0",
+  "description": "TPWD 1-D-1 Wildlife Management Plan and Annual Report Generator",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
