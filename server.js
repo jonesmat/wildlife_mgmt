@@ -886,9 +886,9 @@ function renderLogEntries(entries) {
     }).join('');
     var photosHtml = '';
     if (e.photos && e.photos.length) {
-      photosHtml = '<div style="margin-top:4pt;display:flex;gap:6pt;flex-wrap:wrap">' +
+      photosHtml = '<div style="margin-top:6pt;display:grid;grid-template-columns:1fr 1fr;gap:6pt">' +
         e.photos.map(function(f) {
-          return '<img src="/photos/' + esc(f) + '" style="width:72pt;height:72pt;object-fit:cover;border:0.5pt solid #ccc;border-radius:3pt">';
+          return '<img src="/photos/' + esc(f) + '" style="width:100%;height:auto;display:block;border:0.5pt solid #ccc;border-radius:3pt">';
         }).join('') +
       '</div>';
     }
@@ -898,7 +898,8 @@ function renderLogEntries(entries) {
         '<span style="font-weight:700;font-size:9pt">' + esc(entryTitle(e)) + '</span>' +
         '<span style="margin-left:auto;font-size:8pt;color:#666">' + esc(fmtDate(e.datetime)) + '</span>' +
       '</div>' +
-      (detailHtml || photosHtml ? '<div style="padding:4pt 8pt;font-size:8pt">' + detailHtml + photosHtml + '</div>' : '') +
+      (detailHtml ? '<div style="padding:4pt 8pt 2pt;font-size:8pt">' + detailHtml + '</div>' : '') +
+      (photosHtml ? '<div style="padding:0 8pt 8pt">' + photosHtml + '</div>' : '') +
     '</div>';
   }).join('');
 }
