@@ -53,6 +53,7 @@
     <div class="sidebar-section">Settings</div>
     <div class="sidebar-item active" id="nav-property" onclick="showPane('property')">Property</div>
     <div class="sidebar-item" id="nav-routes" onclick="showPane('routes')">Routes</div>
+    <div class="sidebar-item" id="nav-photos" onclick="showPane('photos')">Photos</div>
     <div class="sidebar-item" id="nav-data" onclick="showPane('data')">Data Export &amp; Restore</div>
   </nav>
 
@@ -130,6 +131,30 @@
         </div>
       </div>
     </div>
+    <!-- Photos pane -->
+    <div class="section" id="photos" style="display:none">
+      <div class="section-title">Photos</div>
+
+      <div class="sub-section">
+        <div class="section-subtitle">Photo Downscaling</div>
+        <div class="hint-block">
+          Photos straight off a phone can be 5&ndash;10&nbsp;MB each. Downscaling them on upload keeps
+          the app fast and backups small while staying plenty sharp for reports. This applies to
+          newly added photos only &mdash; existing photos are unchanged.
+        </div>
+        <div class="form-group" style="max-width:440px;margin-top:12px">
+          <label>Downscale uploaded photos to</label>
+          <select id="photoQuality" onchange="savePhotoSetting()">
+            <option value="original">Original — no downscaling (largest files)</option>
+            <option value="high">High — up to 2400px (crisp prints)</option>
+            <option value="balanced">Balanced — up to 1600px, targets under 1 MB (recommended)</option>
+            <option value="compact">Compact — up to 1200px (smallest files)</option>
+          </select>
+        </div>
+        <span id="photoSettingStatus" style="font-size:0.85rem;color:#1a6a1a"></span>
+      </div>
+    </div>
+
     <!-- Data pane -->
     <div class="section" id="data" style="display:none">
       <div class="section-title">Data Export &amp; Restore</div>
@@ -293,10 +318,29 @@ function escHtml(s) {
 
 // ── Pane switching ──
 function showPane(p) {
-  ['property', 'routes', 'data'].forEach(function(id) {
+  ['property', 'routes', 'photos', 'data'].forEach(function(id) {
     document.getElementById(id).style.display = (id === p) ? '' : 'none';
     document.getElementById('nav-' + id).classList.toggle('active', id === p);
   });
+}
+
+// ── Photo settings ──
+async function loadPhotoSetting() {
+  try {
+    var s = await (await fetch('/api/settings')).json();
+    document.getElementById('photoQuality').value = s.photoQuality || 'balanced';
+  } catch (e) { /* default stays selected */ }
+}
+
+async function savePhotoSetting() {
+  var status = document.getElementById('photoSettingStatus');
+  await fetch('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ photoQuality: document.getElementById('photoQuality').value })
+  });
+  status.textContent = 'Saved';
+  setTimeout(function() { status.textContent = ''; }, 2000);
 }
 
 // ── Data export / import / clear ──
@@ -564,6 +608,7 @@ async function deleteRoute(id) {
 // Arrived from a Census entry's "+ Create route" link?
 var createRouteReturn = new URLSearchParams(location.search).get('createRoute') === '1';
 
+loadPhotoSetting();
 load().then(loadRoutes).then(function() {
   if (createRouteReturn) {
     showPane('routes');

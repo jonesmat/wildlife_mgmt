@@ -183,6 +183,7 @@ function loadData() {
   if (!d.log) d.log = [];
   if (!d.propertyImages) d.propertyImages = [];
   if (!d.routes) d.routes = [];
+  if (!d.settings) d.settings = { photoQuality: 'balanced' };
   return d;
 }
 
@@ -486,6 +487,19 @@ app.post('/api/clear-data', (req, res) => {
   clearDir(PHOTOS_DIR);
   clearDir(PROPERTY_IMAGES_DIR);
   res.json({ ok: true });
+});
+
+// ── App settings ──
+
+app.get('/api/settings', (req, res) => {
+  res.json(loadData().settings);
+});
+
+app.post('/api/settings', (req, res) => {
+  const data = loadData();
+  Object.keys(req.body || {}).forEach(function(k) { data.settings[k] = req.body[k]; });
+  saveData(data);
+  res.json(data.settings);
 });
 
 // Serve the settings page

@@ -693,6 +693,7 @@ var sortDir = 'desc';   // 'desc' = newest first
 var visibleCount = 25;  // pagination: how many entries are shown
 var PAGE_SIZE = 25;
 var logRoutes = [];       // census routes from settings: [{ id, name, imageId, points }]
+var photoQuality = 'balanced'; // photo downscaling setting ('original'|'high'|'balanced'|'compact')
 var propImages = [];      // property images from settings: [{ id, filename, uploadedAt }]
 var currentPropId = null; // active property image id
 var pendingLoc = null;    // location for the entry being edited: { img, x, y } (x/y are 0-1 fractions)
@@ -711,6 +712,10 @@ async function init() {
   try {
     logRoutes = await (await fetch('/api/routes')).json();
   } catch (e) { logRoutes = []; }
+  try {
+    var settings = await (await fetch('/api/settings')).json();
+    photoQuality = settings.photoQuality || 'balanced';
+  } catch (e) { /* default applies */ }
   var routeSel = document.getElementById('ce-routeId');
   logRoutes.forEach(function(r) {
     var opt = document.createElement('option');
@@ -1636,6 +1641,8 @@ async function handlePhotoFiles(input) {
   for (var i = 0; i < files.length; i++) {
     var file = files[i];
     var dataUrl = await readFileAsDataUrl(file);
+    // Downscale per the Photos setting before anything else
+    dataUrl = await downscaleForUpload(dataUrl);
     // Show optimistic preview
     var pending = { dataUrl: dataUrl, filename: file.name, uploaded: false, localUrl: dataUrl };
     pendingPhotos.push(pending);
@@ -1672,13 +1679,17 @@ function readFileAsDataUrl(file) {
 }
 
 // Scale an image dataURL down so its longest side is maxDim, as JPEG.
-// Returns the original if it's already smaller or can't be decoded.
-function makeScaledDataUrl(dataUrl, maxDim, quality) {
+// Returns the original if it's already smaller (unless forceReencode —
+// a small-dimension photo can still be a huge file worth recompressing).
+function makeScaledDataUrl(dataUrl, maxDim, quality, forceReencode) {
   return new Promise(function(resolve) {
     var img = new Image();
     img.onload = function() {
       var scale = maxDim / Math.max(img.width, img.height);
-      if (scale >= 1) { resolve(dataUrl); return; }
+      if (scale >= 1) {
+        if (!forceReencode) { resolve(dataUrl); return; }
+        scale = 1;
+      }
       var canvas = document.createElement('canvas');
       canvas.width = Math.round(img.width * scale);
       canvas.height = Math.round(img.height * scale);
@@ -1688,6 +1699,22 @@ function makeScaledDataUrl(dataUrl, maxDim, quality) {
     img.onerror = function() { resolve(dataUrl); };
     img.src = dataUrl;
   });
+}
+
+// Downscale per the Photos setting, stepping quality down to target <1MB
+var PHOTO_MAX_DIMS = { high: 2400, balanced: 1600, compact: 1200 };
+
+async function downscaleForUpload(dataUrl) {
+  var maxDim = PHOTO_MAX_DIMS[photoQuality];
+  if (!maxDim) return dataUrl; // setting is 'original'
+  var qualities = [0.8, 0.65, 0.5];
+  var out = dataUrl;
+  for (var i = 0; i < qualities.length; i++) {
+    out = await makeScaledDataUrl(dataUrl, maxDim, qualities[i], true);
+    if (out.length * 0.75 < 1024 * 1024) break; // base64 → approx decoded bytes
+  }
+  // Never "downscale" into a bigger file than the original
+  return (out.length < dataUrl.length) ? out : dataUrl;
 }
 
 // src + fallback attrs for a photo thumbnail; older photos have no thumb,
