@@ -822,7 +822,11 @@ function renderLogEntries(entries) {
 
   function entryTitle(e) {
     if (e.type === 'General') return e.name || e['f-name'] || 'General Entry';
-    if (e.type === 'Harvest') return (e['hv-species'] || 'Harvest') + (e['hv-sex'] ? ' — ' + e['hv-sex'] : '');
+    if (e.type === 'Harvest') {
+      var t = (e['hv-species'] || 'Harvest') + (e['hv-sex'] ? ' — ' + e['hv-sex'] : '');
+      if (e['hv-points']) t += ' (' + e['hv-points'] + '-pt)';
+      return t;
+    }
     if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + '× ' : '') + (e['si-species'] || 'Sighting');
     if (e.type === 'Activity') return e['ac-name'] || e['ac-category'] || 'Activity';
     if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
@@ -838,17 +842,31 @@ function renderLogEntries(entries) {
     return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
   }
 
+  function fmtEighths(v) {
+    var whole = Math.floor(v + 1e-9);
+    var eighths = Math.round((v - whole) * 8);
+    if (eighths === 8) { whole += 1; eighths = 0; }
+    return eighths ? whole + ' ' + eighths + '/8' : String(whole);
+  }
+
   function detailPairs(e) {
     var pairs = [];
     if (e.type === 'General') {
       if (e.description || e['f-description']) pairs.push(['Notes', e.description || e['f-description']]);
     } else if (e.type === 'Harvest') {
-      if (e['hv-age']) pairs.push(['Age', e['hv-age'] + ' yrs']);
+      if (e['hv-age']) pairs.push(['Age Class', e['hv-age']]);
       if (e['hv-weight']) pairs.push(['Weight', e['hv-weight'] + ' lbs']);
-      var antler = [e['hv-mainBeam'] && 'Beam: '+e['hv-mainBeam'], e['hv-tines'] && 'Tines: '+e['hv-tines'], e['hv-spread'] && 'Spread: '+e['hv-spread']].filter(Boolean).join(' | ');
-      if (antler) pairs.push(['Antler', antler]);
+      if (e['hv-tag']) pairs.push(['MLDP Tag #', e['hv-tag']]);
+      if (e['hv-hunter']) pairs.push(['Hunter', e['hv-hunter']]);
       if (e['hv-location']) pairs.push(['Location', e['hv-location']]);
       if (e['hv-method']) pairs.push(['Method', e['hv-method']]);
+      if (e['hv-species'] === 'White-tailed Deer') {
+        if (e['hv-points']) pairs.push(['Total Points', e['hv-points']]);
+        var antler = [e['hv-mainBeam'] && 'Beam: '+e['hv-mainBeam']+' in', e['hv-tines'] && 'Tines: '+e['hv-tines'], e['hv-spread'] && 'Spread: '+e['hv-spread']+' in'].filter(Boolean).join(' | ');
+        if (antler) pairs.push(['Antler', antler]);
+        if (parseFloat(e['hv-bc-net']) > 0)
+          pairs.push(['B&C Score', fmtEighths(parseFloat(e['hv-bc-net'])) + ' net (' + (e['hv-bc-mode'] === 'Non-Typical' ? 'Non-Typical' : 'Typical') + ')']);
+      }
       if (e['hv-notes']) pairs.push(['Notes', e['hv-notes']]);
     } else if (e.type === 'Sighting') {
       if (e['si-sexAge']) pairs.push(['Detail', e['si-sexAge']]);

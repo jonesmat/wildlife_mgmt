@@ -81,6 +81,56 @@
 .btn-danger { background: #fde8e8; color: #8b1a1a; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
 .btn-danger:hover { background: #f5c8c8; }
 
+/* ── B&C score panel ── */
+#bcPanel {
+  border: 1px solid #d5ddd2; border-radius: 8px; padding: 14px;
+  margin-top: 8px; background: #fafcf8;
+}
+.bc-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+.bc-head select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.88rem; }
+.bc-net-preview { margin-left: auto; font-size: 1.25rem; font-weight: 700; color: #1a4a1a; }
+.bc-net-preview small { font-size: 0.7rem; font-weight: 600; color: #888; display: block; text-align: right; }
+.bc-diagram { width: 100%; max-width: 580px; display: block; margin: 4px auto 10px; }
+.bc-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+.bc-table th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: #777; padding: 4px 6px; border-bottom: 2px solid #d5ddd2; }
+.bc-table td { padding: 3px 6px; border-bottom: 1px solid #e8ece5; }
+.bc-table input { width: 72px; padding: 5px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem; }
+.bc-table .bc-diff { font-variant-numeric: tabular-nums; color: #b33; font-size: 0.8rem; width: 56px; text-align: right; }
+.bc-table .bc-mlabel { color: #333; }
+.bc-table .bc-mlabel small { color: #999; display: block; font-size: 0.7rem; }
+.bc-singles { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
+.bc-singles .form-group { flex: 1; min-width: 180px; margin-bottom: 0; }
+.bc-summary { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.bc-sum-box { flex: 1; min-width: 90px; background: white; border: 1px solid #e0e5dd; border-radius: 6px; padding: 8px 10px; text-align: center; }
+.bc-sum-box .bc-sum-label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; }
+.bc-sum-box .bc-sum-val { font-size: 1.05rem; font-weight: 700; color: #333; font-variant-numeric: tabular-nums; }
+.bc-sum-box.bc-deduct .bc-sum-val { color: #b33; }
+.bc-sum-box.bc-add .bc-sum-val { color: #1a6a1a; }
+.bc-sum-box.bc-final { background: #1a4a1a; border-color: #1a4a1a; }
+.bc-sum-box.bc-final .bc-sum-label { color: #cfe0cf; }
+.bc-sum-box.bc-final .bc-sum-val { color: white; font-size: 1.25rem; }
+
+/* ── Trophy board ── */
+.trophy-board {
+  background: linear-gradient(135deg, #2a3a28, #1a2a18); border-radius: 10px;
+  padding: 16px 18px; margin-bottom: 20px; color: #e8e0d0;
+}
+.trophy-title { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.03em; margin-bottom: 12px; color: #e8d9a8; }
+.trophy-card {
+  display: flex; align-items: center; gap: 12px; padding: 8px 10px;
+  border-radius: 8px; cursor: pointer; transition: background 0.15s;
+}
+.trophy-card:hover { background: rgba(255,255,255,0.07); }
+.trophy-rank { font-size: 1.3rem; width: 36px; text-align: center; flex-shrink: 0; font-weight: 700; color: #c9b97e; }
+.trophy-thumb { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); flex-shrink: 0; }
+.trophy-thumb-empty { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; background: rgba(255,255,255,0.07); }
+.trophy-info { flex: 1; min-width: 0; }
+.trophy-score { font-size: 1.1rem; font-weight: 700; color: #f3e9c8; }
+.trophy-mode { font-size: 0.68rem; font-weight: 600; padding: 2px 7px; border-radius: 8px; background: rgba(233,217,168,0.18); color: #e8d9a8; vertical-align: middle; margin-left: 6px; }
+.trophy-meta { font-size: 0.76rem; color: #b8b0a0; margin-top: 1px; }
+.trophy-bar { height: 5px; background: rgba(255,255,255,0.12); border-radius: 3px; margin-top: 5px; overflow: hidden; }
+.trophy-bar-fill { height: 100%; background: linear-gradient(90deg, #c9b97e, #f3e9c8); border-radius: 3px; }
+
 /* lightbox */
 .lightbox { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:999; align-items:center; justify-content:center; }
 .lightbox.open { display:flex; }
@@ -164,7 +214,7 @@
         <div class="form-row">
           <div class="form-group">
             <label>Species</label>
-            <select id="hv-speciesSelect" onchange="speciesSelectChange('hv')">
+            <select id="hv-speciesSelect" onchange="speciesSelectChange('hv'); updateHarvestFields()">
               <option value="">-- Select --</option>
               <option>White-tailed Deer</option>
               <option>Mule Deer</option>
@@ -187,18 +237,121 @@
           <div class="form-group"><label>Sex</label>
             <select id="hv-sex"><option value="">--</option><option>Buck</option><option>Doe</option><option>Tom</option><option>Hen</option><option>Male</option><option>Female</option><option>Unknown</option></select>
           </div>
-          <div class="form-group"><label>Est. Age (yrs)</label><input type="text" id="hv-age" placeholder="3.5"></div>
+          <div class="form-group"><label>Age Class</label>
+            <select id="hv-age"><option value="">--</option><option>Fawn</option><option>1.5</option><option>2.5</option><option>3.5</option><option>4.5</option><option>5.5+</option><option>Unknown</option></select>
+          </div>
           <div class="form-group"><label>Weight (lbs)</label><input type="number" id="hv-weight"></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Main Beam (in)</label><input type="text" id="hv-mainBeam"></div>
-          <div class="form-group"><label>Tines (G1/G2/G3/G4)</label><input type="text" id="hv-tines" placeholder="5/4.5/4/3"></div>
-          <div class="form-group"><label>Inside Spread (in)</label><input type="text" id="hv-spread"></div>
-        </div>
-        <div class="form-row">
+          <div class="form-group" id="hv-tagGroup" style="display:none"><label>MLDP Tag #</label><input type="text" id="hv-tag" placeholder="Tag number"></div>
+          <div class="form-group"><label>Hunter</label><input type="text" id="hv-hunter" placeholder="Hunter name"></div>
           <div class="form-group"><label>Location on Property</label><input type="text" id="hv-location"></div>
           <div class="form-group"><label>Method</label>
             <select id="hv-method"><option value="">--</option><option>Rifle</option><option>Bow</option><option>Crossbow</option><option>Muzzleloader</option><option>Other</option></select>
+          </div>
+        </div>
+        <!-- White-tailed Deer antler fields — shown only when WTD is selected -->
+        <div id="hv-antlerSection" style="display:none">
+          <div class="form-row">
+            <div class="form-group"><label>Total Points</label><input type="text" id="hv-points" placeholder="e.g. 8"></div>
+            <div class="form-group"><label>Main Beam (in)</label><input type="text" id="hv-mainBeam" oninput="syncMainToBC('beam')"></div>
+            <div class="form-group"><label>Tines (G1/G2/G3/G4)</label><input type="text" id="hv-tines" placeholder="5/4.5/4/3" oninput="syncMainToBC('tines')"></div>
+            <div class="form-group"><label>Inside Spread (in)</label><input type="text" id="hv-spread" oninput="syncMainToBC('spread')"></div>
+          </div>
+          <div class="form-group" style="margin-bottom:4px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;color:#1a4a1a">
+              <input type="checkbox" id="bcEnable" onchange="toggleBC()"> Score this buck (Boone &amp; Crockett)
+            </label>
+          </div>
+          <div id="bcPanel" style="display:none">
+            <div class="bc-head">
+              <div class="form-group" style="margin-bottom:0">
+                <label>Score Type</label>
+                <select id="hv-bc-mode" onchange="bcModeChanged()">
+                  <option>Typical</option>
+                  <option>Non-Typical</option>
+                </select>
+              </div>
+              <div class="bc-net-preview"><small>NET SCORE</small><span id="bcNetPreview">—</span></div>
+            </div>
+
+            <!-- Measurement guide diagram -->
+            <svg class="bc-diagram" viewBox="0 0 580 195" xmlns="http://www.w3.org/2000/svg" aria-label="Antler measurement guide">
+              <!-- Inside spread inset (front view) -->
+              <g>
+                <path d="M55,165 C 20,130 18,75 45,45 C 55,35 68,32 75,40" fill="none" stroke="#7a5c30" stroke-width="5" stroke-linecap="round"/>
+                <path d="M95,165 C 130,130 132,75 105,45 C 95,35 82,32 75,40" fill="none" stroke="#7a5c30" stroke-width="5" stroke-linecap="round"/>
+                <line x1="49" y1="100" x2="101" y2="100" stroke="#1a398b" stroke-width="1.5" marker-start="url(#arrL)" marker-end="url(#arrR)"/>
+                <text x="75" y="93" text-anchor="middle" font-size="12" font-weight="700" fill="#1a398b">D</text>
+                <text x="75" y="185" text-anchor="middle" font-size="10" fill="#666">Inside Spread</text>
+              </g>
+              <defs>
+                <marker id="arrR" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#1a398b"/></marker>
+                <marker id="arrL" markerWidth="7" markerHeight="7" refX="1" refY="3" orient="auto-start-reverse"><path d="M0,0 L6,3 L0,6 Z" fill="#1a398b"/></marker>
+              </defs>
+              <!-- Side view: main beam with tines -->
+              <g>
+                <circle cx="175" cy="162" r="8" fill="none" stroke="#7a5c30" stroke-width="4"/>
+                <path d="M183,158 C 230,148 290,128 355,110 C 420,92 500,62 560,38" fill="none" stroke="#7a5c30" stroke-width="6" stroke-linecap="round"/>
+                <text x="490" y="70" font-size="12" font-weight="700" fill="#1a4a1a">F — Main Beam</text>
+                <!-- Tines G1-G4 -->
+                <path d="M218,150 C 214,128 210,115 204,103" fill="none" stroke="#7a5c30" stroke-width="4.5" stroke-linecap="round"/>
+                <text x="198" y="95" text-anchor="middle" font-size="12" font-weight="700" fill="#1a4a1a">G1</text>
+                <path d="M285,131 C 282,95 280,68 278,45" fill="none" stroke="#7a5c30" stroke-width="4.5" stroke-linecap="round"/>
+                <text x="276" y="37" text-anchor="middle" font-size="12" font-weight="700" fill="#1a4a1a">G2</text>
+                <path d="M360,109 C 358,78 357,55 357,33" fill="none" stroke="#7a5c30" stroke-width="4.5" stroke-linecap="round"/>
+                <text x="356" y="25" text-anchor="middle" font-size="12" font-weight="700" fill="#1a4a1a">G3</text>
+                <path d="M435,88 C 435,70 436,58 438,46" fill="none" stroke="#7a5c30" stroke-width="4" stroke-linecap="round"/>
+                <text x="439" y="38" text-anchor="middle" font-size="12" font-weight="700" fill="#1a4a1a">G4</text>
+                <!-- Circumference marks H1-H4 -->
+                <line x1="196" y1="147" x2="204" y2="161" stroke="#b33" stroke-width="2.5"/>
+                <text x="197" y="178" text-anchor="middle" font-size="11" font-weight="700" fill="#b33">H1</text>
+                <line x1="248" y1="133" x2="255" y2="148" stroke="#b33" stroke-width="2.5"/>
+                <text x="249" y="165" text-anchor="middle" font-size="11" font-weight="700" fill="#b33">H2</text>
+                <line x1="320" y1="113" x2="327" y2="128" stroke="#b33" stroke-width="2.5"/>
+                <text x="321" y="145" text-anchor="middle" font-size="11" font-weight="700" fill="#b33">H3</text>
+                <line x1="395" y1="92" x2="402" y2="107" stroke="#b33" stroke-width="2.5"/>
+                <text x="396" y="124" text-anchor="middle" font-size="11" font-weight="700" fill="#b33">H4</text>
+              </g>
+            </svg>
+            <div style="font-size:0.74rem;color:#888;margin-bottom:8px">
+              Measure to the nearest <strong>1/8 inch</strong> (enter 0.125 increments). <span style="color:#1a4a1a">G = tine lengths</span>, <span style="color:#b33">H = circumferences between points</span>. Leave blank any point the rack doesn't have.
+            </div>
+
+            <table class="bc-table">
+              <thead><tr><th>Measurement</th><th>Left</th><th>Right</th><th style="text-align:right">Diff</th></tr></thead>
+              <tbody id="bcMeasureBody"></tbody>
+            </table>
+
+            <div class="bc-singles">
+              <div class="form-group"><label>D — Inside Spread (in)</label><input type="number" id="hv-bc-spread" step="0.125" min="0" oninput="bcRecalc()"></div>
+              <div class="form-group" id="bcAbnSingle"><label>E — Total Abnormal Points (in) <span style="color:#b33;font-weight:400">(deducted)</span></label><input type="number" id="hv-bc-abn" step="0.125" min="0" oninput="bcRecalc()"></div>
+            </div>
+            <!-- Non-Typical: itemized abnormal points (per official NTWT sheet, added to score) -->
+            <div id="bcAbnNT" style="display:none;margin-top:12px">
+              <label style="font-size:0.82rem;font-weight:600;color:#333">E — Abnormal Points <span style="color:#1a6a1a;font-weight:400">(each measured separately, added for Non-Typical)</span></label>
+              <table class="bc-table" style="max-width:380px;margin-top:4px">
+                <thead><tr><th style="width:32px">#</th><th>Left</th><th>Right</th></tr></thead>
+                <tbody id="bcAbnRows"></tbody>
+              </table>
+              <div style="display:flex;align-items:center;gap:14px;margin-top:6px">
+                <button type="button" class="btn btn-secondary" style="font-size:0.78rem;padding:4px 10px" onclick="bcAbnAddRow('',''); bcAbnChanged()">+ Add abnormal point</button>
+                <span style="font-size:0.84rem;color:#555">Total: <strong id="bcAbnNTTotal" style="color:#1a6a1a">0</strong> in</span>
+              </div>
+              <input type="hidden" id="hv-bc-abnList">
+            </div>
+
+            <div class="bc-summary">
+              <div class="bc-sum-box"><div class="bc-sum-label">Spread Credit</div><div class="bc-sum-val" id="bcOutSpread">—</div></div>
+              <div class="bc-sum-box"><div class="bc-sum-label">Left Antler</div><div class="bc-sum-val" id="bcOutL">—</div></div>
+              <div class="bc-sum-box"><div class="bc-sum-label">Right Antler</div><div class="bc-sum-val" id="bcOutR">—</div></div>
+              <div class="bc-sum-box"><div class="bc-sum-label">Gross</div><div class="bc-sum-val" id="bcOutGross">—</div></div>
+              <div class="bc-sum-box bc-deduct"><div class="bc-sum-label">Asymmetry</div><div class="bc-sum-val" id="bcOutDiff">—</div></div>
+              <div class="bc-sum-box" id="bcAbnBox"><div class="bc-sum-label">Abnormal</div><div class="bc-sum-val" id="bcOutAbn">—</div></div>
+              <div class="bc-sum-box bc-final"><div class="bc-sum-label">Net Score</div><div class="bc-sum-val" id="bcOutNet">—</div></div>
+            </div>
+            <input type="hidden" id="hv-bc-gross">
+            <input type="hidden" id="hv-bc-net">
           </div>
         </div>
         <div class="form-group"><label>Notes</label><textarea id="hv-notes" rows="2"></textarea></div>
@@ -379,6 +532,9 @@
       </div>
     </div>
 
+    <!-- Trophy board: best B&C scores -->
+    <div class="trophy-board" id="trophyBoard" style="display:none"></div>
+
     <!-- Log list -->
     <div id="logList">
       <div class="log-empty">Loading...</div>
@@ -401,6 +557,7 @@ var filterType = '';
 
 // ── Init ──
 async function init() {
+  buildBCPanel();
   document.getElementById('filterYear').value = new Date().getFullYear();
   allEntries = await (await fetch('/api/log')).json();
   allEntries.sort(function(a,b) { return b.datetime < a.datetime ? -1 : 1; });
@@ -437,6 +594,8 @@ function renderList() {
     statsHtml += '<br>' + t + ': ' + statCounts[t];
   });
   document.getElementById('statsPanel').innerHTML = statsHtml;
+
+  renderTrophies();
 
   var list = document.getElementById('logList');
   if (!entries.length) {
@@ -478,10 +637,18 @@ function renderDetail(e) {
     rows += labelVal('Description', e.description);
   } else if (e.type === 'Harvest') {
     rows += twoCol('Species', e['hv-species'], 'Sex', e['hv-sex']);
-    rows += twoCol('Age', e['hv-age'], 'Weight', e['hv-weight'] ? e['hv-weight'] + ' lbs' : '');
-    rows += twoCol('Main Beam', e['hv-mainBeam'], 'Tines', e['hv-tines']);
-    rows += twoCol('Inside Spread', e['hv-spread'], 'Method', e['hv-method']);
-    rows += twoCol('Location', e['hv-location'], '', '');
+    rows += twoCol('Age Class', e['hv-age'], 'Weight', e['hv-weight'] ? e['hv-weight'] + ' lbs' : '');
+    rows += twoCol('MLDP Tag #', e['hv-tag'], 'Hunter', e['hv-hunter']);
+    rows += twoCol('Location', e['hv-location'], 'Method', e['hv-method']);
+    if (e['hv-species'] === 'White-tailed Deer') {
+      rows += twoCol('Total Points', e['hv-points'], 'Inside Spread', e['hv-spread'] ? e['hv-spread'] + ' in' : '');
+      rows += twoCol('Main Beam', e['hv-mainBeam'] ? e['hv-mainBeam'] + ' in' : '', 'Tines (G1/G2/G3/G4)', e['hv-tines']);
+      if (parseFloat(e['hv-bc-net']) > 0) {
+        var bcMode = (e['hv-bc-mode'] === 'Non-Typical') ? 'Non-Typical' : 'Typical';
+        rows += twoCol('B&C Net Score', fmtEighths(parseFloat(e['hv-bc-net'])) + ' (' + bcMode + ')',
+                       'B&C Gross', e['hv-bc-gross'] ? fmtEighths(parseFloat(e['hv-bc-gross'])) : '');
+      }
+    }
     rows += labelVal('Notes', e['hv-notes']);
   } else if (e.type === 'Sighting') {
     rows += twoCol('Species', e['si-species'], 'Count', e['si-count']);
@@ -572,6 +739,15 @@ function editEntry(id) {
   }
   // Populate species dropdowns
   populateSpeciesField('hv', e['hv-species']);
+  updateHarvestFields();
+  // Reopen B&C panel if this entry was scored
+  if (e.type === 'Harvest') {
+    var hasBC = BC_FIELDS.some(function(f) { return f !== 'hv-bc-mode' && e[f]; });
+    if (!document.getElementById('hv-bc-mode').value) document.getElementById('hv-bc-mode').value = 'Typical';
+    document.getElementById('bcEnable').checked = hasBC;
+    document.getElementById('bcPanel').style.display = hasBC ? '' : 'none';
+    if (hasBC) bcModeChanged();
+  }
   populateSpeciesField('pc', e['pc-species']);
   populateSpeciesField('si', e['si-species']);
   populateSpeciesField('ce', e['ce-species']);
@@ -605,8 +781,286 @@ function resetForm() {
     var o = document.getElementById(p + '-speciesOther');
     if (o) o.style.display = 'none';
   });
+  // Reset B&C scoring panel
+  document.getElementById('bcEnable').checked = false;
+  document.getElementById('bcPanel').style.display = 'none';
+  document.getElementById('hv-bc-mode').value = 'Typical';
+  document.getElementById('hv-bc-gross').value = '';
+  document.getElementById('hv-bc-net').value = '';
+  document.getElementById('hv-bc-abnList').value = '';
+  document.getElementById('bcAbnRows').innerHTML = '';
+  document.getElementById('bcAbnNTTotal').textContent = '0';
+  document.getElementById('bcAbnSingle').style.display = '';
+  document.getElementById('bcAbnNT').style.display = 'none';
   pendingPhotos = [];
   renderFormPhotos();
+}
+
+// ── Harvest field visibility ──
+function updateHarvestFields() {
+  var hidden = document.getElementById('hv-species');
+  var species = hidden ? hidden.value : '';
+  var isWTD = (species === 'White-tailed Deer');
+  var antlerSection = document.getElementById('hv-antlerSection');
+  if (antlerSection) antlerSection.style.display = isWTD ? '' : 'none';
+  var tagGroup = document.getElementById('hv-tagGroup');
+  if (tagGroup) tagGroup.style.display = isWTD ? '' : 'none';
+}
+
+// ── Boone & Crockett scoring ──
+var BC_ROWS = [
+  ['beam', 'F — Main Beam', 'burr to beam tip'],
+  ['g1', 'G1 — Brow Tine', '1st point'],
+  ['g2', 'G2', '2nd point'],
+  ['g3', 'G3', '3rd point'],
+  ['g4', 'G4', '4th point'],
+  ['g5', 'G5', '5th point (if present)'],
+  ['g6', 'G6', '6th point (if present)'],
+  ['g7', 'G7', '7th point (if present)'],
+  ['h1', 'H1 — Circumference', 'between burr and G1'],
+  ['h2', 'H2 — Circumference', 'between G1 and G2'],
+  ['h3', 'H3 — Circumference', 'between G2 and G3'],
+  ['h4', 'H4 — Circumference', 'between G3 and G4']
+];
+
+var BC_FIELDS = ['hv-bc-mode', 'hv-bc-spread', 'hv-bc-abn', 'hv-bc-abnList', 'hv-bc-gross', 'hv-bc-net'];
+BC_ROWS.forEach(function(r) { BC_FIELDS.push('hv-bc-' + r[0] + '-L', 'hv-bc-' + r[0] + '-R'); });
+
+function buildBCPanel() {
+  var body = document.getElementById('bcMeasureBody');
+  if (!body) return;
+  body.innerHTML = BC_ROWS.map(function(r) {
+    return '<tr>' +
+      '<td class="bc-mlabel">' + r[1] + '<small>' + r[2] + '</small></td>' +
+      '<td><input type="number" id="hv-bc-' + r[0] + '-L" step="0.125" min="0" oninput="bcRecalc()"></td>' +
+      '<td><input type="number" id="hv-bc-' + r[0] + '-R" step="0.125" min="0" oninput="bcRecalc()"></td>' +
+      '<td class="bc-diff" id="bcDiff-' + r[0] + '"></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function toggleBC() {
+  var on = document.getElementById('bcEnable').checked;
+  document.getElementById('bcPanel').style.display = on ? '' : 'none';
+  if (on) bcModeChanged();
+}
+
+function bcModeChanged() {
+  var nt = document.getElementById('hv-bc-mode').value === 'Non-Typical';
+  document.getElementById('bcAbnSingle').style.display = nt ? 'none' : '';
+  document.getElementById('bcAbnNT').style.display = nt ? '' : 'none';
+  if (nt) {
+    if (!document.getElementById('bcAbnRows').children.length) bcAbnRestoreRows();
+    bcAbnChanged(false);
+  }
+  bcRecalc();
+}
+
+// ── Non-Typical itemized abnormal points ──
+function bcAbnAddRow(l, r) {
+  var tbody = document.getElementById('bcAbnRows');
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td class="bc-mlabel">' + (tbody.children.length + 1) + '</td>' +
+    '<td><input type="number" step="0.125" min="0" class="bc-abn-l" oninput="bcAbnChanged()"></td>' +
+    '<td><input type="number" step="0.125" min="0" class="bc-abn-r" oninput="bcAbnChanged()"></td>';
+  tbody.appendChild(tr);
+  if (l) tr.querySelector('.bc-abn-l').value = l;
+  if (r) tr.querySelector('.bc-abn-r').value = r;
+}
+
+function bcAbnRestoreRows() {
+  var tbody = document.getElementById('bcAbnRows');
+  tbody.innerHTML = '';
+  var list = (document.getElementById('hv-bc-abnList').value || '').split(';').filter(Boolean);
+  list.forEach(function(pair) {
+    var p = pair.split('|');
+    bcAbnAddRow(p[0], p[1]);
+  });
+  while (tbody.children.length < 2) bcAbnAddRow('', '');
+}
+
+function bcAbnChanged(recalc) {
+  var total = 0, parts = [];
+  document.querySelectorAll('#bcAbnRows tr').forEach(function(tr) {
+    var l = parseFloat(tr.querySelector('.bc-abn-l').value);
+    var r = parseFloat(tr.querySelector('.bc-abn-r').value);
+    if (isNaN(l)) l = 0; if (isNaN(r)) r = 0;
+    total += l + r;
+    if (l || r) parts.push((l || '') + '|' + (r || ''));
+  });
+  document.getElementById('hv-bc-abnList').value = parts.join(';');
+  document.getElementById('hv-bc-abn').value = total || '';
+  document.getElementById('bcAbnNTTotal').textContent = fmtEighths(total);
+  if (recalc !== false) bcRecalc();
+}
+
+// ── Two-way sync: simple WTD fields <-> B&C measurements ──
+var bcSyncGuard = false;
+
+function syncMainToBC(which) {
+  if (bcSyncGuard) return;
+  bcSyncGuard = true;
+  try {
+    if (which === 'spread') {
+      var v = parseFloat(document.getElementById('hv-spread').value);
+      document.getElementById('hv-bc-spread').value = isNaN(v) ? '' : v;
+    } else if (which === 'beam') {
+      // Mirror into both sides only while they're empty or still identical
+      // (don't clobber independently-measured L/R values)
+      var v = parseFloat(document.getElementById('hv-mainBeam').value);
+      var L = document.getElementById('hv-bc-beam-L'), R = document.getElementById('hv-bc-beam-R');
+      if (L.value === R.value) { L.value = isNaN(v) ? '' : v; R.value = L.value; }
+    } else if (which === 'tines') {
+      var vals = document.getElementById('hv-tines').value.split('/');
+      ['g1','g2','g3','g4'].forEach(function(g, i) {
+        var L = document.getElementById('hv-bc-' + g + '-L'), R = document.getElementById('hv-bc-' + g + '-R');
+        if (L.value !== R.value) return;
+        var v = parseFloat(vals[i]);
+        L.value = isNaN(v) ? '' : v; R.value = L.value;
+      });
+    }
+    bcRecalc();
+  } finally { bcSyncGuard = false; }
+}
+
+function syncBCToMain() {
+  bcSyncGuard = true;
+  try {
+    var spread = document.getElementById('hv-bc-spread').value;
+    document.getElementById('hv-spread').value = spread;
+
+    var beamL = bcVal('hv-bc-beam-L'), beamR = bcVal('hv-bc-beam-R');
+    document.getElementById('hv-mainBeam').value = (beamL || beamR) ? Math.max(beamL, beamR) : '';
+
+    var tines = ['g1','g2','g3','g4'].map(function(g) {
+      var m = Math.max(bcVal('hv-bc-' + g + '-L'), bcVal('hv-bc-' + g + '-R'));
+      return m || '';
+    });
+    while (tines.length && tines[tines.length - 1] === '') tines.pop();
+    document.getElementById('hv-tines').value = tines.join('/');
+
+    // Total points: each G tine > 0 plus the beam tip, per side; NT abnormal entries count too
+    var pts = 0;
+    ['L','R'].forEach(function(side) {
+      if (bcVal('hv-bc-beam-' + side) > 0) pts++;
+      ['g1','g2','g3','g4','g5','g6','g7'].forEach(function(g) {
+        if (bcVal('hv-bc-' + g + '-' + side) > 0) pts++;
+      });
+    });
+    if (document.getElementById('hv-bc-mode').value === 'Non-Typical') {
+      document.querySelectorAll('#bcAbnRows tr').forEach(function(tr) {
+        if (parseFloat(tr.querySelector('.bc-abn-l').value) > 0) pts++;
+        if (parseFloat(tr.querySelector('.bc-abn-r').value) > 0) pts++;
+      });
+    }
+    if (pts > 0) document.getElementById('hv-points').value = pts;
+  } finally { bcSyncGuard = false; }
+}
+
+function bcVal(id) {
+  var el = document.getElementById(id);
+  var v = el ? parseFloat(el.value) : 0;
+  return isNaN(v) || v < 0 ? 0 : v;
+}
+
+function fmtEighths(v) {
+  if (!v && v !== 0) return '—';
+  var whole = Math.floor(v + 1e-9);
+  var eighths = Math.round((v - whole) * 8);
+  if (eighths === 8) { whole += 1; eighths = 0; }
+  return eighths ? whole + ' ' + eighths + '/8' : String(whole);
+}
+
+function bcRecalc() {
+  var sumL = 0, sumR = 0, diff = 0;
+  BC_ROWS.forEach(function(r) {
+    var L = bcVal('hv-bc-' + r[0] + '-L');
+    var R = bcVal('hv-bc-' + r[0] + '-R');
+    sumL += L; sumR += R;
+    var d = Math.abs(L - R);
+    diff += d;
+    var cell = document.getElementById('bcDiff-' + r[0]);
+    if (cell) cell.textContent = (L || R) ? fmtEighths(d) : '';
+  });
+
+  // Spread credit may not exceed the longer main beam
+  var spread = bcVal('hv-bc-spread');
+  var longerBeam = Math.max(bcVal('hv-bc-beam-L'), bcVal('hv-bc-beam-R'));
+  var spreadCredit = (longerBeam > 0 && spread > longerBeam) ? longerBeam : spread;
+
+  var abn = bcVal('hv-bc-abn');
+  var modeEl = document.getElementById('hv-bc-mode');
+  var nonTypical = modeEl && modeEl.value === 'Non-Typical';
+
+  var gross = spreadCredit + sumL + sumR + (nonTypical ? abn : 0);
+  var net = spreadCredit + sumL + sumR - diff + (nonTypical ? abn : -abn);
+  if (net < 0) net = 0;
+
+  var hasData = (sumL + sumR + spread) > 0;
+  document.getElementById('bcOutSpread').textContent = hasData ? fmtEighths(spreadCredit) : '—';
+  document.getElementById('bcOutL').textContent = hasData ? fmtEighths(sumL) : '—';
+  document.getElementById('bcOutR').textContent = hasData ? fmtEighths(sumR) : '—';
+  document.getElementById('bcOutGross').textContent = hasData ? fmtEighths(gross) : '—';
+  document.getElementById('bcOutDiff').textContent = hasData ? '− ' + fmtEighths(diff) : '—';
+  var abnBox = document.getElementById('bcAbnBox');
+  abnBox.className = 'bc-sum-box ' + (nonTypical ? 'bc-add' : 'bc-deduct');
+  document.getElementById('bcOutAbn').textContent = hasData ? (nonTypical ? '+ ' : '− ') + fmtEighths(abn) : '—';
+  document.getElementById('bcOutNet').textContent = hasData ? fmtEighths(net) : '—';
+  document.getElementById('bcNetPreview').textContent = hasData ? fmtEighths(net) : '—';
+
+  document.getElementById('hv-bc-gross').value = hasData ? gross.toFixed(3) : '';
+  document.getElementById('hv-bc-net').value = hasData ? net.toFixed(3) : '';
+
+  if (!bcSyncGuard && hasData) syncBCToMain();
+}
+
+function clearBCInputs() {
+  BC_FIELDS.forEach(function(f) {
+    var el = document.getElementById(f);
+    if (el && el.id !== 'hv-bc-mode') el.value = '';
+  });
+}
+
+// ── Trophy board ──
+function renderTrophies() {
+  var board = document.getElementById('trophyBoard');
+  var scored = allEntries.filter(function(e) {
+    return e.type === 'Harvest' && parseFloat(e['hv-bc-net']) > 0;
+  });
+  if (!scored.length) { board.style.display = 'none'; board.innerHTML = ''; return; }
+  scored.sort(function(a, b) { return parseFloat(b['hv-bc-net']) - parseFloat(a['hv-bc-net']); });
+  var top = scored.slice(0, 5);
+  var max = parseFloat(top[0]['hv-bc-net']);
+  var medals = ['🥇', '🥈', '🥉'];
+
+  board.style.display = '';
+  board.innerHTML = '<div class="trophy-title">🏆 Trophy Board &mdash; Best B&amp;C Scores</div>' +
+    top.map(function(e, i) {
+      var net = parseFloat(e['hv-bc-net']);
+      var pct = Math.max(8, Math.round(net / max * 100));
+      var photo = (e.photos && e.photos.length)
+        ? '<img class="trophy-thumb" src="/photos/' + e.photos[0] + '" alt="">'
+        : '<div class="trophy-thumb trophy-thumb-empty">🦌</div>';
+      var mode = (e['hv-bc-mode'] === 'Non-Typical') ? 'Non-Typical' : 'Typical';
+      var meta = [(e.datetime || '').slice(0, 4)];
+      if (e['hv-hunter']) meta.push(escHtml(e['hv-hunter']));
+      if (e['hv-points']) meta.push(escHtml(e['hv-points']) + '-pt');
+      return '<div class="trophy-card" onclick="jumpToEntry(\'' + e.id + '\')">' +
+        '<div class="trophy-rank">' + (medals[i] || '#' + (i + 1)) + '</div>' + photo +
+        '<div class="trophy-info">' +
+          '<div class="trophy-score">' + fmtEighths(net) + '<span class="trophy-mode">' + mode + '</span></div>' +
+          '<div class="trophy-meta">' + meta.join(' · ') + '</div>' +
+          '<div class="trophy-bar"><div class="trophy-bar-fill" style="width:' + pct + '%"></div></div>' +
+        '</div></div>';
+    }).join('');
+}
+
+function jumpToEntry(id) {
+  var card = document.getElementById('card-' + id);
+  if (!card) { clearFilter(); card = document.getElementById('card-' + id); }
+  if (!card) return;
+  card.classList.add('open');
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 // ── Species select+other helpers ──
@@ -666,7 +1120,7 @@ function switchType() {
 
 function getTypeFields(type) {
   var map = {
-    'Harvest':   ['hv-species','hv-sex','hv-age','hv-weight','hv-mainBeam','hv-tines','hv-spread','hv-location','hv-method','hv-notes'],
+    'Harvest':   ['hv-species','hv-sex','hv-age','hv-weight','hv-tag','hv-hunter','hv-location','hv-method','hv-points','hv-mainBeam','hv-tines','hv-spread','hv-notes'].concat(BC_FIELDS),
     'Sighting':  ['si-species','si-count','si-sexAge','si-location','si-method','si-notes'],
     'Activity':  ['ac-category','ac-name','ac-acres','ac-notes'],
     'Census':    ['ce-surveyType','ce-species','ce-route','ce-total','ce-conditions','ce-notes'],
@@ -691,6 +1145,8 @@ async function saveEntry() {
     entry.description = entry['f-description'];
   } else {
     resolveSpeciesFields(entry, type);
+    // Discard B&C measurements if scoring was toggled off
+    if (type === 'Harvest' && !document.getElementById('bcEnable').checked) clearBCInputs();
     getTypeFields(type).forEach(function(f) {
       var el = document.getElementById(f);
       if (el) entry[f] = el.value;
@@ -816,7 +1272,12 @@ function closeLightbox() {
 // ── Helpers ──
 function entryTitle(e) {
   if (e.type === 'General') return e.name || e['f-name'] || 'General Entry';
-  if (e.type === 'Harvest') return (e['hv-species'] || 'Harvest') + (e['hv-sex'] ? ' — ' + e['hv-sex'] : '');
+  if (e.type === 'Harvest') {
+    var title = e['hv-species'] || 'Harvest';
+    if (e['hv-sex']) title += ' — ' + e['hv-sex'];
+    if (e['hv-points']) title += ' (' + e['hv-points'] + '-pt)';
+    return title;
+  }
   if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + ' ' : '') + (e['si-species'] || 'Sighting');
   if (e.type === 'Activity') return (e['ac-name'] || e['ac-category'] || 'Activity');
   if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
