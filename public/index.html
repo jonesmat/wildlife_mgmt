@@ -42,6 +42,7 @@
     margin-bottom: 8px; background: #fafafa;
   }
   .year-item .year-label { font-weight: 600; color: #1a4a1a; }
+  .last-edited { font-size: 0.76rem; color: #999; margin-top: 2px; }
   .new-year-row { margin-top: 16px; display: flex; gap: 12px; align-items: center; }
   input[type="number"], input[type="text"] {
     padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px;
@@ -155,6 +156,7 @@
       <a href="/plan" class="btn btn-primary">Edit Plan</a>
       <button class="btn btn-secondary" onclick="generatePDF('/plan-print')">Generate Plan PDF</button>
     </div>
+    <div class="last-edited" id="planUpdated" style="margin-top:10px"></div>
   </div>
 
   <div class="card">
@@ -203,21 +205,34 @@
 <script>
   document.getElementById('newYear').value = new Date().getFullYear();
 
+  function fmtEdited(iso) {
+    if (!iso) return '';
+    try {
+      return 'Last edited ' + new Date(iso).toLocaleString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+      });
+    } catch (e) { return ''; }
+  }
+
   async function loadYears() {
-    const res = await fetch('/api/years');
-    const years = await res.json();
+    const res = await (await fetch('/api/years')).json();
+    document.getElementById('planUpdated').textContent = fmtEdited(res.planUpdatedAt);
+    const years = res.years || [];
     const list = document.getElementById('yearsList');
     if (!years.length) {
       list.innerHTML = '<div style="color:#999;font-size:0.9rem;margin-top:12px;">No annual reports yet. Create one above.</div>';
       return;
     }
-    list.innerHTML = years.map(y => `
+    list.innerHTML = years.map(item => `
       <div class="year-item">
-        <span class="year-label">${y} Annual Report</span>
+        <span>
+          <span class="year-label">${item.year} Annual Report</span>
+          <div class="last-edited">${fmtEdited(item.updatedAt)}</div>
+        </span>
         <div class="row">
-          <a href="/report/${y}" class="btn btn-outline btn-sm">Edit</a>
-          <button class="btn btn-secondary btn-sm" onclick="generatePDF('/report-print/${y}')">Generate PDF</button>
-          <button class="btn btn-danger btn-sm" onclick="openDeleteModal('${y}')">Delete</button>
+          <a href="/report/${item.year}" class="btn btn-outline btn-sm">Edit</a>
+          <button class="btn btn-secondary btn-sm" onclick="generatePDF('/report-print/${item.year}')">Generate PDF</button>
+          <button class="btn btn-danger btn-sm" onclick="openDeleteModal('${item.year}')">Delete</button>
         </div>
       </div>
     `).join('');

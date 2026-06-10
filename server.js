@@ -191,6 +191,7 @@ function migrateData(d) {
   if (!d.settings) d.settings = {};
   if (!d.settings.photoQuality) d.settings.photoQuality = 'balanced';
   if (!d.bucks) d.bucks = [];
+  if (!d.reportsMeta) d.reportsMeta = {}; // per-year { updatedAt }, kept outside report form data
   return d;
 }
 
@@ -204,19 +205,28 @@ app.get('/api/data', (req, res) => {
 });
 
 app.post('/api/data', (req, res) => {
-  saveData(req.body);
+  // Only the plan editor posts the full data blob
+  const body = req.body || {};
+  body.planUpdatedAt = new Date().toISOString();
+  saveData(body);
   res.json({ ok: true });
 });
 
 app.get('/api/years', (req, res) => {
   const data = loadData();
-  res.json(Object.keys(data.reports || {}).sort().reverse());
+  res.json({
+    planUpdatedAt: data.planUpdatedAt || null,
+    years: Object.keys(data.reports || {}).sort().reverse().map(function(y) {
+      return { year: y, updatedAt: (data.reportsMeta[y] || {}).updatedAt || null };
+    })
+  });
 });
 
 app.post('/api/reports/:year', (req, res) => {
   const data = loadData();
   if (!data.reports) data.reports = {};
   data.reports[req.params.year] = req.body;
+  data.reportsMeta[req.params.year] = { updatedAt: new Date().toISOString() };
   saveData(data);
   res.json({ ok: true });
 });
@@ -227,6 +237,7 @@ app.delete('/api/reports/:year', (req, res) => {
     return res.status(404).json({ error: 'Report not found' });
   }
   delete data.reports[req.params.year];
+  delete data.reportsMeta[req.params.year];
   saveData(data);
   res.json({ ok: true });
 });
@@ -530,7 +541,11 @@ app.post('/api/import', (req, res) => {
     });
     if (!cur.reports) cur.reports = {};
     Object.keys(inc.reports || {}).forEach(function(y) {
-      if (!cur.reports[y]) { cur.reports[y] = inc.reports[y]; summary.reports++; }
+      if (!cur.reports[y]) {
+        cur.reports[y] = inc.reports[y];
+        if (inc.reportsMeta && inc.reportsMeta[y]) cur.reportsMeta[y] = inc.reportsMeta[y];
+        summary.reports++;
+      }
     });
     (inc.propertyImages || []).forEach(function(img) {
       if (!cur.propertyImages.some(function(x) { return x.id === img.id; })) {
