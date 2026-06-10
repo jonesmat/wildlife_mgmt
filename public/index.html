@@ -267,7 +267,7 @@
       shown.map(function(e) {
         var net = parseFloat(e['hv-bc-net']);
         var photo = (e.photos && e.photos.length)
-          ? '<img class="trophy-photo" src="/photos/' + e.photos[0] + '" alt="">'
+          ? '<img class="trophy-photo" src="/photos/thumb-' + e.photos[0] + '" onerror="this.onerror=null;this.src=\'/photos/' + e.photos[0] + '\'" alt="">'
           : '<div class="trophy-photo-empty">🦌</div>';
         var mode = (e['hv-bc-mode'] === 'Non-Typical') ? 'Non-Typical' : 'Typical';
         var name = (e['hv-points'] ? e['hv-points'] + '-Point ' : '') + 'Whitetail';

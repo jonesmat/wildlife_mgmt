@@ -260,6 +260,8 @@ app.delete('/api/log/:id', (req, res) => {
     entry.photos.forEach(function(f) {
       var fp = path.join(PHOTOS_DIR, f);
       if (fs.existsSync(fp)) fs.unlinkSync(fp);
+      var tp = path.join(PHOTOS_DIR, 'thumb-' + f);
+      if (fs.existsSync(tp)) fs.unlinkSync(tp);
     });
   }
   data.log = data.log.filter(function(e) { return e.id !== req.params.id; });
@@ -275,12 +277,20 @@ app.post('/api/photos', (req, res) => {
   var base64 = dataUrl.replace(/^data:image\/[^;]+;base64,/, '');
   if (!fs.existsSync(PHOTOS_DIR)) fs.mkdirSync(PHOTOS_DIR, { recursive: true });
   fs.writeFileSync(path.join(PHOTOS_DIR, id), Buffer.from(base64, 'base64'));
+  // Small thumbnail (generated client-side) saved alongside as thumb-<id>
+  var thumbUrl = req.body.thumbUrl || '';
+  if (thumbUrl) {
+    var thumb64 = thumbUrl.replace(/^data:image\/[^;]+;base64,/, '');
+    fs.writeFileSync(path.join(PHOTOS_DIR, 'thumb-' + id), Buffer.from(thumb64, 'base64'));
+  }
   res.json({ ok: true, filename: id });
 });
 
 app.delete('/api/photos/:filename', (req, res) => {
   var fp = path.join(PHOTOS_DIR, req.params.filename);
   if (fs.existsSync(fp)) fs.unlinkSync(fp);
+  var tp = path.join(PHOTOS_DIR, 'thumb-' + req.params.filename);
+  if (fs.existsSync(tp)) fs.unlinkSync(tp);
   res.json({ ok: true });
 });
 

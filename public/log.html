@@ -898,7 +898,7 @@ function renderCard(e) {
   if (e.photos && e.photos.length) {
     thumbHtml = '<div class="entry-thumb-row">' +
       e.photos.slice(0,5).map(function(f) {
-        return '<img class="entry-thumb" src="/photos/' + f + '" alt="">';
+        return '<img class="entry-thumb" ' + thumbSrcAttr(f) + ' alt="">';
       }).join('') +
     '</div>';
   }
@@ -968,7 +968,7 @@ function renderDetail(e) {
   if (e.photos && e.photos.length) {
     photosHtml = '<div class="entry-photos-section"><div class="photo-grid">' +
       e.photos.map(function(f) {
-        return '<div class="photo-item"><img src="/photos/' + f + '" onclick="openLightbox(\'/photos/' + f + '\')" title="Click to enlarge"></div>';
+        return '<div class="photo-item"><img ' + thumbSrcAttr(f) + ' onclick="openLightbox(\'/photos/' + f + '\')" title="Click to enlarge"></div>';
       }).join('') +
     '</div></div>';
   }
@@ -1640,11 +1640,13 @@ async function handlePhotoFiles(input) {
     var pending = { dataUrl: dataUrl, filename: file.name, uploaded: false, localUrl: dataUrl };
     pendingPhotos.push(pending);
     renderFormPhotos();
+    // Generate a small thumbnail for lists/cards
+    var thumbUrl = await makeScaledDataUrl(dataUrl, 320, 0.72);
     // Upload to server
     try {
       var resp = await fetch('/api/photos', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dataUrl: dataUrl, filename: file.name })
+        body: JSON.stringify({ dataUrl: dataUrl, thumbUrl: thumbUrl, filename: file.name })
       });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       var res = await resp.json();
@@ -1669,6 +1671,31 @@ function readFileAsDataUrl(file) {
   });
 }
 
+// Scale an image dataURL down so its longest side is maxDim, as JPEG.
+// Returns the original if it's already smaller or can't be decoded.
+function makeScaledDataUrl(dataUrl, maxDim, quality) {
+  return new Promise(function(resolve) {
+    var img = new Image();
+    img.onload = function() {
+      var scale = maxDim / Math.max(img.width, img.height);
+      if (scale >= 1) { resolve(dataUrl); return; }
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = function() { resolve(dataUrl); };
+    img.src = dataUrl;
+  });
+}
+
+// src + fallback attrs for a photo thumbnail; older photos have no thumb,
+// so fall back to the full image if the thumb 404s
+function thumbSrcAttr(filename) {
+  return 'src="/photos/thumb-' + filename + '" onerror="this.onerror=null;this.src=\'/photos/' + filename + '\'"';
+}
+
 function renderFormPhotos() {
   var grid = document.getElementById('formPhotoGrid');
   var html = pendingPhotos.map(function(p, i) {
@@ -1684,8 +1711,10 @@ function renderFormPhotos() {
         '<div style="width:100px;height:100px;background:#f5f5f5;border:1px dashed #ccc;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;color:#999">Uploading...</div>' +
       '</div>';
     }
+    // Server photos render their thumbnail; fresh local previews use the dataURL
+    var imgAttrs = p.uploaded ? thumbSrcAttr(p.filename) : 'src="' + src + '"';
     return '<div class="photo-item">' +
-      '<img src="' + src + '" onclick="openLightbox(\'' + src + '\')">' +
+      '<img ' + imgAttrs + ' onclick="openLightbox(\'' + src + '\')">' +
       '<button class="photo-remove" onclick="removeFormPhoto(' + i + ')" title="Remove">&#10005;</button>' +
     '</div>';
   }).join('');
