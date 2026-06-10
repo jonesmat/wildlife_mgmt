@@ -899,14 +899,37 @@ function renderList() {
 function renderCard(e) {
   var title = entryTitle(e);
   var dt = formatDatetime(e.datetime);
-  var thumbHtml = '';
-  if (e.photos && e.photos.length) {
-    thumbHtml = '<div class="entry-thumb-row">' +
-      e.photos.slice(0,5).map(function(f) {
-        return '<img class="entry-thumb" ' + thumbSrcAttr(f) + ' alt="">';
-      }).join('') +
-    '</div>';
+  var thumbs = [];
+  // Location mini-map with its crosshair (object-fit:fill keeps the marker
+  // position true since both image and overlay stretch together)
+  if (e.loc && e.loc.img && propImgFile(e.loc.img)) {
+    var locFn = propImgFile(e.loc.img);
+    thumbs.push('<span style="position:relative;display:inline-block">' +
+      '<img class="entry-thumb" src="/property-images/thumb-' + locFn + '" onerror="this.onerror=null;this.src=\'/property-images/' + locFn + '\'" style="object-fit:fill" alt="Location">' +
+      '<span style="position:absolute;left:' + (e.loc.x * 100) + '%;top:' + (e.loc.y * 100) + '%;transform:translate(-50%,-50%);color:#e01818;font-size:11px;font-weight:700;line-height:1;text-shadow:0 0 2px #fff,0 0 3px #fff;pointer-events:none">&#10010;</span>' +
+    '</span>');
   }
+  // Census route mini-map
+  var cardRoute = null;
+  if (e['ce-routeId']) {
+    for (var ri = 0; ri < logRoutes.length; ri++) {
+      if (logRoutes[ri].id === e['ce-routeId']) cardRoute = logRoutes[ri];
+    }
+  }
+  if (cardRoute && cardRoute.points && cardRoute.points.length && propImgFile(cardRoute.imageId)) {
+    var rtFn = propImgFile(cardRoute.imageId);
+    var rpts = cardRoute.points.map(function(p) { return (p.x * 100) + ',' + (p.y * 100); }).join(' ');
+    thumbs.push('<span style="position:relative;display:inline-block">' +
+      '<img class="entry-thumb" src="/property-images/thumb-' + rtFn + '" onerror="this.onerror=null;this.src=\'/property-images/' + rtFn + '\'" style="object-fit:fill" alt="Route">' +
+      '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">' +
+        '<polyline points="' + rpts + '" fill="none" stroke="#e01818" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>' +
+      '</svg>' +
+    '</span>');
+  }
+  (e.photos || []).slice(0, 5).forEach(function(f) {
+    thumbs.push('<img class="entry-thumb" ' + thumbSrcAttr(f) + ' alt="">');
+  });
+  var thumbHtml = thumbs.length ? '<div class="entry-thumb-row">' + thumbs.join('') + '</div>' : '';
   return '<div class="entry-card" id="card-' + e.id + '">' +
     '<div class="entry-head" onclick="toggleCard(\'' + e.id + '\')">' +
       '<span class="entry-type-badge badge-' + e.type.split(' ')[0] + '">' + e.type + '</span>' +
