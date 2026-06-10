@@ -175,6 +175,13 @@
 .loc-map-wrap img { display: block; max-width: 100%; max-height: 65vh; }
 #locSaveBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* ── Moon phase display (derived from the entry date) ── */
+.moon-display {
+  display: inline-flex; align-items: center; gap: 8px; font-size: 0.86rem; color: #555;
+  background: #f5f7fb; border: 1px solid #dde3ee; border-radius: 18px; padding: 5px 14px;
+}
+.moon-display .moon-icon { font-size: 1.25rem; line-height: 1; }
+
 /* ── Milestone toasts ── */
 .toast-wrap {
   position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
@@ -250,7 +257,7 @@
       <div class="form-row">
         <div class="form-group">
           <label>Date</label>
-          <input type="date" id="fDatetime">
+          <input type="date" id="fDatetime" onchange="entryDateChanged()">
         </div>
         <div class="form-group">
           <label>Event Type</label>
@@ -652,6 +659,12 @@
       </div>
 
 
+      <!-- Moon phase (Harvest, Sighting, Census) — derived from the entry date -->
+      <div class="entry-photos-section" id="moonSection" style="display:none">
+        <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px">Moon Phase</label>
+        <span class="moon-display" id="moonDisplay"></span>
+      </div>
+
       <!-- Location on property (all types except Census) -->
       <div class="entry-photos-section" id="locSection">
         <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px">Location on Property</label>
@@ -980,7 +993,9 @@ function renderCard(e) {
       '<span class="entry-type-badge badge-' + e.type.split(' ')[0] + '">' + e.type + '</span>' +
       '<div class="entry-meta">' +
         '<div class="entry-title">' + escHtml(title) + '</div>' +
-        '<div class="entry-datetime">' + dt + '</div>' +
+        '<div class="entry-datetime">' + dt +
+          (entryMoonIndex(e) !== null ? ' <span title="' + MOON_PHASES[entryMoonIndex(e)].name + '">' + MOON_PHASES[entryMoonIndex(e)].icon + '</span>' : '') +
+        '</div>' +
         thumbHtml +
       '</div>' +
       '<span class="entry-chevron">&#9654;</span>' +
@@ -1037,6 +1052,11 @@ function renderDetail(e) {
     rows += twoCol('Vendor', e['pu-vendor'], 'Quantity', e['pu-qty']);
     rows += twoCol('Cost', e['pu-cost'] ? '$' + Number(e['pu-cost']).toLocaleString() : '', 'Practice', e['pu-practice']);
     rows += labelVal('Notes', e['pu-notes']);
+  }
+
+  var mi = entryMoonIndex(e);
+  if (mi !== null) {
+    rows += labelVal('Moon Phase', MOON_PHASES[mi].icon + ' ' + MOON_PHASES[mi].name);
   }
 
   var photosHtml = '';
@@ -1155,6 +1175,7 @@ function editEntry(id) {
   renderFormPhotos();
   pendingLoc = e.loc || null;
   updateLocUI();
+  updateMoonUI();
   // Open the form in place of the entry's card instead of jumping to the top
   restoreFormHome();
   var form = document.getElementById('newEntrySection');
@@ -1213,6 +1234,7 @@ function resetForm() {
   renderFormPhotos();
   pendingLoc = null;
   updateLocUI();
+  updateMoonUI();
 }
 
 // ── Harvest field visibility ──
@@ -1649,6 +1671,7 @@ function restoreFormState(state, newRouteId) {
   renderFormPhotos();
   pendingLoc = state.loc || null;
   updateLocUI();
+  updateMoonUI();
   if (newRouteId) document.getElementById('ce-routeId').value = newRouteId;
   scrollToForm();
 }
@@ -1663,6 +1686,52 @@ function routeNameById(id) {
     if (logRoutes[i].id === id) return logRoutes[i].name;
   }
   return '';
+}
+
+// ── Moon phase ──
+var MOON_PHASES = [
+  { icon: '🌑', name: 'New Moon' },
+  { icon: '🌒', name: 'Waxing Crescent' },
+  { icon: '🌓', name: 'First Quarter' },
+  { icon: '🌔', name: 'Waxing Gibbous' },
+  { icon: '🌕', name: 'Full Moon' },
+  { icon: '🌖', name: 'Waning Gibbous' },
+  { icon: '🌗', name: 'Last Quarter' },
+  { icon: '🌘', name: 'Waning Crescent' }
+];
+var MOON_TYPES = { 'Harvest': 1, 'Sighting': 1, 'Census': 1 };
+
+// Phase index (0 = new, 4 = full) from the synodic cycle,
+// anchored to the known new moon of Jan 6 2000 18:14 UTC
+function moonPhaseIndex(date) {
+  var synodic = 29.53058867;
+  var days = (date.getTime() - Date.UTC(2000, 0, 6, 18, 14)) / 86400000;
+  var frac = (((days % synodic) + synodic) % synodic) / synodic;
+  return Math.round(frac * 8) % 8;
+}
+
+function moonFromForm() {
+  var v = document.getElementById('fDatetime').value;
+  var d = v ? new Date(v + 'T12:00:00') : new Date();
+  return moonPhaseIndex(d);
+}
+
+function updateMoonUI() {
+  var p = MOON_PHASES[moonFromForm()];
+  document.getElementById('moonDisplay').innerHTML =
+    '<span class="moon-icon">' + p.icon + '</span> ' + escHtml(p.name);
+}
+
+// Phase for a saved entry: stored value if present, else derived from its date
+function entryMoonIndex(e) {
+  if (!MOON_TYPES[e.type]) return null;
+  if (typeof e.moon === 'number' && MOON_PHASES[e.moon]) return e.moon;
+  if (e.datetime) return moonPhaseIndex(new Date(e.datetime));
+  return null;
+}
+
+function entryDateChanged() {
+  updateMoonUI();
 }
 
 // ── Location picker ──
@@ -1808,6 +1877,8 @@ function switchType() {
   });
   // Census uses Route/Stand ID instead of a map location
   document.getElementById('locSection').style.display = (t === 'Census') ? 'none' : '';
+  // Moon phase applies to wildlife-activity events
+  document.getElementById('moonSection').style.display = MOON_TYPES[t] ? '' : 'none';
 }
 
 function getTypeFields(type) {
@@ -1840,7 +1911,8 @@ async function saveEntry() {
     datetime: entryDatetime,
     type: type,
     photos: pendingPhotos.filter(function(p) { return p.uploaded; }).map(function(p) { return p.filename; }),
-    loc: (type === 'Census') ? null : pendingLoc
+    loc: (type === 'Census') ? null : pendingLoc,
+    moon: MOON_TYPES[type] ? moonFromForm() : null
   };
 
   if (type === 'General') {

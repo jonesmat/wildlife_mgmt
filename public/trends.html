@@ -41,6 +41,8 @@
       "Total Observed" field (the leading number). Running the same route under the same
       conditions each season is what makes these lines meaningful.
     </div>
+    <div class="trend-card" id="moonCard" style="display:none"></div>
+
     <div id="trendsBody">
       <div style="color:#999;font-size:0.9rem">Loading...</div>
     </div>
@@ -77,11 +79,87 @@ function dateFrac(s) {
   return d.getFullYear() + (d.getMonth() / 12);
 }
 
+// ── Moon phase activity / best hunting time ──
+var MOON_PHASES = [
+  { icon: '🌑', name: 'New Moon' },
+  { icon: '🌒', name: 'Waxing Crescent' },
+  { icon: '🌓', name: 'First Quarter' },
+  { icon: '🌔', name: 'Waxing Gibbous' },
+  { icon: '🌕', name: 'Full Moon' },
+  { icon: '🌖', name: 'Waning Gibbous' },
+  { icon: '🌗', name: 'Last Quarter' },
+  { icon: '🌘', name: 'Waning Crescent' }
+];
+
+function moonPhaseIndex(date) {
+  var synodic = 29.53058867;
+  var days = (date.getTime() - Date.UTC(2000, 0, 6, 18, 14)) / 86400000;
+  var frac = (((days % synodic) + synodic) % synodic) / synodic;
+  return Math.round(frac * 8) % 8;
+}
+
+// First upcoming date (within one cycle) whose phase matches
+function nextPhaseDate(idx) {
+  var d = new Date();
+  for (var i = 0; i < 31; i++) {
+    if (moonPhaseIndex(d) === idx) return d;
+    d = new Date(d.getTime() + 86400000);
+  }
+  return null;
+}
+
+function renderMoonCard() {
+  // Wildlife activity per phase: harvests count 1, sightings count the
+  // animals seen. Stored phase preferred, else computed from the date.
+  var counts = [0, 0, 0, 0, 0, 0, 0, 0];
+  var total = 0;
+  entries.forEach(function(e) {
+    if (e.type !== 'Harvest' && e.type !== 'Sighting') return;
+    if (!e.datetime && typeof e.moon !== 'number') return;
+    var idx = (typeof e.moon === 'number') ? e.moon : moonPhaseIndex(new Date(e.datetime));
+    var weight = (e.type === 'Sighting') ? (parseInt(e['si-count'], 10) || 1) : 1;
+    counts[idx] += weight;
+    total += weight;
+  });
+  if (!total) return;
+
+  var best = 0;
+  counts.forEach(function(c, i) { if (c > counts[best]) best = i; });
+  var max = counts[best];
+  var todayIdx = moonPhaseIndex(new Date());
+  var next = nextPhaseDate(best);
+  var nextStr = next ? next.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+
+  var bars = MOON_PHASES.map(function(p, i) {
+    var h = max ? Math.max(3, Math.round(counts[i] / max * 80)) : 3;
+    return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px" title="' + p.name + ': ' + counts[i] + '">' +
+      '<span style="font-size:0.72rem;color:#777">' + (counts[i] || '') + '</span>' +
+      '<div style="width:70%;max-width:34px;height:' + h + 'px;border-radius:4px 4px 0 0;background:' + (i === best ? '#1a4a1a' : '#c9d6c2') + '"></div>' +
+      '<span style="font-size:1.15rem' + (i === best ? ';filter:drop-shadow(0 0 3px rgba(26,74,26,0.5))' : '') + '">' + p.icon + '</span>' +
+      (i === todayIdx ? '<span style="font-size:0.62rem;font-weight:700;color:#1a398b">TODAY</span>' : '<span style="font-size:0.62rem">&nbsp;</span>') +
+    '</div>';
+  }).join('');
+
+  var card = document.getElementById('moonCard');
+  card.style.display = '';
+  card.innerHTML =
+    '<div class="trend-title">🌙 Best Hunting Time</div>' +
+    '<div class="trend-sub">Wildlife activity (harvests + animals sighted) by moon phase, all years</div>' +
+    '<div style="display:flex;align-items:flex-end;gap:4px;padding:8px 0 4px">' + bars + '</div>' +
+    '<div class="trend-stats" style="margin-top:12px">' +
+      '<span class="trend-stat up">' + MOON_PHASES[best].icon + ' Best around the ' + MOON_PHASES[best].name +
+        ' — ' + Math.round(counts[best] / total * 100) + '% of activity (' + counts[best] + ' of ' + total + ')</span>' +
+      (nextStr ? '<span class="trend-stat">Next ' + MOON_PHASES[best].name + ': ' + nextStr + '</span>' : '') +
+    '</div>';
+}
+
 async function init() {
   try {
     entries = await (await fetch('/api/log')).json();
     routes = await (await fetch('/api/routes')).json();
   } catch (e) { /* leave empty */ }
+
+  renderMoonCard();
 
   // Group census entries by route (saved route id, legacy text, or unrouted),
   // then split each route into a series per target species
