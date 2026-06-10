@@ -96,6 +96,17 @@
   </main>
 </div>
 
+<!-- Update-from-log results dialog -->
+<div id="updateDialog" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)closeUpdateDialog()">
+  <div style="background:white;border-radius:10px;padding:24px 28px;width:460px;max-width:calc(100vw - 48px);max-height:80vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,0.25)">
+    <h3 id="updateDialogTitle" style="color:#1a4a1a;font-size:1.05rem;margin-bottom:12px"></h3>
+    <div id="updateDialogBody" style="font-size:0.88rem;color:#444;line-height:1.6"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:18px">
+      <button class="btn btn-primary" onclick="closeUpdateDialog()">OK</button>
+    </div>
+  </div>
+</div>
+
 <script src="/activities-form.js"></script>
 <script>
 const year = location.pathname.split('/').pop();
@@ -183,10 +194,26 @@ async function saveData() {
 }
 
 // ── Update report from Activity Log ──
+function showUpdateDialog(title, items) {
+  document.getElementById('updateDialogTitle').textContent = title;
+  var body = document.getElementById('updateDialogBody');
+  if (items && items.length) {
+    body.innerHTML = '<ul style="margin:0;padding-left:20px">' +
+      items.map(function(c) { return '<li>' + escHtml(c) + '</li>'; }).join('') + '</ul>';
+  } else {
+    body.innerHTML = '';
+  }
+  document.getElementById('updateDialog').style.display = 'flex';
+}
+
+function closeUpdateDialog() {
+  document.getElementById('updateDialog').style.display = 'none';
+}
+
 async function updateFromLog() {
   var entries = await (await fetch('/api/log')).json();
   entries = entries.filter(function(e) { return e.datetime && e.datetime.startsWith(year); });
-  if (!entries.length) { alert('No Activity Log entries for ' + year + '.'); return; }
+  if (!entries.length) { showUpdateDialog('No Activity Log entries for ' + year + '.', null); return; }
 
   var changes = [];
 
@@ -229,6 +256,9 @@ async function updateFromLog() {
   entries.forEach(function(e) {
     if (e.type === 'Activity' && QUAL[e['ac-category']]) {
       check(QUAL[e['ac-category']][0], QUAL[e['ac-category']][1]);
+    }
+    if (e.type === 'Purchase' && QUAL[e['pu-practice']]) {
+      check(QUAL[e['pu-practice']][0], QUAL[e['pu-practice']][1]);
     }
     if (e.type === 'Predator Control') {
       check(QUAL['Predator Control'][0], QUAL['Predator Control'][1]);
@@ -283,9 +313,9 @@ async function updateFromLog() {
   populateForm(reportData);
   await saveData();
   if (changes.length) {
-    alert('Updated from ' + entries.length + ' Activity Log entries:\n\n• ' + changes.join('\n• '));
+    showUpdateDialog('Updated from ' + entries.length + ' Activity Log entries', changes);
   } else {
-    alert('Report already reflects all ' + year + ' Activity Log entries — nothing to change.');
+    showUpdateDialog('Already up to date', ['The report already reflects all ' + year + ' Activity Log entries — nothing to change.']);
   }
 }
 
@@ -324,7 +354,7 @@ var ALL_LOG_ENTRIES = [];
 var TYPE_COLORS = {
   'General':'#1a4a1a', 'Harvest':'#8b1a1a', 'Sighting':'#1a398b',
   'Activity':'#8b5a1a', 'Census':'#5a1a8b', 'Predator Control':'#8b1a6a',
-  'Maintenance':'#1a3a8b'
+  'Maintenance':'#1a3a8b', 'Purchase':'#176a55'
 };
 
 async function loadLogEntries() {
@@ -477,6 +507,11 @@ function entryTitle(e) {
   if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
   if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
   if (e.type === 'Maintenance') return e['ma-item'] || 'Maintenance';
+  if (e.type === 'Purchase') {
+    var pt = e['pu-item'] || 'Purchase';
+    if (e['pu-cost']) pt += ' — $' + Number(e['pu-cost']).toLocaleString();
+    return pt;
+  }
   return e.type;
 }
 
@@ -517,6 +552,13 @@ function entryDetailLines(e) {
   } else if (e.type === 'Maintenance') {
     if (e['ma-action']) pairs.push(['Action', e['ma-action']]);
     if (e['ma-notes']) pairs.push(['Notes', e['ma-notes']]);
+  } else if (e.type === 'Purchase') {
+    if (e['pu-category']) pairs.push(['Category', e['pu-category']]);
+    if (e['pu-vendor']) pairs.push(['Vendor', e['pu-vendor']]);
+    if (e['pu-qty']) pairs.push(['Quantity', e['pu-qty']]);
+    if (e['pu-cost']) pairs.push(['Cost', '$' + Number(e['pu-cost']).toLocaleString()]);
+    if (e['pu-practice']) pairs.push(['Practice', e['pu-practice']]);
+    if (e['pu-notes']) pairs.push(['Notes', e['pu-notes']]);
   }
   return pairs.map(function(p) {
     return '<span style="color:#777;font-size:0.78rem;font-weight:600">' + escHtml(p[0]) + ':</span> ' + escHtml(p[1]) + '&nbsp;&nbsp;';

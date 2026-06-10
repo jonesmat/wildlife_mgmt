@@ -49,6 +49,7 @@
 .tl-node-Census      { border-color: #5a1a8b; background: #f0e8fd; }
 .tl-node-Predator    { border-color: #8b1a6a; background: #fde8f5; }
 .tl-node-Maintenance { border-color: #1a3a8b; background: #e8eefd; }
+.tl-node-Purchase    { border-color: #176a55; background: #e4f3ef; }
 .timeline .entry-card { margin-bottom: 0; }
 
 .entry-card {
@@ -71,6 +72,7 @@
 .badge-Census     { background: #f0e8fd; color: #5a1a8b; }
 .badge-Predator   { background: #fde8f5; color: #8b1a6a; }
 .badge-Maintenance{ background: #e8eefd; color: #1a3a8b; }
+.badge-Purchase   { background: #e4f3ef; color: #176a55; }
 
 .entry-meta { flex: 1; min-width: 0; }
 .entry-title { font-weight: 600; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -198,6 +200,7 @@
           <option>Census</option>
           <option>Predator Control</option>
           <option>Maintenance</option>
+          <option>Purchase</option>
         </select>
       </div>
       <button class="btn btn-secondary" style="width:100%;margin-top:4px" onclick="applyFilter()">Apply</button>
@@ -229,6 +232,7 @@
             <option>Census</option>
             <option>Predator Control</option>
             <option>Maintenance</option>
+            <option>Purchase</option>
           </select>
         </div>
       </div>
@@ -543,6 +547,49 @@
         <div class="form-group"><label>Description &amp; Notes</label><textarea id="ma-notes" rows="2"></textarea></div>
       </div>
 
+      <!-- Purchase -->
+      <div id="fields-Purchase" style="display:none">
+        <div class="form-row">
+          <div class="form-group"><label>Item Purchased</label><input type="text" id="pu-item" placeholder="Protein feed, feeder, seed mix..."></div>
+          <div class="form-group"><label>Category</label>
+            <select id="pu-category">
+              <option value="">--</option>
+              <option>Feed</option>
+              <option>Seed / Plants</option>
+              <option>Feeder / Blind</option>
+              <option>Water Infrastructure</option>
+              <option>Fencing / Materials</option>
+              <option>Nest Boxes / Shelter</option>
+              <option>Chemicals / Herbicide</option>
+              <option>Trapping Supplies</option>
+              <option>Equipment</option>
+              <option>Fuel</option>
+              <option>Services / Labor</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Vendor</label><input type="text" id="pu-vendor"></div>
+          <div class="form-group"><label>Quantity</label><input type="text" id="pu-qty" placeholder="10 bags, 2 rolls..."></div>
+          <div class="form-group"><label>Cost ($)</label><input type="number" id="pu-cost" step="0.01" min="0"></div>
+        </div>
+        <div class="form-group"><label>Related Management Practice</label>
+          <select id="pu-practice">
+            <option value="">--</option>
+            <option>Habitat Control</option>
+            <option>Erosion Control</option>
+            <option>Predator Control</option>
+            <option>Supplemental Water</option>
+            <option>Supplemental Food</option>
+            <option>Supplemental Shelter</option>
+            <option>Census</option>
+            <option>General Ranch</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Notes</label><textarea id="pu-notes" rows="2"></textarea></div>
+      </div>
+
 
       <!-- Location on property (all types except Census) -->
       <div class="entry-photos-section" id="locSection">
@@ -649,7 +696,13 @@ function clearFilter() {
 // ── Timeline icons ──
 var TYPE_ICONS = {
   'General': '📝', 'Harvest': '🎯', 'Sighting': '👀', 'Activity': '🚜',
-  'Census': '📊', 'Predator Control': '🪤', 'Maintenance': '🔧'
+  'Census': '📊', 'Predator Control': '🪤', 'Maintenance': '🔧', 'Purchase': '🛒'
+};
+
+var PURCHASE_ICONS = {
+  'Feed': '🌽', 'Seed / Plants': '🌱', 'Feeder / Blind': '🏗️', 'Water Infrastructure': '💧',
+  'Fencing / Materials': '🚧', 'Nest Boxes / Shelter': '🏠', 'Chemicals / Herbicide': '🧪',
+  'Trapping Supplies': '🪤', 'Equipment': '⚙️', 'Fuel': '⛽', 'Services / Labor': '👷'
 };
 
 var SPECIES_ICONS = {
@@ -679,6 +732,7 @@ function eventSubIcon(e) {
     return SPECIES_ICONS[e['hv-species'] || e['si-species'] || e['pc-species']] || '';
   if (e.type === 'Activity') return ACTIVITY_ICONS[e['ac-category']] || '';
   if (e.type === 'Census') return CENSUS_ICONS[e['ce-surveyType']] || SPECIES_ICONS[e['ce-species']] || '';
+  if (e.type === 'Purchase') return PURCHASE_ICONS[e['pu-category']] || '';
   return '';
 }
 
@@ -799,6 +853,11 @@ function renderDetail(e) {
   } else if (e.type === 'Maintenance') {
     rows += twoCol('Item', e['ma-item'], 'Action', e['ma-action']);
     rows += labelVal('Notes', e['ma-notes']);
+  } else if (e.type === 'Purchase') {
+    rows += twoCol('Item', e['pu-item'], 'Category', e['pu-category']);
+    rows += twoCol('Vendor', e['pu-vendor'], 'Quantity', e['pu-qty']);
+    rows += twoCol('Cost', e['pu-cost'] ? '$' + Number(e['pu-cost']).toLocaleString() : '', 'Practice', e['pu-practice']);
+    rows += labelVal('Notes', e['pu-notes']);
   }
 
   var photosHtml = '';
@@ -1300,7 +1359,7 @@ function resolveSpeciesFields(entry, type) {
 
 function switchType() {
   var t = document.getElementById('fType').value;
-  var types = ['General','Harvest','Sighting','Activity','Census','Predator Control','Maintenance'];
+  var types = ['General','Harvest','Sighting','Activity','Census','Predator Control','Maintenance','Purchase'];
   types.forEach(function(typ) {
     var el = document.getElementById('fields-' + typ);
     if (el) el.style.display = (typ === t) ? '' : 'none';
@@ -1316,7 +1375,8 @@ function getTypeFields(type) {
     'Activity':  ['ac-category','ac-name','ac-acres','ac-notes'],
     'Census':    ['ce-surveyType','ce-species','ce-route','ce-total','ce-conditions','ce-notes'],
     'Predator Control': ['pc-species','pc-method','pc-count','pc-notes'],
-    'Maintenance': ['ma-item','ma-action','ma-notes']
+    'Maintenance': ['ma-item','ma-action','ma-notes'],
+    'Purchase':  ['pu-item','pu-category','pu-vendor','pu-qty','pu-cost','pu-practice','pu-notes']
   };
   return map[type] || [];
 }
@@ -1475,6 +1535,11 @@ function entryTitle(e) {
   if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
   if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
   if (e.type === 'Maintenance') return (e['ma-item'] || 'Maintenance');
+  if (e.type === 'Purchase') {
+    var t = e['pu-item'] || 'Purchase';
+    if (e['pu-cost']) t += ' — $' + Number(e['pu-cost']).toLocaleString();
+    return t;
+  }
   return e.type;
 }
 

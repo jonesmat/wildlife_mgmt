@@ -897,6 +897,11 @@ function renderLogEntries(entries, propertyImages) {
     if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
     if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
     if (e.type === 'Maintenance') return e['ma-item'] || 'Maintenance';
+    if (e.type === 'Purchase') {
+      var pt = e['pu-item'] || 'Purchase';
+      if (e['pu-cost']) pt += ' — $' + Number(e['pu-cost']).toLocaleString();
+      return pt;
+    }
     return e.type;
   }
 
@@ -953,6 +958,13 @@ function renderLogEntries(entries, propertyImages) {
     } else if (e.type === 'Maintenance') {
       if (e['ma-action']) pairs.push(['Action', e['ma-action']]);
       if (e['ma-notes']) pairs.push(['Notes', e['ma-notes']]);
+    } else if (e.type === 'Purchase') {
+      if (e['pu-category']) pairs.push(['Category', e['pu-category']]);
+      if (e['pu-vendor']) pairs.push(['Vendor', e['pu-vendor']]);
+      if (e['pu-qty']) pairs.push(['Quantity', e['pu-qty']]);
+      if (e['pu-cost']) pairs.push(['Cost', '$' + Number(e['pu-cost']).toLocaleString()]);
+      if (e['pu-practice']) pairs.push(['Practice', e['pu-practice']]);
+      if (e['pu-notes']) pairs.push(['Notes', e['pu-notes']]);
     }
     return pairs;
   }
