@@ -515,6 +515,29 @@
       }
     }
 
+    if (pathname === '/api/calendar') {
+      if (method === 'GET') return json(data.calendar || null);
+      if (method === 'POST') {
+        var cal = body;
+        if (!cal || !cal.meta || !cal.meta.season_year || !Array.isArray(cal.groups)) {
+          return json({ error: 'Not a valid wildlife calendar file — expected meta.season_year and a groups array.' }, 400);
+        }
+        for (var ci = 0; ci < cal.groups.length; ci++) {
+          if (!cal.groups[ci].group || !Array.isArray(cal.groups[ci].events)) {
+            return json({ error: 'Not a valid wildlife calendar file — every group needs a name and an events array.' }, 400);
+          }
+        }
+        data.calendar = cal;
+        await saveData(data);
+        return json({ ok: true });
+      }
+      if (method === 'DELETE') {
+        delete data.calendar;
+        await saveData(data);
+        return json({ ok: true });
+      }
+    }
+
     if (pathname === '/api/export' && method === 'GET') {
       var photos = await collectFiles('/photos/');
       var propImgs = await collectFiles('/property-images/');

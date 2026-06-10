@@ -56,6 +56,7 @@
     <div class="sidebar-item active" id="nav-property" onclick="showPane('property')">Property</div>
     <div class="sidebar-item" id="nav-routes" onclick="showPane('routes')">Routes</div>
     <div class="sidebar-item" id="nav-photos" onclick="showPane('photos')">Photos</div>
+    <div class="sidebar-item" id="nav-calendar" onclick="showPane('calendar')">Calendar</div>
     <div class="sidebar-item" id="nav-data" onclick="showPane('data')">Data Export &amp; Restore</div>
   </nav>
 
@@ -154,6 +155,281 @@
           </select>
         </div>
         <span id="photoSettingStatus" style="font-size:0.85rem;color:#1a6a1a"></span>
+      </div>
+    </div>
+
+    <!-- Calendar pane -->
+    <div class="section" id="calendar" style="display:none">
+      <div class="section-title">Calendar</div>
+
+      <div class="sub-section">
+        <div class="section-subtitle">Season Calendar Data</div>
+        <div class="hint-block">
+          The home page Season Calendar can show exact TPWD season dates, MLDP deadlines, and
+          habitat windows from an imported calendar file. Until one is imported, a small built-in
+          starter calendar with approximate dates is used. Season dates change every year —
+          regenerate and re-import each spring.
+        </div>
+
+        <div id="calStatus" style="margin-top:12px;background:#f5f8f5;border:1px solid #ccc;border-radius:6px;padding:12px 14px;font-size:0.88rem;line-height:1.7">
+          Loading...
+        </div>
+
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="document.getElementById('calFileInput').click()">Import Calendar JSON</button>
+          <input type="file" id="calFileInput" accept=".json,application/json" style="display:none" onchange="calFilePicked(this)">
+          <button class="btn btn-secondary" id="calRemoveBtn" style="display:none;color:#8b1a1a" onclick="removeCalendar()">Remove Imported Calendar</button>
+          <span id="calImportStatus" style="font-size:0.85rem;color:#777;align-self:center"></span>
+        </div>
+      </div>
+
+      <div class="sub-section" style="margin-top:26px">
+        <div class="section-subtitle">AI Instructions — Generate a New Calendar</div>
+        <div class="hint-block">
+          Copy these instructions into an AI assistant that has web access (so it can verify
+          current TPWD season dates). It will produce a <code>tpwd_wildlife_management_calendar.json</code>
+          file you can import above.
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+          <button class="btn btn-secondary" onclick="copyAIInstructions()">Copy Instructions</button>
+          <span id="copyStatus" style="font-size:0.85rem;color:#1a6a1a"></span>
+        </div>
+        <details style="margin-top:12px">
+          <summary style="cursor:pointer;font-size:0.88rem;color:#1a4a1a;font-weight:600">View instructions</summary>
+          <pre id="aiInstructionsText" style="margin-top:10px;background:#fafafa;border:1px solid #ddd;border-radius:6px;padding:14px;font-size:0.74rem;line-height:1.5;white-space:pre-wrap;max-height:60vh;overflow:auto"># AI Generation Instructions: TPWD Wildlife Management Calendar JSON
+
+## Purpose
+
+You (the AI) are generating a JSON data file of important dates for a wildlife manager operating a Texas ranch under a TPWD Wildlife Management Plan (1-d-1 wildlife tax valuation). The consuming application expects a **static schema and fixed enumerations**. You may update dates, details, and add/remove events as regulations change, but you must NEVER change schema field names, group names, category values, species values, or type values. If new content does not fit an existing enum value, use the closest existing value and explain in `details` — do not invent new enum values.
+
+---
+
+## Step 1 — Determine the season year
+
+1. Use today's date. TPWD hunting seasons run roughly September–August and are labeled by split year (e.g., "2026-2027").
+2. TPWD typically approves and publishes next season's dates in **late March / early April**.
+3. Rule: if today is **on or after April 15**, target the season starting that fall (e.g., on 2027-05-01, target "2027-2028"). If before April 15, target the season currently in progress or about to be published; if the upcoming season's dates are not yet published, use the most recent published season and say so in `meta.disclaimer`.
+4. Set `meta.season_year` accordingly.
+
+## Step 2 — Research (mandatory, do not rely on memory)
+
+You MUST verify dates from primary sources via web search/fetch. Season dates change every year. Never output remembered dates without verification.
+
+Fetch, in priority order:
+
+1. **Official season dates page** (substitute the target years):
+   `https://tpwd.texas.gov/regulations/outdoor-annual/hunting/{YYYY}-{YYYY+1}-hunting-season-dates`
+   This single page contains: javelina, mule deer, pronghorn, squirrel, white-tailed deer, chachalaca, pheasant, quail, turkey (fall/spring/youth), dove, duck, goose, rails, sandhill crane, snipe, teal, woodcock, alligator, rabbits. It is the authoritative source for all `type: "season"` events.
+2. **TPW Commission regulation news release** (search: `TPW Commission approves {YYYY}-{YYYY+1} hunting regulations`) — capture notable regulation changes (county closures, bag-limit changes, zone restructures). Encode each significant change as a `type: "regulation"` event in the affected species group and/or mention in `details` of affected season events.
+3. **MLDP program page / news release** (search: `TPWD MLDP enrollment {YYYY}`) — verify Conservation Option enrollment window (historically ~April 1/2/5 – June 15), Harvest Option window (historically May 1 – Sep 1), and the April 1 harvest/habitat reporting deadline. If unchanged, keep historical dates.
+4. If any fetch fails, fall back to web search snippets from tpwd.texas.gov domains only for season dates. Third-party sites (blogs, license vendors) may be used only for cross-checking, never as the sole source — they frequently publish wrong dates.
+
+## Step 3 — Compute administrative and recurring dates
+
+These rules are stable year over year; compute concrete dates for the target cycle:
+
+| Event | Rule |
+|---|---|
+| 1-d-1 WMP filing deadline | April 30 of the spring following the fall season start |
+| PWD 888 annual report due | Last day of February (Feb 28, or Feb 29 in leap years) |
+| MLDP Year begins | March 1 |
+| MLDP reporting deadline | April 1 |
+| MLDP Conservation Option enrollment | ~Apr 1 – Jun 15 (verify) |
+| MLDP Harvest Option enrollment | May 1 – Sep 1 (verify) |
+| Licenses on sale | Aug 15 of season start year |
+| License year begins / HIP | Sep 1 of season start year |
+| Property tax protest deadline | May 15 (note "typical; varies by notice date") |
+| Drawn hunt applications | Jul 1 – Oct 15 of season start year |
+
+Biology/habitat windows (fawning, rut, nesting, burns, plantings, surveys, stress periods) are ecological constants — keep the month/day windows from the reference event list below, updating only the year.
+
+**Seasonal markers:** include the four astronomical season starts that fall within the calendar cycle (Sep 1 of the season start year through Aug 31 of the following year). Equinox/solstice dates shift by a day between years, so VERIFY the exact dates for the target years (search: `equinox solstice dates {YYYY}` / `{YYYY+1}`) rather than assuming. Typical ranges: autumnal equinox Sep 22–23; winter solstice Dec 21–22; spring (vernal) equinox Mar 19–20; summer solstice Jun 20–21. Each is a single-day event (no `end_date`, no `recurrence` since the date varies). In `details`, note the corresponding meteorological season start (Sep 1, Dec 1, Mar 1, Jun 1) and one ranch-relevant cue (e.g., spring → green-up and start of nesting season; fall → cool-season planting and migration).
+
+## Step 4 — Build the JSON
+
+### Schema (FROZEN — do not alter)
+
+```json
+{
+  "meta": {
+    "title": "TPWD Wildlife Management Calendar",
+    "description": "string",
+    "season_year": "YYYY-YYYY",
+    "generated": "YYYY-MM-DD",
+    "sources": ["url", "..."],
+    "disclaimer": "string"
+  },
+  "groups": [
+    {
+      "group": "string (from GROUP enum)",
+      "category": "string (from CATEGORY enum)",
+      "species": "string (from SPECIES enum; OMIT field when category is 'general' or 'habitat')",
+      "events": [
+        {
+          "name": "string",
+          "start_date": "YYYY-MM-DD (optional only for no-closed-season or pure-recurring items)",
+          "end_date": "YYYY-MM-DD (optional; omit for single-day events)",
+          "recurrence": "annual | monthly (optional; omit for one-time/season-specific events)",
+          "type": "string (from TYPE enum)",
+          "icon": "string (from ICON enum; REQUIRED on every event; assigned by the deterministic algorithm in 'Art assignment')",
+          "emoji": "string (single emoji; REQUIRED; must be the exact emoji mapped to the icon in the ICON→EMOJI table)",
+          "ecoregion": ["array of strings from ECOREGION enum; REQUIRED; use [\"all\"] unless the event is geographically limited per the Ecoregion assignment rules"],
+          "details": "string (optional but strongly encouraged)"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Enumerations (FROZEN)
+
+**GROUP (exactly these 10, in this order):**
+1. `General &amp; Administrative`
+2. `White-tailed Deer`
+3. `Mule Deer`
+4. `Wild Turkey`
+5. `Quail (Bobwhite &amp; Scaled)`
+6. `Dove`
+7. `Waterfowl &amp; Migratory Birds`
+8. `Other Game Species`
+9. `Habitat Management &amp; Nongame`
+10. `Seasonal &amp; Astronomical`
+
+**CATEGORY:** `general` | `species` | `habitat` | `seasonal`
+Mapping: group 1 → `general`; groups 2–8 → `species`; group 9 → `habitat`; group 10 → `seasonal`.
+
+**SPECIES:** `white_tailed_deer` | `mule_deer` | `wild_turkey` | `quail` | `dove` | `waterfowl` | `other_game`
+Mapping: groups 2–8 in order. Pronghorn, javelina, squirrel, pheasant, chachalaca, alligator, feral hogs, rabbits all live inside `other_game`. The `species` field is OMITTED on groups 1, 9, and 10.
+
+**TYPE:** `season` | `deadline` | `enrollment` | `license` | `program` | `opportunity` | `survey` | `biology` | `habitat` | `management` | `restriction` | `regulation` | `recordkeeping` | `seasonal`
+
+**ECOREGION (FROZEN — Texas Gould ecoregions plus `all`):**
+
+`all` | `pineywoods` | `gulf_prairies_marshes` | `post_oak_savannah` | `blackland_prairies` | `cross_timbers` | `south_texas_plains` | `edwards_plateau` | `rolling_plains` | `high_plains` | `trans_pecos`
+
+The `ecoregion` field is always an **array**. Statewide or region-independent events get exactly `["all"]`. Geographically limited events get the applicable ecoregion value(s) and never include `"all"` alongside specific values.
+
+**Ecoregion assignment rules (apply in order):**
+
+1. **Hunting zones are NOT ecoregions.** TPWD North/South/Central deer, dove, duck, and turkey zones are regulatory boundaries that cut across ecoregions — zone-split season events keep `["all"]` with the zone in `name`. Do not translate "South Zone" into `south_texas_plains`.
+2. **Fixed mapping table** — use these exact assignments for the recurring region-limited events:
+
+   | Event | ecoregion |
+   |---|---|
+   | Mule deer seasons — Panhandle | `["high_plains", "rolling_plains"]` |
+   | Mule deer seasons — Trans-Pecos | `["trans_pecos"]` |
+   | Mule deer rut &amp; herd surveys (full range) | `["high_plains", "rolling_plains", "trans_pecos"]` |
+   | Pronghorn season | `["high_plains", "rolling_plains", "trans_pecos"]` |
+   | Pheasant (Panhandle/South Plains) | `["high_plains"]` |
+   | Chachalaca (LRGV counties) | `["south_texas_plains"]` |
+   | Squirrel — East Texas (incl. youth weekend) | `["pineywoods", "post_oak_savannah"]` |
+   | Javelina (both zones) | `["south_texas_plains", "trans_pecos", "edwards_plateau"]` |
+   | Alligator — core counties | `["gulf_prairies_marshes", "pineywoods"]` |
+   | Spring turkey — East Texas (Eastern turkey) | `["pineywoods"]` |
+   | Golden-cheeked warbler restriction window | `["edwards_plateau", "cross_timbers"]` |
+   | Duck — High Plains Mallard Management Unit | `["high_plains"]` |
+   | Sandhill crane zones | `["high_plains", "rolling_plains", "gulf_prairies_marshes", "south_texas_plains"]` |
+   | Wetland/moist-soil flooding &amp; drawdowns | `["all"]` (any ranch with wetland units) |
+3. **New region-limited events** (e.g., a county-cluster closure or a new region-specific season): map the named counties/area to Gould ecoregions, citing the TPWD source in `details`. If the mapping is ambiguous or you cannot verify it, use `["all"]` and note the geographic limitation in `details` — never guess a specific ecoregion.
+4. Everything else — all administrative, license, MLDP, seasonal/astronomical, statewide seasons, biology windows, and habitat practices — gets `["all"]`.
+
+Type semantics:
+- `season` — legal hunting season windows (from the TPWD page only)
+- `deadline` — hard filing/reporting dates with consequences
+- `enrollment` — program signup windows
+- `license` — license/endorsement purchases and license-year events
+- `program` — program cycle markers (e.g., MLDP Year begins)
+- `opportunity` — optional applications (drawn hunts)
+- `survey` — census/monitoring activities
+- `biology` — natural events (rut, fawning, nesting, antler shed)
+- `habitat` — active habitat practices (burns, plots, disking, wetland flooding, nest boxes)
+- `management` — ongoing operational tasks (feeders, water, hog control, stress-period support)
+- `restriction` — windows to AVOID activities (nesting-season clearing limits, GCW window)
+- `regulation` — notable rule changes for the target season
+- `recordkeeping` — documentation tasks for PWD 888
+- `seasonal` — astronomical/meteorological season markers (equinoxes, solstices)
+
+### Art (FROZEN) — icons and emoji
+
+Every event carries two static art fields: `icon` (a stable identifier the application maps to its own SVG/icon assets) and `emoji` (a renderable fallback). Do NOT generate inline SVG, image URLs, base64 data, or free-form art descriptions — those are not reproducible. Art is expressed ONLY through these two fields, and identical events must receive identical art on every regeneration.
+
+**ICON enum (exactly these values):**
+
+`whitetail` | `muledeer` | `turkey` | `quail` | `dove` | `waterfowl` | `javelina` | `pronghorn` | `squirrel` | `pheasant` | `chachalaca` | `alligator` | `hog` | `rabbit` | `antler` | `fawn` | `nest` | `nest-box` | `paw` | `binoculars` | `fire` | `seedling` | `water-drop` | `feed` | `gear` | `calendar-alert` | `clipboard` | `id-card` | `flag` | `target` | `no-entry` | `gavel` | `notebook` | `flower` | `sun` | `leaf` | `snowflake`
+
+**ICON → EMOJI table (use these exact pairings; do not substitute):**
+
+| icon | emoji | icon | emoji | icon | emoji |
+|---|---|---|---|---|---|
+| whitetail | 🦌 | muledeer | 🦌 | turkey | 🦃 |
+| quail | 🐦 | dove | 🕊️ | waterfowl | 🦆 |
+| javelina | 🐗 | pronghorn | 🦌 | squirrel | 🐿️ |
+| pheasant | 🦚 | chachalaca | 🐦 | alligator | 🐊 |
+| hog | 🐗 | rabbit | 🐇 | antler | 🦌 |
+| fawn | 🦌 | nest | 🪺 | nest-box | 🏠 |
+| paw | 🐾 | binoculars | 🔎 | fire | 🔥 |
+| seedling | 🌱 | water-drop | 💧 | feed | 🌾 |
+| gear | ⚙️ | calendar-alert | 📅 | clipboard | 📋 |
+| id-card | 🪪 | flag | 🚩 | target | 🎯 |
+| no-entry | 🚫 | gavel | ⚖️ | notebook | 📓 |
+| flower | 🌸 | sun | ☀️ | leaf | 🍂 |
+| snowflake | ❄️ | | | | |
+
+**Art assignment algorithm (apply rules in order; first match wins):**
+
+1. `type: "seasonal"` → by season: Spring → `flower`; Summer → `sun`; Fall/Autumn → `leaf`; Winter → `snowflake`.
+2. `type: "season"` → species icon by group: White-tailed Deer → `whitetail`; Mule Deer → `muledeer`; Wild Turkey → `turkey`; Quail → `quail`; Dove → `dove`; Waterfowl &amp; Migratory Birds → `waterfowl`. Other Game Species → match the animal in the event `name`: javelina → `javelina`; pronghorn → `pronghorn`; squirrel → `squirrel`; pheasant → `pheasant`; chachalaca → `chachalaca`; alligator → `alligator`; rabbit → `rabbit`.
+3. `type: "biology"` → name contains "Fawning" → `fawn`; name contains "Rut" or "Antler" → `antler`; name contains "Nesting", "brood", or "poult" → `nest`; otherwise → `paw`.
+4. `type: "survey"` → `binoculars`.
+5. `type: "habitat"` → name contains "burn" → `fire`; name contains "Nest box" → `nest-box`; name contains "moist-soil", "wetland", "drawdown", or "Flood" → `water-drop`; otherwise (planting, disking, brush, half-cutting) → `seedling`.
+6. `type: "management"` → name contains "hog" → `hog`; name contains "water" → `water-drop`; name contains "stress" or "feeder" → `feed`; otherwise → `gear`.
+7. Remaining types map 1:1: `deadline` → `calendar-alert`; `enrollment` → `clipboard`; `license` → `id-card`; `program` → `flag`; `opportunity` → `target`; `restriction` → `no-entry`; `regulation` → `gavel`; `recordkeeping` → `notebook`.
+
+### Formatting rules
+
+- All dates ISO `YYYY-MM-DD`. Multi-segment seasons (split dove/duck seasons): one event per segment where segments are listed separately on the TPWD page for dove; for duck/rails, a single event spanning first open day to last close is acceptable IF the split is spelled out in `details` (follow the reference list's pattern). Never silently merge gaps without noting them.
+- Zone-specific seasons get separate events with the zone in `name` (e.g., "General season - North Zone").
+- `recurrence: "annual"` only on events governed by stable rules (admin deadlines, biology windows, habitat practices, surveys). Season events for a specific year get NO recurrence field. Astronomical seasonal events get NO recurrence field (the exact date shifts between years).
+- Every event MUST include `icon` and `emoji`, assigned strictly by the Art assignment algorithm and ICON→EMOJI table. Never improvise art.
+- Every event MUST include `ecoregion` as an array — `["all"]` by default, specific values only per the Ecoregion assignment rules. Never mix `"all"` with specific values.
+- `meta.generated` = today's date. `meta.sources` = the actual URLs you fetched.
+- Output must be valid JSON (no comments, no trailing commas). Validate before delivering.
+
+## Step 5 — Required event coverage (reference list)
+
+Reproduce every event from the v2026-2027 reference file, updated to the target season. Minimum required events per group:
+
+- **General &amp; Administrative (10):** WMP filing Apr 30; PWD 888 due end of Feb; MLDP Year begins Mar 1; MLDP reporting Apr 1; MLDP CO enrollment; MLDP HO enrollment; licenses on sale Aug 15; license year/HIP Sep 1; tax protest May 15; drawn hunts Jul–Oct.
+- **White-tailed Deer (15):** archery; youth early; general North; general South; special late North; special late South; muzzleloader; youth late; population surveys Aug 15–Oct 15; fawning May 15–Jul 15; rut Oct 15–Dec 31 (regional notes); antler shed/post-season census Feb–Mar; summer stress Jul–Aug; winter stress Jan–Feb.
+- **Mule Deer (6):** archery Panhandle; archery Trans-Pecos; general Panhandle; general Trans-Pecos; rut Nov 15–Dec 31; herd composition surveys Aug–Sep.
+- **Wild Turkey (14):** fall archery; fall North; fall South; fall four-county extended; spring South; spring North; spring one-turkey counties; spring East; spring youth South; spring youth North; current-season regulation changes; nesting Mar–Jun; winter roost counts Jan–Feb; hen:poult surveys Jun–Aug.
+- **Quail (5):** season; spring call counts May–Jun; fall covey counts Oct; nesting/defer-mowing Apr–Aug; winter disking/half-cutting Jan–Feb.
+- **Dove (9):** six zone/segment season events (N1, N2, C1, C2, S1, S2); plant fields Mar–Apr; prep fields/baiting check Aug; nesting Mar–Sep.
+- **Waterfowl &amp; Migratory Birds (14):** teal; early Canada goose East; duck HPMMU; duck North; duck South (youth/veteran weekends in details); geese West; geese East dark; geese East light; sandhill crane (Zone A as primary, B/C in details); rails/gallinules; snipe; woodcock; flood moist-soil units Aug 15–Oct 15; drawdowns Feb 15–Apr 30.
+- **Other Game (9):** javelina North; javelina South; pronghorn; squirrel East Texas (spring season + youth weekend in details); pheasant; chachalaca; alligator core counties (other counties in details); feral hog control winter emphasis; rabbits no closed season (no start_date).
+- **Habitat Management &amp; Nongame (10):** dormant-season burns Dec–Feb; growing-season burns Aug–Sep; nesting restriction Mar 1–Aug 31 (GCW Mar 1–Jul 31 in details); brush management window Sep–Feb; cool-season plots Sep 15–Oct 31; warm-season plots Mar–Apr; nest boxes Jan–Feb; winter bird counts mid-Dec–mid-Feb; supplemental water May–Sep; monthly PWD 888 log (recurrence "monthly", no dates).
+- **Seasonal &amp; Astronomical (4):** "Start of Fall (Autumnal Equinox)"; "Start of Winter (Winter Solstice)"; "Start of Spring (Vernal Equinox)"; "Start of Summer (Summer Solstice)" — exact verified dates for the target cycle, in chronological order (Fall and Winter in the season start year; Spring and Summer in the following year). Use these exact name patterns so icon assignment and app display are stable.
+
+If TPWD adds, removes, or restructures a season (e.g., a county closure, eliminated season, new zone), reflect it: drop events that no longer exist, add new season events within the existing groups/enums, and add a `type: "regulation"` event describing the change.
+
+## Step 6 — Validation checklist (run before output)
+
+1. Valid JSON; parses cleanly.
+2. Every `group`, `category`, `species`, `type`, `recurrence`, and `icon` value is in the frozen enums; `species` omitted on general/habitat/seasonal groups.
+3. All 10 groups present, in order; event counts meet or exceed the minimums above.
+4. Every `type: "season"` date matches the official TPWD page fetched in Step 2 — spot-check at least: white-tailed general openers, spring turkey zones, dove Sep 1 openers, teal, quail Nov 1.
+5. `end_date` ≥ `start_date` everywhere; dates use the correct calendar years (fall dates = season start year; spring dates = following year).
+6. Leap-year check on the Feb "last day" deadlines.
+7. Every event has both `icon` and `emoji`; each `emoji` matches its `icon` per the ICON→EMOJI table; re-run the Art assignment algorithm on a sample of 5 events across different types and confirm the output matches.
+8. Every event has an `ecoregion` array containing only ECOREGION enum values; `"all"` is never combined with specific values; every entry in the fixed mapping table matches exactly; no hunting zone (North/South/Central) was misread as an ecoregion.
+9. The four seasonal events carry verified (not assumed) equinox/solstice dates for the target years and follow the exact "Start of ..." name patterns.
+10. `meta.sources` lists real fetched URLs; `meta.disclaimer` notes county/zone variation and instructs verification against the Outdoor Annual and the user's CAD.
+
+## Output
+
+Deliver a single file named `tpwd_wildlife_management_calendar.json` containing only the JSON object. Also provide a short human-readable summary of what changed versus the prior season (date shifts, regulation changes, added/removed events).</pre>
+        </details>
       </div>
     </div>
 
@@ -364,7 +640,7 @@ function escHtml(s) {
 
 // ── Pane switching ──
 function showPane(p) {
-  ['property', 'routes', 'photos', 'data'].forEach(function(id) {
+  ['property', 'routes', 'photos', 'calendar', 'data'].forEach(function(id) {
     document.getElementById(id).style.display = (id === p) ? '' : 'none';
     document.getElementById('nav-' + id).classList.toggle('active', id === p);
   });
@@ -387,6 +663,73 @@ async function savePhotoSetting() {
   });
   status.textContent = 'Saved';
   setTimeout(function() { status.textContent = ''; }, 2000);
+}
+
+// ── Calendar data ──
+async function loadCalendarPane() {
+  var cal = null;
+  try { cal = await (await fetch('/api/calendar')).json(); } catch (e) { /* show default state */ }
+  var el = document.getElementById('calStatus');
+  var removeBtn = document.getElementById('calRemoveBtn');
+  if (cal && cal.meta) {
+    var events = 0;
+    (cal.groups || []).forEach(function(g) { events += (g.events || []).length; });
+    el.innerHTML =
+      '<strong>' + escHtml(cal.meta.title || 'Imported calendar') + '</strong><br>' +
+      'Season ' + escHtml(cal.meta.season_year || '?') +
+      (cal.meta.generated ? ' &middot; generated ' + escHtml(cal.meta.generated) : '') + '<br>' +
+      (cal.groups || []).length + ' groups &middot; ' + events + ' events' +
+      (cal.meta.disclaimer ? '<div style="font-size:0.78rem;color:#888;margin-top:6px">' + escHtml(cal.meta.disclaimer) + '</div>' : '');
+    removeBtn.style.display = '';
+  } else {
+    el.innerHTML = 'No calendar imported — the home page is using the <strong>built-in starter calendar</strong> with approximate dates.';
+    removeBtn.style.display = 'none';
+  }
+}
+
+function calFilePicked(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var status = document.getElementById('calImportStatus');
+  status.textContent = 'Reading file...';
+  var reader = new FileReader();
+  reader.onload = async function() {
+    input.value = '';
+    var cal;
+    try { cal = JSON.parse(reader.result); }
+    catch (e) { status.textContent = ''; appDialog('That file is not valid JSON.'); return; }
+    try {
+      var resp = await fetch('/api/calendar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cal)
+      });
+      var result = await resp.json();
+      if (!resp.ok) throw new Error(result.error || ('HTTP ' + resp.status));
+      status.textContent = '';
+      await appDialog('Season ' + (cal.meta.season_year || '?') + ' calendar imported. The home page Season Calendar now uses these dates.', 'Calendar imported');
+      loadCalendarPane();
+    } catch (err) {
+      status.textContent = '';
+      appDialog('Import failed: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function removeCalendar() {
+  if (!(await appConfirm('The home page will go back to the built-in starter calendar with approximate dates.', 'Remove imported calendar?', 'Remove'))) return;
+  await fetch('/api/calendar', { method: 'DELETE' });
+  loadCalendarPane();
+}
+
+function copyAIInstructions() {
+  var text = document.getElementById('aiInstructionsText').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    var s = document.getElementById('copyStatus');
+    s.textContent = 'Copied! Paste into an AI assistant with web access.';
+    setTimeout(function() { s.textContent = ''; }, 4000);
+  });
 }
 
 // ── Data export / import / clear ──
@@ -709,6 +1052,7 @@ async function deleteRoute(id) {
 var createRouteReturn = new URLSearchParams(location.search).get('createRoute') === '1';
 
 loadPhotoSetting();
+loadCalendarPane();
 load().then(loadRoutes).then(function() {
   if (createRouteReturn) {
     showPane('routes');

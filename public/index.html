@@ -80,7 +80,7 @@
   .cal-row.past { opacity: 0.45; }
   .cal-row.next { background: #f0f7ee; border: 1px solid #cfe0c8; }
   .cal-icon { font-size: 1.1rem; width: 28px; text-align: center; flex-shrink: 0; }
-  .cal-date { width: 84px; flex-shrink: 0; font-weight: 700; color: #1a4a1a; font-size: 0.82rem; }
+  .cal-date { width: 118px; flex-shrink: 0; font-weight: 700; color: #1a4a1a; font-size: 0.82rem; }
   .cal-info { flex: 1; min-width: 0; }
   .cal-title { font-weight: 600; color: #333; }
   .cal-desc { font-size: 0.78rem; color: #888; margin-top: 1px; }
@@ -440,86 +440,142 @@
   }
 
   // ── Season calendar ──
-  // month is 1-based; day marks the start of ranges for countdown purposes
-  var SEASON_EVENTS = [
-    { m: 2,  d: 1,  icon: '🗂️', date: 'Feb',        title: 'Annual report prep', desc: 'Gather receipts, photos, and survey sheets; review the Activity Log' },
-    { m: 3,  d: 1,  icon: '🌱', date: 'Mar–Apr',    title: 'Spring food plot planting', desc: 'Warm-season plots; also prime cowbird trapping season' },
-    { m: 4,  d: 1,  icon: '❗', date: 'Apr 1',      title: 'MLDP harvest report due', desc: 'Report buck and antlerless harvest in TWIMS or tags may not issue next season' },
-    { m: 4,  d: 5,  icon: '🦃', date: 'Apr–May',    title: 'Spring turkey season (Rio Grande)', desc: 'Gobbler season — zone dates vary; log harvests and hen sightings' },
-    { m: 4,  d: 30, icon: '📄', date: 'Apr 30',     title: 'Annual report (PWD 888) due at many CADs', desc: 'Check your appraisal district\'s deadline' },
-    { m: 5,  d: 1,  icon: '🐣', date: 'May–Aug',    title: 'Ground-nesting season (quail & turkey)', desc: 'Keep nesting cover standing; hold off on shredding field edges' },
-    { m: 5,  d: 15, icon: '🦌', date: 'May–Jun',    title: 'Fawning season', desc: 'Defer mowing and minimize disturbance in cover' },
-    { m: 6,  d: 15, icon: '📋', date: 'Jun 15',     title: 'MLDP enrollment deadline', desc: 'Enroll or renew for next season in TWIMS' },
-    { m: 8,  d: 1,  icon: '🔦', date: 'Aug–Sep',    title: 'Census window', desc: 'TPWD recommends three spotlight counts on your fixed route' },
-    { m: 8,  d: 15, icon: '🐦', date: 'Aug–Sep',    title: 'Quail call counts', desc: 'Early-morning covey call surveys gauge fall quail numbers' },
-    { m: 9,  d: 1,  icon: '🕊️', date: 'Sep 1',      title: 'Dove season opens', desc: 'North and Central zones' },
-    { m: 9,  d: 15, icon: '🌾', date: 'Sep–Oct',    title: 'Fall food plot planting', desc: 'Oats, wheat, and clover for winter forage' },
-    { m: 10, d: 1,  icon: '🏷️', date: 'Late Sep',   title: 'MLDP season begins', desc: 'Tags arrive; daily harvest log required from first kill' },
-    { m: 10, d: 25, icon: '🐦', date: 'Late Oct',   title: 'Quail season opens', desc: 'Last Saturday of October, runs through late February' },
-    { m: 11, d: 7,  icon: '🦌', date: 'Early Nov',  title: 'General whitetail season opens', desc: 'First Saturday of November; fall turkey runs concurrent in most counties' },
-    { m: 12, d: 15, icon: '🌽', date: 'Dec–Feb',   title: 'Supplemental feeding season', desc: 'Keep feeders running and log refills as purchases' }
-  ];
+  // Renders from an imported TPWD calendar (Settings → Calendar) when one
+  // exists, otherwise from this small built-in starter with approximate dates.
+  var DEFAULT_CALENDAR = {
+    meta: { title: 'Built-in starter calendar', season_year: '' },
+    groups: [
+      { group: 'General & Administrative', category: 'general', events: [
+        { name: 'Wildlife Management Annual Report (PWD 888) due', start_date: '2027-02-28', recurrence: 'annual', type: 'deadline', emoji: '📅', details: 'Due to many County Appraisal Districts by the last day of February — confirm with your CAD.' },
+        { name: 'MLDP harvest & habitat reporting deadline', start_date: '2027-04-01', recurrence: 'annual', type: 'deadline', emoji: '📅', details: 'Report harvest and practices in the TPWD LMA system to keep MLDP enrollment.' },
+        { name: '1-d-1 Wildlife Management Plan filing deadline', start_date: '2027-04-30', recurrence: 'annual', type: 'deadline', emoji: '📅', details: 'File PWD 885 with your County Appraisal District.' },
+        { name: 'New hunting licenses go on sale', start_date: '2026-08-15', recurrence: 'annual', type: 'license', emoji: '🪪' }
+      ]},
+      { group: 'Seasons & Biology (approximate dates)', category: 'species', events: [
+        { name: 'Deer census window', start_date: '2026-08-15', end_date: '2026-10-15', recurrence: 'annual', type: 'survey', emoji: '🔎', details: 'TPWD recommends three spotlight counts on a fixed route.' },
+        { name: 'Dove season opens (North & Central)', start_date: '2026-09-01', recurrence: 'annual', type: 'season', emoji: '🕊️', details: 'Approximate — import a generated TPWD calendar for exact dates.' },
+        { name: 'Plant cool-season food plots', start_date: '2026-09-15', end_date: '2026-10-31', recurrence: 'annual', type: 'habitat', emoji: '🌱' },
+        { name: 'Deer archery season (approx.)', start_date: '2026-10-01', end_date: '2026-11-06', recurrence: 'annual', type: 'season', emoji: '🦌' },
+        { name: 'Quail season (approx.)', start_date: '2026-11-01', end_date: '2027-02-28', recurrence: 'annual', type: 'season', emoji: '🐦' },
+        { name: 'White-tailed general season opens (approx.)', start_date: '2026-11-07', recurrence: 'annual', type: 'season', emoji: '🦌', details: 'First Saturday of November statewide.' },
+        { name: 'Spring turkey season (approx.)', start_date: '2027-04-01', end_date: '2027-05-15', recurrence: 'annual', type: 'season', emoji: '🦃' },
+        { name: 'Fawning season', start_date: '2027-05-15', end_date: '2027-07-15', recurrence: 'annual', type: 'biology', emoji: '🦌', details: 'Defer mowing and minimize disturbance in cover.' }
+      ]}
+    ]
+  };
 
   var calExpanded = false;
+  var loadedCalendar = null;     // imported calendar, or null
+  var calendarIsDefault = true;
 
   function toggleCalendar() {
     calExpanded = !calExpanded;
     renderSeasonCalendar();
   }
 
-  function calRow(it, extraClass) {
-    var ev = it.ev;
-    var label = it.days === 0 ? 'today!' : 'in ' + it.days + ' day' + (it.days === 1 ? '' : 's');
-    var chip = (it.days <= 75)
-      ? '<span class="cal-due' + (it.days <= 14 ? ' urgent' : '') + '">' + label + '</span>'
-      : '';
-    return '<div class="cal-row' + (extraClass || '') + '">' +
-      '<span class="cal-icon">' + ev.icon + '</span>' +
-      '<span class="cal-date">' + ev.date + '</span>' +
+  function calParseDate(s) {
+    var p = s.split('-');
+    return new Date(+p[0], +p[1] - 1, +p[2]);
+  }
+
+  function calFmtMD(d) {
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  // Where an event stands relative to today; annual events roll forward
+  function calItemState(ev) {
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (!ev.start_date) {
+      return { dateless: true, past: false, active: false, days: Infinity,
+               dateLabel: ev.recurrence === 'monthly' ? 'Monthly' : 'Ongoing' };
+    }
+    var start = calParseDate(ev.start_date);
+    var end = ev.end_date ? calParseDate(ev.end_date) : start;
+    if (ev.recurrence === 'annual') {
+      while (end < today) {
+        start.setFullYear(start.getFullYear() + 1);
+        end.setFullYear(end.getFullYear() + 1);
+      }
+    }
+    var active = today >= start && today <= end;
+    var past = end < today;
+    var days = Math.round((start - today) / 86400000);
+    return {
+      dateless: false, active: active, past: past, days: days,
+      dateLabel: calFmtMD(start) + (ev.end_date ? ' – ' + calFmtMD(end) : '')
+    };
+  }
+
+  function calRow(item, extraClass) {
+    var ev = item.ev, st = item.st;
+    var chip = '';
+    if (st.active) {
+      chip = '<span class="cal-due">open now</span>';
+    } else if (!st.past && !st.dateless && st.days <= 75) {
+      chip = '<span class="cal-due' + (st.days <= 14 ? ' urgent' : '') + '">' +
+        (st.days === 0 ? 'today!' : 'in ' + st.days + ' day' + (st.days === 1 ? '' : 's')) + '</span>';
+    }
+    return '<div class="cal-row' + (st.past ? ' past' : '') + (extraClass || '') + '">' +
+      '<span class="cal-icon">' + (ev.emoji || '📅') + '</span>' +
+      '<span class="cal-date">' + st.dateLabel + '</span>' +
       '<span class="cal-info">' +
-        '<div class="cal-title">' + ev.title + '</div>' +
-        '<div class="cal-desc">' + ev.desc + '</div>' +
+        '<div class="cal-title">' + escHtml(ev.name) + '</div>' +
+        (ev.details ? '<div class="cal-desc">' + escHtml(ev.details) + '</div>' : '') +
       '</span>' +
       chip +
     '</div>';
   }
 
   function renderSeasonCalendar() {
-    var now = new Date();
-    var year = now.getFullYear();
-    var today = now.getTime();
-
-    var items = SEASON_EVENTS.map(function(ev) {
-      // Events already passed this year count down to next year's occurrence
-      var next = new Date(year, ev.m - 1, ev.d);
-      var wrapped = next.getTime() < today - 86400000;
-      if (wrapped) next = new Date(year + 1, ev.m - 1, ev.d);
-      var days = Math.max(0, Math.round((next.getTime() - today) / 86400000));
-      return { ev: ev, days: days, wrapped: wrapped };
+    var cal = loadedCalendar || DEFAULT_CALENDAR;
+    var items = [];
+    (cal.groups || []).forEach(function(g) {
+      (g.events || []).forEach(function(ev) {
+        items.push({ group: g.group, ev: ev, st: calItemState(ev) });
+      });
     });
+
+    var note = calendarIsDefault
+      ? '<div style="font-size:0.78rem;color:#8b5a1a;background:#fdf5e8;border:1px solid #ecd9b0;border-radius:6px;padding:6px 10px;margin-bottom:10px">Built-in starter dates (approximate). Import a generated TPWD calendar in <a href="/settings" style="color:#8b5a1a">Settings → Calendar</a> for exact season dates.</div>'
+      : '<div style="font-size:0.78rem;color:#777;margin-bottom:10px">Season ' + escHtml(cal.meta.season_year || '') +
+        (cal.meta.generated ? ' · generated ' + escHtml(cal.meta.generated) : '') + ' · imported calendar</div>';
 
     var el = document.getElementById('seasonCalendar');
     if (!calExpanded) {
-      // Next 3 upcoming, soonest first
-      var upcoming = items.slice().sort(function(a, b) { return a.days - b.days; }).slice(0, 3);
-      el.innerHTML = upcoming.map(function(it, i) {
-        return calRow(it, i === 0 ? ' next' : '');
+      var upcoming = items.filter(function(i) { return !i.st.dateless && !i.st.past; })
+        .sort(function(a, b) {
+          return (a.st.active ? -1 : a.st.days) - (b.st.active ? -1 : b.st.days);
+        }).slice(0, 3);
+      el.innerHTML = note + upcoming.map(function(it, i) {
+        return calRow(it, (i === 0 || it.st.active) ? ' next' : '');
       }).join('') +
-      '<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="toggleCalendar()">Show full year (' + (items.length - upcoming.length) + ' more)</button></div>';
+      '<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="toggleCalendar()">Show full calendar (' + items.length + ' events)</button></div>';
     } else {
-      // Full year in calendar order; passed events dimmed, nearest highlighted
-      var nextDays = Math.min.apply(null, items.map(function(it) { return it.days; }));
-      el.innerHTML = items.map(function(it) {
-        var cls = it.wrapped ? ' past' : (it.days === nextDays ? ' next' : '');
-        return calRow(it, cls);
-      }).join('') +
-      '<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="toggleCalendar()">Show next 3 only</button></div>';
+      var html = note;
+      (cal.groups || []).forEach(function(g) {
+        html += '<div style="font-size:0.78rem;font-weight:700;color:#1a4a1a;text-transform:uppercase;letter-spacing:0.05em;margin:16px 0 4px">' + escHtml(g.group) + '</div>';
+        (g.events || []).forEach(function(ev) {
+          var st = calItemState(ev);
+          html += calRow({ ev: ev, st: st }, st.active ? ' next' : '');
+        });
+      });
+      el.innerHTML = html +
+        '<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="toggleCalendar()">Show next 3 only</button></div>';
     }
+  }
+
+  async function loadCalendar() {
+    try {
+      loadedCalendar = await (await fetch('/api/calendar')).json();
+    } catch (e) { loadedCalendar = null; }
+    calendarIsDefault = !loadedCalendar;
+    renderSeasonCalendar();
   }
 
   loadYears();
   loadTrophies();
-  renderSeasonCalendar();
+  loadCalendar();
 </script>
 </body>
 </html>
