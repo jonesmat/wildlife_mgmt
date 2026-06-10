@@ -86,6 +86,7 @@
   .trophy-info { flex: 1; min-width: 0; }
   .trophy-score { font-size: 1.1rem; font-weight: 700; color: #f3e9c8; }
   .trophy-mode { font-size: 0.68rem; font-weight: 600; padding: 2px 7px; border-radius: 8px; background: rgba(233,217,168,0.18); color: #e8d9a8; vertical-align: middle; margin-left: 6px; }
+  .trophy-hunter { font-size: 0.85rem; font-weight: 600; color: #d8cfb8; margin-left: 10px; vertical-align: middle; }
   .trophy-meta { font-size: 0.76rem; color: #b8b0a0; margin-top: 1px; }
   .trophy-bar { height: 5px; background: rgba(255,255,255,0.12); border-radius: 3px; margin-top: 5px; overflow: hidden; }
   .trophy-bar-fill { height: 100%; background: linear-gradient(90deg, #c9b97e, #f3e9c8); border-radius: 3px; }
@@ -266,13 +267,15 @@
           ? '<img class="trophy-thumb" src="/photos/' + e.photos[0] + '" alt="">'
           : '<div class="trophy-thumb trophy-thumb-empty">🦌</div>';
         var mode = (e['hv-bc-mode'] === 'Non-Typical') ? 'Non-Typical' : 'Typical';
+        var hunter = e['hv-hunter']
+          ? '<span class="trophy-hunter">' + escHtml(e['hv-hunter']) + '</span>'
+          : '';
         var meta = [(e.datetime || '').slice(0, 4)];
-        if (e['hv-hunter']) meta.push(escHtml(e['hv-hunter']));
         if (e['hv-points']) meta.push(escHtml(e['hv-points']) + '-pt');
         return '<div class="trophy-card" onclick="location.href=\'/log#entry-' + e.id + '\'">' +
           '<div class="trophy-rank">' + (medals[i] || '#' + (i + 1)) + '</div>' + photo +
           '<div class="trophy-info">' +
-            '<div class="trophy-score">' + fmtEighths(net) + '<span class="trophy-mode">' + mode + '</span></div>' +
+            '<div class="trophy-score">' + fmtEighths(net) + '<span class="trophy-mode">' + mode + '</span>' + hunter + '</div>' +
             '<div class="trophy-meta">' + meta.join(' · ') + '</div>' +
             '<div class="trophy-bar"><div class="trophy-bar-fill" style="width:' + pct + '%"></div></div>' +
           '</div></div>';
