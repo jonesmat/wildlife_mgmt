@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings</title>
+<link rel="stylesheet" href="/form-shared.css">
+<style>
+.current-image-wrap {
+  border: 2px solid #1a4a1a; border-radius: 10px; overflow: hidden;
+  background: #f5f8f5; position: relative; max-width: 720px;
+}
+.current-image-wrap img { width: 100%; display: block; }
+.current-tag {
+  position: absolute; top: 10px; left: 10px; background: #1a4a1a; color: white;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.no-image {
+  border: 2px dashed #ccc; border-radius: 10px; padding: 60px 20px; text-align: center;
+  color: #999; max-width: 720px; background: #fafafa;
+}
+.image-meta { font-size: 0.8rem; color: #777; margin-top: 8px; }
+.past-grid { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; }
+.past-card {
+  width: 200px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background: white;
+}
+.past-card img { width: 100%; height: 120px; object-fit: cover; display: block; }
+.past-card .past-body { padding: 8px 10px; }
+.past-card .past-date { font-size: 0.76rem; color: #777; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Settings</h1>
+  <div class="header-actions">
+    <a href="/" class="btn btn-white">Home</a>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sidebar-section">Settings</div>
+    <div class="sidebar-item active">Property</div>
+  </nav>
+
+  <main class="main">
+    <div class="section" id="property">
+      <div class="section-title">Property</div>
+
+      <div class="sub-section">
+        <div class="section-subtitle">Property Image</div>
+        <div class="hint-block">
+          Upload an aerial photo or map of your property. It is used to mark event locations.
+          Uploading a new image keeps the previous ones, so events recorded against an older
+          image still display correctly.
+        </div>
+
+        <div id="currentImageArea" style="margin-top:14px">
+          <div style="color:#999;font-size:0.9rem">Loading...</div>
+        </div>
+
+        <div style="margin-top:14px">
+          <button class="btn btn-primary" onclick="document.getElementById('imageFileInput').click()">Upload New Image</button>
+          <input type="file" id="imageFileInput" accept="image/*" style="display:none" onchange="uploadImage(this)">
+          <span id="uploadStatus" style="margin-left:10px;font-size:0.85rem;color:#777"></span>
+        </div>
+
+        <div id="pastImagesSection" style="display:none;margin-top:26px">
+          <div class="section-subtitle">Previous Images</div>
+          <div class="hint-block">Older property images are kept for historic events. You can switch back to one at any time.</div>
+          <div class="past-grid" id="pastGrid"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+var images = [];
+var currentId = null;
+
+async function load() {
+  var res = await (await fetch('/api/property-images')).json();
+  images = res.images || [];
+  currentId = res.currentId;
+  render();
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch (e) { return iso; }
+}
+
+function render() {
+  var area = document.getElementById('currentImageArea');
+  var current = null;
+  for (var i = 0; i < images.length; i++) {
+    if (images[i].id === currentId) current = images[i];
+  }
+
+  if (!current) {
+    area.innerHTML = '<div class="no-image">No property image yet.<br>Upload an aerial photo or map of your property to get started.</div>';
+  } else {
+    area.innerHTML =
+      '<div class="current-image-wrap">' +
+        '<span class="current-tag">Current</span>' +
+        '<img src="/property-images/' + current.filename + '" alt="Property image">' +
+      '</div>' +
+      '<div class="image-meta">Uploaded ' + fmtDate(current.uploadedAt) +
+        (current.name ? ' &middot; ' + escHtml(current.name) : '') + '</div>';
+  }
+
+  var past = images.filter(function(img) { return img.id !== currentId; });
+  past.sort(function(a, b) { return (b.uploadedAt || '') < (a.uploadedAt || '') ? -1 : 1; });
+  var section = document.getElementById('pastImagesSection');
+  if (!past.length) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+  document.getElementById('pastGrid').innerHTML = past.map(function(img) {
+    return '<div class="past-card">' +
+      '<img src="/property-images/' + img.filename + '" alt="">' +
+      '<div class="past-body">' +
+        '<div class="past-date">Uploaded ' + fmtDate(img.uploadedAt) + '</div>' +
+        '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px" onclick="activate(\'' + img.id + '\')">Use This Image</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function uploadImage(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var status = document.getElementById('uploadStatus');
+  status.textContent = 'Uploading...';
+  var reader = new FileReader();
+  reader.onload = async function() {
+    try {
+      var resp = await fetch('/api/property-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataUrl: reader.result, filename: file.name })
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      status.textContent = '';
+      load();
+    } catch (err) {
+      status.textContent = '';
+      alert('Upload failed: ' + err.message);
+    }
+    input.value = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function activate(id) {
+  await fetch('/api/property-images/' + id + '/activate', { method: 'POST' });
+  load();
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+load();
+</script>
+</body>
+</html>

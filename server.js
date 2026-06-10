@@ -181,6 +181,7 @@ function loadData() {
   }
   const d = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
   if (!d.log) d.log = [];
+  if (!d.propertyImages) d.propertyImages = [];
   return d;
 }
 
@@ -280,6 +281,52 @@ app.delete('/api/photos/:filename', (req, res) => {
   var fp = path.join(PHOTOS_DIR, req.params.filename);
   if (fs.existsSync(fp)) fs.unlinkSync(fp);
   res.json({ ok: true });
+});
+
+// ── Property images (settings) ──
+// Past images are kept forever so historic events can still reference them.
+
+const PROPERTY_IMAGES_DIR = path.join(__dirname, 'data', 'property-images');
+
+app.use('/property-images', express.static(PROPERTY_IMAGES_DIR));
+
+app.get('/api/property-images', (req, res) => {
+  const data = loadData();
+  res.json({ images: data.propertyImages, currentId: data.currentPropertyImageId || null });
+});
+
+app.post('/api/property-images', (req, res) => {
+  var dataUrl = req.body.dataUrl || '';
+  var origName = req.body.filename || 'property.jpg';
+  var ext = origName.split('.').pop().toLowerCase() || 'jpg';
+  var id = Date.now() + '-' + Math.random().toString(36).slice(2);
+  var filename = id + '.' + ext;
+  var base64 = dataUrl.replace(/^data:image\/[^;]+;base64,/, '');
+  if (!fs.existsSync(PROPERTY_IMAGES_DIR)) fs.mkdirSync(PROPERTY_IMAGES_DIR, { recursive: true });
+  fs.writeFileSync(path.join(PROPERTY_IMAGES_DIR, filename), Buffer.from(base64, 'base64'));
+
+  const data = loadData();
+  data.propertyImages.push({
+    id: id, filename: filename, name: origName,
+    uploadedAt: new Date().toISOString()
+  });
+  data.currentPropertyImageId = id;
+  saveData(data);
+  res.json({ ok: true, id: id, filename: filename });
+});
+
+app.post('/api/property-images/:id/activate', (req, res) => {
+  const data = loadData();
+  const img = data.propertyImages.find(function(i) { return i.id === req.params.id; });
+  if (!img) return res.status(404).json({ error: 'Image not found' });
+  data.currentPropertyImageId = img.id;
+  saveData(data);
+  res.json({ ok: true });
+});
+
+// Serve the settings page
+app.get('/settings', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'settings.html'));
 });
 
 // Serve the log page
