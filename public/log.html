@@ -1002,6 +1002,12 @@ function toggleCard(id) {
 
 // ── New / Edit form ──
 var hiddenCardId = null; // card hidden while its entry is edited in place
+var originalPhotos = []; // photos the entry had when editing began (for cleanup on save)
+
+function deletePhotoFile(filename) {
+  // Server removes the file and its thumbnail
+  fetch('/api/photos/' + encodeURIComponent(filename), { method: 'DELETE' });
+}
 
 function scrollToForm() {
   // scrollIntoView alone leaves the form top hidden under the sticky header
@@ -1025,6 +1031,7 @@ function restoreFormHome() {
 
 function showNewForm() {
   restoreFormHome();
+  originalPhotos = [];
   document.getElementById('editingId').value = '';
   document.getElementById('formTitle').textContent = 'New Entry';
   document.getElementById('deleteBtn').style.display = 'none';
@@ -1072,6 +1079,7 @@ function editEntry(id) {
   populateSpeciesField('si', e['si-species']);
   populateSpeciesField('ce', e['ce-species']);
   // Photos already on server
+  originalPhotos = (e.photos || []).slice();
   pendingPhotos = (e.photos || []).map(function(f) { return { filename: f, uploaded: true, localUrl: '/photos/' + f }; });
   renderFormPhotos();
   pendingLoc = e.loc || null;
@@ -1090,10 +1098,9 @@ function editEntry(id) {
 }
 
 function cancelForm() {
-  // Remove any newly uploaded photos that haven't been saved to an entry yet
+  // Remove photos uploaded this session — they never made it onto an entry
   pendingPhotos.forEach(function(p) {
-    if (!p.uploaded) return; // skip — not actually on server yet (shouldn't happen)
-    // We only remove photos that were uploaded in this session (not pre-existing)
+    if (p.uploaded && p.isNew) deletePhotoFile(p.filename);
   });
   pendingPhotos = [];
   document.getElementById('newEntrySection').style.display = 'none';
@@ -1381,7 +1388,10 @@ function captureFormState() {
     datetime: document.getElementById('fDatetime').value,
     type: type,
     fields: {},
-    photos: pendingPhotos.filter(function(p) { return p.uploaded; }).map(function(p) { return p.filename; }),
+    photos: pendingPhotos.filter(function(p) { return p.uploaded; }).map(function(p) {
+      return { filename: p.filename, isNew: !!p.isNew };
+    }),
+    originalPhotos: originalPhotos,
     loc: pendingLoc
   };
   getTypeFields(type).forEach(function(f) {
@@ -1413,9 +1423,13 @@ function restoreFormState(state, newRouteId) {
     populateSpeciesField(p, (state.fields || {})[p + '-species']);
   });
   updateHarvestFields();
-  pendingPhotos = (state.photos || []).map(function(f) {
-    return { filename: f, uploaded: true, localUrl: '/photos/' + f };
+  pendingPhotos = (state.photos || []).map(function(p) {
+    // Older saved states stored plain filename strings
+    var f = (typeof p === 'string') ? p : p.filename;
+    var isNew = (typeof p === 'object') && !!p.isNew;
+    return { filename: f, uploaded: true, isNew: isNew, localUrl: '/photos/' + f };
   });
+  originalPhotos = state.originalPhotos || [];
   renderFormPhotos();
   pendingLoc = state.loc || null;
   updateLocUI();
@@ -1638,6 +1652,10 @@ async function saveEntry() {
     });
     var idx = allEntries.findIndex(function(x) { return x.id === editingId; });
     if (idx !== -1) allEntries[idx] = entry;
+    // Clean up files for photos removed from this entry during the edit
+    originalPhotos.forEach(function(f) {
+      if (entry.photos.indexOf(f) === -1) deletePhotoFile(f);
+    });
   } else {
     var res = await (await fetch('/api/log', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1657,6 +1675,11 @@ async function deleteEntry() {
   if (!id || !confirm('Delete this entry?')) return;
   await fetch('/api/log/' + id, { method: 'DELETE' });
   allEntries = allEntries.filter(function(x) { return x.id !== id; });
+  // The server removed the entry's saved photos; also clean up any photo
+  // uploaded during this edit session that was never saved onto the entry
+  pendingPhotos.forEach(function(p) {
+    if (p.uploaded && p.isNew) deletePhotoFile(p.filename);
+  });
   pendingPhotos = [];
   document.getElementById('newEntrySection').style.display = 'none';
   restoreFormHome();
@@ -1687,6 +1710,7 @@ async function handlePhotoFiles(input) {
       var res = await resp.json();
       pending.filename = res.filename;
       pending.uploaded = true;
+      pending.isNew = true; // uploaded this session, not yet saved on an entry
       pending.localUrl = '/photos/' + res.filename;
     } catch (err) {
       pending.error = true;
@@ -1781,10 +1805,9 @@ function renderFormPhotos() {
 
 function removeFormPhoto(i) {
   var p = pendingPhotos[i];
-  if (p && p.uploaded) {
-    // If this was a pre-existing photo on an entry being edited, it will just not be included in the save
-    // Only delete from server if it was newly added in this session (we can't easily tell, so just remove from list)
-  }
+  // Photos uploaded this session can be deleted from disk immediately;
+  // pre-existing entry photos are deleted on save (the user might cancel)
+  if (p && p.uploaded && p.isNew) deletePhotoFile(p.filename);
   pendingPhotos.splice(i, 1);
   renderFormPhotos();
 }
