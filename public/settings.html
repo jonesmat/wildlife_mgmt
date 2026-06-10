@@ -425,11 +425,44 @@ function closeImportModal() {
   document.getElementById('importModal').classList.remove('open');
 }
 
+function extMime(name) {
+  var ext = String(name).split('.').pop().toLowerCase();
+  var map = { jpg: 'jpeg', jpeg: 'jpeg', png: 'png', gif: 'gif', webp: 'webp', bmp: 'bmp' };
+  return map[ext] || 'jpeg';
+}
+
+// Downscale every image in the archive per the Photos setting, and
+// generate thumbnails for any image that shipped without one
+async function scaleArchiveImages(archive, statusEl) {
+  var files = archive.files || {};
+  var groups = [['photos', 320], ['property-images', 480]];
+  for (var g = 0; g < groups.length; g++) {
+    var map = files[groups[g][0]];
+    var thumbDim = groups[g][1];
+    if (!map) continue;
+    var names = Object.keys(map).filter(function(n) { return n.indexOf('thumb-') !== 0; });
+    for (var i = 0; i < names.length; i++) {
+      var name = names[i];
+      statusEl.textContent = 'Optimizing ' + groups[g][0].replace('-', ' ') + '... (' + (i + 1) + '/' + names.length + ')';
+      var dataUrl = 'data:image/' + extMime(name) + ';base64,' + map[name];
+      var scaled = await downscaleForUpload(dataUrl);
+      map[name] = scaled.replace(/^data:[^,]+,/, '');
+      if (!map['thumb-' + name]) {
+        var thumb = await makeScaledDataUrl(scaled, thumbDim, 0.72);
+        map['thumb-' + name] = thumb.replace(/^data:[^,]+,/, '');
+      }
+    }
+  }
+}
+
 async function runImport(mode) {
   if (!pendingArchive) return;
   var archive = pendingArchive;
   closeImportModal();
   var status = document.getElementById('importStatus');
+  try {
+    await scaleArchiveImages(archive, status);
+  } catch (e) { /* scaling is best-effort; import the archive as-is */ }
   status.textContent = 'Importing...';
   try {
     var resp = await fetch('/api/import', {
