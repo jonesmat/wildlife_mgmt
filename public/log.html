@@ -975,13 +975,20 @@ function toggleCard(id) {
 }
 
 // ── New / Edit form ──
+function scrollToForm() {
+  // scrollIntoView alone leaves the form top hidden under the sticky header
+  var sec = document.getElementById('newEntrySection');
+  var y = sec.getBoundingClientRect().top + window.pageYOffset - 60;
+  window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+}
+
 function showNewForm() {
   document.getElementById('editingId').value = '';
   document.getElementById('formTitle').textContent = 'New Entry';
   document.getElementById('deleteBtn').style.display = 'none';
   resetForm();
   document.getElementById('newEntrySection').style.display = 'block';
-  document.getElementById('newEntrySection').scrollIntoView({ behavior: 'smooth' });
+  scrollToForm();
 }
 
 function editEntry(id) {
@@ -1028,7 +1035,7 @@ function editEntry(id) {
   pendingLoc = e.loc || null;
   updateLocUI();
   document.getElementById('newEntrySection').style.display = 'block';
-  document.getElementById('newEntrySection').scrollIntoView({ behavior: 'smooth' });
+  scrollToForm();
 }
 
 function cancelForm() {
