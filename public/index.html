@@ -69,6 +69,24 @@
   .modal p { color: #555; font-size: 0.9rem; margin-bottom: 16px; }
   .modal input[type="text"] { width: 100%; margin-bottom: 16px; }
   .modal .row { justify-content: flex-end; }
+  /* ── Season calendar ── */
+  .cal-row {
+    display: flex; align-items: center; gap: 12px; padding: 9px 10px;
+    border-radius: 8px; font-size: 0.88rem;
+  }
+  .cal-row.past { opacity: 0.45; }
+  .cal-row.next { background: #f0f7ee; border: 1px solid #cfe0c8; }
+  .cal-icon { font-size: 1.1rem; width: 28px; text-align: center; flex-shrink: 0; }
+  .cal-date { width: 84px; flex-shrink: 0; font-weight: 700; color: #1a4a1a; font-size: 0.82rem; }
+  .cal-info { flex: 1; min-width: 0; }
+  .cal-title { font-weight: 600; color: #333; }
+  .cal-desc { font-size: 0.78rem; color: #888; margin-top: 1px; }
+  .cal-due {
+    font-size: 0.74rem; font-weight: 700; padding: 3px 10px; border-radius: 12px;
+    background: #e8f0e8; color: #1a4a1a; white-space: nowrap;
+  }
+  .cal-due.urgent { background: #fde8e8; color: #8b1a1a; }
+
   /* ── Qualifying practices progress ── */
   .practice-card { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
   .practice-ring { flex-shrink: 0; }
@@ -147,6 +165,12 @@
       <a href="/map" class="btn btn-secondary">🗺️ Property Map</a>
       <a href="/trends" class="btn btn-secondary">📈 Census Trends</a>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>📅 Season Calendar</h2>
+    <p>The Texas wildlife management year at a glance. Exact dates vary by county and year — confirm seasons with TPWD and deadlines with your appraisal district.</p>
+    <div id="seasonCalendar"></div>
   </div>
 
   <div class="card">
@@ -398,8 +422,87 @@
       '</div>');
   }
 
+  // ── Season calendar ──
+  // month is 1-based; day marks the start of ranges for countdown purposes
+  var SEASON_EVENTS = [
+    { m: 2,  d: 1,  icon: '🗂️', date: 'Feb',        title: 'Annual report prep', desc: 'Gather receipts, photos, and survey sheets; review the Activity Log' },
+    { m: 3,  d: 1,  icon: '🌱', date: 'Mar–Apr',    title: 'Spring food plot planting', desc: 'Warm-season plots; also prime cowbird trapping season' },
+    { m: 4,  d: 1,  icon: '❗', date: 'Apr 1',      title: 'MLDP harvest report due', desc: 'Report buck and antlerless harvest in TWIMS or tags may not issue next season' },
+    { m: 4,  d: 5,  icon: '🦃', date: 'Apr–May',    title: 'Spring turkey season (Rio Grande)', desc: 'Gobbler season — zone dates vary; log harvests and hen sightings' },
+    { m: 4,  d: 30, icon: '📄', date: 'Apr 30',     title: 'Annual report (PWD 888) due at many CADs', desc: 'Check your appraisal district\'s deadline' },
+    { m: 5,  d: 1,  icon: '🐣', date: 'May–Aug',    title: 'Ground-nesting season (quail & turkey)', desc: 'Keep nesting cover standing; hold off on shredding field edges' },
+    { m: 5,  d: 15, icon: '🦌', date: 'May–Jun',    title: 'Fawning season', desc: 'Defer mowing and minimize disturbance in cover' },
+    { m: 6,  d: 15, icon: '📋', date: 'Jun 15',     title: 'MLDP enrollment deadline', desc: 'Enroll or renew for next season in TWIMS' },
+    { m: 8,  d: 1,  icon: '🔦', date: 'Aug–Sep',    title: 'Census window', desc: 'TPWD recommends three spotlight counts on your fixed route' },
+    { m: 8,  d: 15, icon: '🐦', date: 'Aug–Sep',    title: 'Quail call counts', desc: 'Early-morning covey call surveys gauge fall quail numbers' },
+    { m: 9,  d: 1,  icon: '🕊️', date: 'Sep 1',      title: 'Dove season opens', desc: 'North and Central zones' },
+    { m: 9,  d: 15, icon: '🌾', date: 'Sep–Oct',    title: 'Fall food plot planting', desc: 'Oats, wheat, and clover for winter forage' },
+    { m: 10, d: 1,  icon: '🏷️', date: 'Late Sep',   title: 'MLDP season begins', desc: 'Tags arrive; daily harvest log required from first kill' },
+    { m: 10, d: 25, icon: '🐦', date: 'Late Oct',   title: 'Quail season opens', desc: 'Last Saturday of October, runs through late February' },
+    { m: 11, d: 7,  icon: '🦌', date: 'Early Nov',  title: 'General whitetail season opens', desc: 'First Saturday of November; fall turkey runs concurrent in most counties' },
+    { m: 12, d: 15, icon: '🌽', date: 'Dec–Feb',   title: 'Supplemental feeding season', desc: 'Keep feeders running and log refills as purchases' }
+  ];
+
+  var calExpanded = false;
+
+  function toggleCalendar() {
+    calExpanded = !calExpanded;
+    renderSeasonCalendar();
+  }
+
+  function calRow(it, extraClass) {
+    var ev = it.ev;
+    var label = it.days === 0 ? 'today!' : 'in ' + it.days + ' day' + (it.days === 1 ? '' : 's');
+    var chip = (it.days <= 75)
+      ? '<span class="cal-due' + (it.days <= 14 ? ' urgent' : '') + '">' + label + '</span>'
+      : '';
+    return '<div class="cal-row' + (extraClass || '') + '">' +
+      '<span class="cal-icon">' + ev.icon + '</span>' +
+      '<span class="cal-date">' + ev.date + '</span>' +
+      '<span class="cal-info">' +
+        '<div class="cal-title">' + ev.title + '</div>' +
+        '<div class="cal-desc">' + ev.desc + '</div>' +
+      '</span>' +
+      chip +
+    '</div>';
+  }
+
+  function renderSeasonCalendar() {
+    var now = new Date();
+    var year = now.getFullYear();
+    var today = now.getTime();
+
+    var items = SEASON_EVENTS.map(function(ev) {
+      // Events already passed this year count down to next year's occurrence
+      var next = new Date(year, ev.m - 1, ev.d);
+      var wrapped = next.getTime() < today - 86400000;
+      if (wrapped) next = new Date(year + 1, ev.m - 1, ev.d);
+      var days = Math.max(0, Math.round((next.getTime() - today) / 86400000));
+      return { ev: ev, days: days, wrapped: wrapped };
+    });
+
+    var el = document.getElementById('seasonCalendar');
+    if (!calExpanded) {
+      // Next 3 upcoming, soonest first
+      var upcoming = items.slice().sort(function(a, b) { return a.days - b.days; }).slice(0, 3);
+      el.innerHTML = upcoming.map(function(it, i) {
+        return calRow(it, i === 0 ? ' next' : '');
+      }).join('') +
+      '<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="toggleCalendar()">Show full year (' + (items.length - upcoming.length) + ' more)</button></div>';
+    } else {
+      // Full year in calendar order; passed events dimmed, nearest highlighted
+      var nextDays = Math.min.apply(null, items.map(function(it) { return it.days; }));
+      el.innerHTML = items.map(function(it) {
+        var cls = it.wrapped ? ' past' : (it.days === nextDays ? ' next' : '');
+        return calRow(it, cls);
+      }).join('') +
+      '<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="toggleCalendar()">Show next 3 only</button></div>';
+    }
+  }
+
   loadYears();
   loadTrophies();
+  renderSeasonCalendar();
 </script>
 </body>
 </html>
