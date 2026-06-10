@@ -441,6 +441,11 @@ app.get('/map', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'map.html'));
 });
 
+// Serve the census trends page
+app.get('/trends', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'trends.html'));
+});
+
 // ── Data export / import / clear ──
 // Archive format: a single JSON file holding property.json plus every photo
 // and property image base64-encoded. `version` gates what imports we accept.

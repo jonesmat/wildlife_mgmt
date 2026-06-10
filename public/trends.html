@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Census Trends</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/form-shared.css">
+<style>
+.trend-card {
+  background: white; border: 1px solid #ddd; border-radius: 10px;
+  padding: 16px 18px; margin-bottom: 16px;
+}
+.trend-title { font-size: 1.05rem; font-weight: 700; color: #1a4a1a; }
+.trend-sub { font-size: 0.8rem; color: #777; margin: 2px 0 10px; }
+.trend-chart { width: 100%; height: auto; display: block; }
+.trend-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.trend-stat {
+  font-size: 0.78rem; padding: 4px 12px; border-radius: 12px;
+  background: #f0f4ee; color: #1a4a1a; font-weight: 600;
+}
+.trend-stat.up   { background: #e8f0e8; }
+.trend-stat.down { background: #fdf0e8; color: #8b5a1a; }
+.trend-empty { color: #999; font-style: italic; text-align: center; padding: 40px 20px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📈 Census Trends</h1>
+  <div class="header-actions">
+    <a href="/log" class="btn btn-white">Activity Log</a>
+    <a href="/" class="btn btn-white">Home</a>
+  </div>
+</header>
+
+<div class="layout">
+  <main class="main" style="max-width:860px">
+    <div class="hint-block" style="margin-bottom:16px">
+      Population trends from your census entries, grouped by route. Counts are read from the
+      "Total Observed" field (the leading number). Running the same route under the same
+      conditions each season is what makes these lines meaningful.
+    </div>
+    <div id="trendsBody">
+      <div style="color:#999;font-size:0.9rem">Loading...</div>
+    </div>
+  </main>
+</div>
+
+<script>
+var entries = [], routes = [];
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function routeNameById(id) {
+  for (var i = 0; i < routes.length; i++) if (routes[i].id === id) return routes[i].name;
+  return null;
+}
+
+// Same survey-type icons as the Activity Log timeline
+var CENSUS_ICONS = {
+  'Spotlight Count': '🔦', 'Stand Count': '🪜', 'Aerial Count': '🚁', 'Track Count': '🐾',
+  'Browse Utilization': '🌿', 'Incidental Observation': '👁️', 'Camera Survey': '📷', 'Harvest Data': '🎯'
+};
+
+// Leading number from "Total Observed" free text, e.g. "12 deer (8M/4F)" -> 12
+function parseCount(s) {
+  var m = String(s || '').match(/(\d+(\.\d+)?)/);
+  return m ? parseFloat(m[1]) : null;
+}
+
+function dateFrac(s) {
+  var d = new Date(s);
+  return d.getFullYear() + (d.getMonth() / 12);
+}
+
+async function init() {
+  try {
+    entries = await (await fetch('/api/log')).json();
+    routes = await (await fetch('/api/routes')).json();
+  } catch (e) { /* leave empty */ }
+
+  // Group census entries by route (saved route id, legacy text, or unrouted),
+  // then split each route into a series per target species
+  var groups = {};
+  entries.forEach(function(e) {
+    if (e.type !== 'Census') return;
+    var count = parseCount(e['ce-total']);
+    if (count === null || !e.datetime) return;
+    var key, label;
+    if (e['ce-routeId'] && routeNameById(e['ce-routeId'])) {
+      key = 'r:' + e['ce-routeId'];
+      label = routeNameById(e['ce-routeId']);
+    } else if (e['ce-route']) {
+      key = 't:' + e['ce-route'];
+      label = e['ce-route'];
+    } else {
+      key = 'none';
+      label = 'No route recorded';
+    }
+    if (!groups[key]) groups[key] = { label: label, series: {}, total: 0, types: {} };
+    var species = e['ce-species'] || 'Unspecified';
+    (groups[key].series[species] = groups[key].series[species] || []).push({
+      x: dateFrac(e.datetime), date: e.datetime, count: count, id: e.id,
+      surveyType: e['ce-surveyType'] || ''
+    });
+    groups[key].total++;
+    if (e['ce-surveyType']) groups[key].types[e['ce-surveyType']] = true;
+  });
+
+  var keys = Object.keys(groups);
+  var body = document.getElementById('trendsBody');
+  if (!keys.length) {
+    body.innerHTML = '<div class="trend-empty">No census entries with counts yet.<br>' +
+      'Log a Census in the Activity Log with a number in "Total Observed" and it will chart here.</div>';
+    return;
+  }
+
+  // Routes with the most surveys first
+  keys.sort(function(a, b) { return groups[b].total - groups[a].total; });
+
+  var COLORS = ['#1a4a1a', '#1a398b', '#8b1a1a', '#8b5a1a', '#5a1a8b', '#176a55'];
+
+  body.innerHTML = keys.map(function(k) {
+    var g = groups[k];
+    var types = Object.keys(g.types).join(', ');
+    var speciesNames = Object.keys(g.series).sort();
+    var seriesArr = speciesNames.map(function(sp, i) {
+      var pts = g.series[sp].sort(function(a, b) { return a.x - b.x; });
+      return { name: sp, color: COLORS[i % COLORS.length], points: pts };
+    });
+
+    var chartable = seriesArr.some(function(s) { return s.points.length >= 2; });
+    var chart = chartable
+      ? renderChart(seriesArr)
+      : '<div style="color:#999;font-size:0.85rem;font-style:italic;padding:14px 0">Only one survey per species so far — a second one starts the trend line.</div>';
+
+    var legend = (speciesNames.length > 1 || speciesNames[0] !== 'Unspecified')
+      ? '<div class="trend-stats" style="margin:6px 0 4px">' + seriesArr.map(function(s) {
+          return '<span class="trend-stat" style="background:none;border:1px solid #e0e0e0">' +
+            '<span style="display:inline-block;width:10px;height:10px;border-radius:5px;background:' + s.color + ';margin-right:5px;vertical-align:middle"></span>' +
+            escHtml(s.name) + '</span>';
+        }).join('') + '</div>'
+      : '';
+
+    // Year averages and trend direction, per species
+    var stats = [];
+    seriesArr.forEach(function(s) {
+      var byYear = {};
+      s.points.forEach(function(p) {
+        var y = p.date.slice(0, 4);
+        (byYear[y] = byYear[y] || []).push(p.count);
+      });
+      var years = Object.keys(byYear).sort();
+      var prefix = (seriesArr.length > 1) ? escHtml(s.name) + ' ' : '';
+      years.forEach(function(y) {
+        var arr = byYear[y];
+        var avg = arr.reduce(function(sum, v) { return sum + v; }, 0) / arr.length;
+        stats.push('<span class="trend-stat">' + prefix + y + ': avg ' + (Math.round(avg * 10) / 10) + ' (' + arr.length + ' survey' + (arr.length === 1 ? '' : 's') + ')</span>');
+      });
+      if (years.length >= 2) {
+        var firstAvg = byYear[years[0]].reduce(function(sum, v) { return sum + v; }, 0) / byYear[years[0]].length;
+        var lastAvg = byYear[years[years.length - 1]].reduce(function(sum, v) { return sum + v; }, 0) / byYear[years[years.length - 1]].length;
+        var pct = firstAvg ? Math.round((lastAvg - firstAvg) / firstAvg * 100) : 0;
+        stats.push('<span class="trend-stat ' + (pct >= 0 ? 'up' : 'down') + '">' +
+          prefix + (pct >= 0 ? '▲' : '▼') + ' ' + Math.abs(pct) + '% since ' + years[0] + '</span>');
+      }
+    });
+
+    return '<div class="trend-card">' +
+      '<div class="trend-title">' + escHtml(g.label) + '</div>' +
+      '<div class="trend-sub">' + g.total + ' surveys' + (types ? ' · ' + escHtml(types) : '') + '</div>' +
+      legend +
+      chart +
+      '<div class="trend-stats">' + stats.join('') + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderChart(seriesArr) {
+  var W = 640, H = 220, padL = 42, padR = 16, padT = 14, padB = 28;
+  var allPoints = [];
+  seriesArr.forEach(function(s) { allPoints = allPoints.concat(s.points); });
+  var xs = allPoints.map(function(p) { return p.x; });
+  var minX = Math.floor(Math.min.apply(null, xs));
+  var maxX = Math.ceil(Math.max.apply(null, xs) + 0.001);
+  if (maxX - minX < 1) maxX = minX + 1;
+  var maxY = Math.max.apply(null, allPoints.map(function(p) { return p.count; })) * 1.15 || 10;
+
+  function X(v) { return padL + (v - minX) / (maxX - minX) * (W - padL - padR); }
+  function Y(v) { return H - padB - (v / maxY) * (H - padT - padB); }
+
+  var svg = '<svg class="trend-chart" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">';
+
+  // Horizontal gridlines + y labels
+  var ySteps = 4;
+  for (var i = 0; i <= ySteps; i++) {
+    var v = Math.round(maxY / ySteps * i);
+    svg += '<line x1="' + padL + '" y1="' + Y(v) + '" x2="' + (W - padR) + '" y2="' + Y(v) + '" stroke="#eee" stroke-width="1"/>';
+    svg += '<text x="' + (padL - 6) + '" y="' + (Y(v) + 4) + '" text-anchor="end" font-size="10" fill="#999">' + v + '</text>';
+  }
+  // Year ticks
+  for (var y = minX; y <= maxX; y++) {
+    svg += '<line x1="' + X(y) + '" y1="' + padT + '" x2="' + X(y) + '" y2="' + (H - padB) + '" stroke="#f4f4f4" stroke-width="1"/>';
+    svg += '<text x="' + X(y) + '" y="' + (H - padB + 16) + '" text-anchor="middle" font-size="10" fill="#888">' + y + '</text>';
+  }
+  // One line + point set per species
+  seriesArr.forEach(function(s) {
+    if (s.points.length >= 2) {
+      var poly = s.points.map(function(p) { return X(p.x) + ',' + Y(p.count); }).join(' ');
+      svg += '<polyline points="' + poly + '" fill="none" stroke="' + s.color + '" stroke-width="2.5" stroke-linejoin="round"/>';
+    }
+    s.points.forEach(function(p) {
+      var icon = CENSUS_ICONS[p.surveyType];
+      var title = '<title>' + s.name + (p.surveyType ? ' · ' + p.surveyType : '') + ' — ' + p.date.slice(0, 10) + ': ' + p.count + '</title>';
+      if (icon) {
+        // Survey-type icon in a series-colored ring
+        svg += '<a href="/log#entry-' + p.id + '">' +
+          '<circle cx="' + X(p.x) + '" cy="' + Y(p.count) + '" r="9" fill="white" stroke="' + s.color + '" stroke-width="2"/>' +
+          '<text x="' + X(p.x) + '" y="' + (Y(p.count) + 3.5) + '" text-anchor="middle" font-size="10">' + icon + title + '</text>' +
+        '</a>';
+      } else {
+        svg += '<a href="/log#entry-' + p.id + '"><circle cx="' + X(p.x) + '" cy="' + Y(p.count) + '" r="4.5" fill="white" stroke="' + s.color + '" stroke-width="2">' +
+          title + '</circle></a>';
+      }
+    });
+  });
+  return svg + '</svg>';
+}
+
+init();
+</script>
+</body>
+</html>
