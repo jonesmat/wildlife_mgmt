@@ -182,6 +182,7 @@ function loadData() {
   const d = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
   if (!d.log) d.log = [];
   if (!d.propertyImages) d.propertyImages = [];
+  if (!d.routes) d.routes = [];
   return d;
 }
 
@@ -320,6 +321,44 @@ app.post('/api/property-images/:id/activate', (req, res) => {
   const img = data.propertyImages.find(function(i) { return i.id === req.params.id; });
   if (!img) return res.status(404).json({ error: 'Image not found' });
   data.currentPropertyImageId = img.id;
+  saveData(data);
+  res.json({ ok: true });
+});
+
+// ── Routes (census survey routes drawn on a property image) ──
+
+app.get('/api/routes', (req, res) => {
+  const data = loadData();
+  res.json(data.routes);
+});
+
+app.post('/api/routes', (req, res) => {
+  const data = loadData();
+  const route = {
+    id: String(Date.now()),
+    name: req.body.name || 'Unnamed Route',
+    imageId: req.body.imageId || null,
+    points: req.body.points || [], // [{x, y}] as 0-1 fractions of the image
+    createdAt: new Date().toISOString()
+  };
+  data.routes.push(route);
+  saveData(data);
+  res.json(route);
+});
+
+app.put('/api/routes/:id', (req, res) => {
+  const data = loadData();
+  const route = data.routes.find(function(r) { return r.id === req.params.id; });
+  if (!route) return res.status(404).json({ error: 'Route not found' });
+  if (req.body.name !== undefined) route.name = req.body.name;
+  if (req.body.points !== undefined) route.points = req.body.points;
+  saveData(data);
+  res.json(route);
+});
+
+app.delete('/api/routes/:id', (req, res) => {
+  const data = loadData();
+  data.routes = data.routes.filter(function(r) { return r.id !== req.params.id; });
   saveData(data);
   res.json({ ok: true });
 });

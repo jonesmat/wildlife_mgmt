@@ -42,7 +42,8 @@
 <div class="layout">
   <nav class="sidebar">
     <div class="sidebar-section">Settings</div>
-    <div class="sidebar-item active">Property</div>
+    <div class="sidebar-item active" id="nav-property" onclick="showPane('property')">Property</div>
+    <div class="sidebar-item" id="nav-routes" onclick="showPane('routes')">Routes</div>
   </nav>
 
   <main class="main">
@@ -71,6 +72,51 @@
           <div class="section-subtitle">Previous Images</div>
           <div class="hint-block">Older property images are kept for historic events. You can switch back to one at any time.</div>
           <div class="past-grid" id="pastGrid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Routes pane -->
+    <div class="section" id="routes" style="display:none">
+      <div class="section-title">Routes</div>
+      <div class="hint-block">
+        Draw census survey routes (spotlight routes, stand transects, etc.) on your current
+        property image. Routes can be attached to Census events in the Activity Log, and re-using
+        the same route keeps your counts comparable year over year.
+      </div>
+
+      <div id="routesList" style="margin-top:14px">
+        <div style="color:#999;font-size:0.9rem">Loading...</div>
+      </div>
+
+      <div style="margin-top:14px">
+        <button class="btn btn-primary" id="newRouteBtn" onclick="startDrawRoute()">Draw New Route</button>
+      </div>
+
+      <!-- Drawing surface -->
+      <div id="routeDraw" style="display:none;margin-top:18px;border:2px solid #1a4a1a;border-radius:10px;padding:16px;background:#fafcf8">
+        <div class="section-subtitle" id="routeDrawTitle">Draw New Route</div>
+        <div class="form-group" style="max-width:340px">
+          <label>Route Name</label>
+          <input type="text" id="routeName" placeholder="e.g. North Spotlight Route">
+        </div>
+        <div style="font-size:0.82rem;color:#777;margin-bottom:8px">
+          Click along the route on the map to add points — green dot marks the start, red the end.
+          Click a point to select it, then use <strong>Delete Point</strong> to remove it,
+          or <strong>Clear</strong> to start the route over.
+        </div>
+        <div id="routeMapWrap" style="position:relative;cursor:crosshair;display:inline-block;max-width:100%" onclick="routeMapClick(event)">
+          <img id="routeMapImg" draggable="false" style="display:block;max-width:100%;max-height:60vh" alt="Property map">
+          <svg id="routeSvg" viewBox="0 0 100 100" preserveAspectRatio="none"
+               style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></svg>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="undoRoutePoint()">Undo Point</button>
+          <button class="btn btn-secondary" id="routeDelPointBtn" disabled style="color:#8b1a1a" onclick="deleteSelectedPoint()">Delete Point</button>
+          <button class="btn btn-secondary" onclick="clearRoutePoints()">Clear</button>
+          <span style="flex:1"></span>
+          <button class="btn btn-secondary" onclick="cancelDrawRoute()">Cancel</button>
+          <button class="btn btn-primary" id="routeSaveBtn" disabled onclick="saveRoute()">Save Route</button>
         </div>
       </div>
     </div>
@@ -168,7 +214,184 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-load();
+// ── Pane switching ──
+function showPane(p) {
+  ['property', 'routes'].forEach(function(id) {
+    document.getElementById(id).style.display = (id === p) ? '' : 'none';
+    document.getElementById('nav-' + id).classList.toggle('active', id === p);
+  });
+}
+
+// ── Routes ──
+var routes = [];
+var drawPoints = [];
+var editingRouteId = null;   // route id when editing, null when drawing new
+var selectedPointIdx = null; // selected vertex while editing/drawing
+
+function imgFileById(id) {
+  for (var i = 0; i < images.length; i++) {
+    if (images[i].id === id) return images[i].filename;
+  }
+  return null;
+}
+
+function routeSvgMarkup(points, showPoints) {
+  if (!points.length) return '';
+  var pts = points.map(function(p) { return (p.x * 100) + ',' + (p.y * 100); }).join(' ');
+  var svg = '<polyline points="' + pts + '" fill="none" stroke="#e01818" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>';
+  // Vertex dots are shown only while drawing/editing; saved previews show just the line.
+  // Dots are clickable for select-then-delete.
+  if (showPoints) {
+    points.forEach(function(p, i) {
+      var sel = (i === selectedPointIdx);
+      var col = sel ? '#ffd700' : (i === 0) ? '#1a8a1a' : (i === points.length - 1 ? '#e01818' : '#ffffff');
+      svg += '<circle cx="' + (p.x * 100) + '" cy="' + (p.y * 100) + '" r="' + (sel ? 1.6 : 1) + '"' +
+        ' fill="' + col + '" stroke="#7a1010" stroke-width="' + (sel ? 0.5 : 0.3) + '"' +
+        ' style="pointer-events:all;cursor:pointer"' +
+        ' onclick="selectRoutePoint(' + i + ');event.stopPropagation()"/>';
+    });
+  }
+  return svg;
+}
+
+function selectRoutePoint(i) {
+  selectedPointIdx = (selectedPointIdx === i) ? null : i;
+  redrawRoute();
+}
+
+function deleteSelectedPoint() {
+  if (selectedPointIdx === null) return;
+  drawPoints.splice(selectedPointIdx, 1);
+  selectedPointIdx = null;
+  redrawRoute();
+}
+
+async function loadRoutes() {
+  try { routes = await (await fetch('/api/routes')).json(); }
+  catch (e) { routes = []; }
+  renderRoutes();
+}
+
+function renderRoutes() {
+  var list = document.getElementById('routesList');
+  if (!routes.length) {
+    list.innerHTML = '<div style="color:#999;font-style:italic;font-size:0.9rem">No routes yet. Draw your first one below.</div>';
+    return;
+  }
+  list.innerHTML = routes.map(function(r) {
+    var fn = imgFileById(r.imageId);
+    var preview = fn
+      ? '<div style="position:relative;width:220px;flex-shrink:0;border-radius:6px;overflow:hidden;border:1px solid #ddd">' +
+          '<img src="/property-images/' + fn + '" style="width:100%;display:block">' +
+          '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%">' +
+            routeSvgMarkup(r.points) + '</svg>' +
+        '</div>'
+      : '<div style="width:220px;flex-shrink:0;color:#999;font-size:0.8rem">Image unavailable</div>';
+    return '<div style="display:flex;gap:14px;align-items:flex-start;border:1px solid #ddd;border-radius:8px;padding:12px;margin-bottom:10px;background:white">' +
+      preview +
+      '<div style="flex:1">' +
+        '<div style="font-weight:600;font-size:0.95rem;color:#1a4a1a">' + escHtml(r.name) + '</div>' +
+        '<div style="font-size:0.8rem;color:#777;margin-top:4px">' + r.points.length + ' points &middot; Created ' + fmtDate(r.createdAt) + '</div>' +
+        '<div style="display:flex;gap:8px;margin-top:10px">' +
+          '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px" onclick="startEditRoute(\'' + r.id + '\')">Edit</button>' +
+          '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px;color:#8b1a1a" onclick="deleteRoute(\'' + r.id + '\')">Delete</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function openRoutePanel(title, imgFn) {
+  document.getElementById('routeDrawTitle').textContent = title;
+  document.getElementById('routeMapImg').src = '/property-images/' + imgFn;
+  document.getElementById('routeDraw').style.display = '';
+  document.getElementById('newRouteBtn').style.display = 'none';
+  selectedPointIdx = null;
+  redrawRoute();
+}
+
+function startDrawRoute() {
+  var fn = imgFileById(currentId);
+  if (!fn) {
+    alert('No property image yet.\nUpload one on the Property pane first.');
+    return;
+  }
+  editingRouteId = null;
+  drawPoints = [];
+  document.getElementById('routeName').value = 'Route ' + (routes.length + 1);
+  openRoutePanel('Draw New Route', fn);
+}
+
+function startEditRoute(id) {
+  var route = null;
+  for (var i = 0; i < routes.length; i++) if (routes[i].id === id) route = routes[i];
+  if (!route) return;
+  // Edit against the image the route was drawn on, not necessarily the current one
+  var fn = imgFileById(route.imageId);
+  if (!fn) {
+    alert('The property image this route was drawn on is unavailable.');
+    return;
+  }
+  editingRouteId = id;
+  drawPoints = route.points.map(function(p) { return { x: p.x, y: p.y }; });
+  document.getElementById('routeName').value = route.name;
+  openRoutePanel('Edit Route', fn);
+}
+
+function routeMapClick(ev) {
+  var img = document.getElementById('routeMapImg');
+  var r = img.getBoundingClientRect();
+  var x = (ev.clientX - r.left) / r.width;
+  var y = (ev.clientY - r.top) / r.height;
+  if (x < 0 || x > 1 || y < 0 || y > 1) return;
+  drawPoints.push({ x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 });
+  selectedPointIdx = null;
+  redrawRoute();
+}
+
+function redrawRoute() {
+  document.getElementById('routeSvg').innerHTML = routeSvgMarkup(drawPoints, true);
+  document.getElementById('routeSaveBtn').disabled = drawPoints.length < 2;
+  document.getElementById('routeDelPointBtn').disabled = (selectedPointIdx === null);
+}
+
+function undoRoutePoint() { drawPoints.pop(); selectedPointIdx = null; redrawRoute(); }
+function clearRoutePoints() { drawPoints = []; selectedPointIdx = null; redrawRoute(); }
+
+function cancelDrawRoute() {
+  drawPoints = [];
+  editingRouteId = null;
+  selectedPointIdx = null;
+  document.getElementById('routeDraw').style.display = 'none';
+  document.getElementById('newRouteBtn').style.display = '';
+}
+
+async function saveRoute() {
+  var name = document.getElementById('routeName').value.trim() || ('Route ' + (routes.length + 1));
+  if (editingRouteId) {
+    await fetch('/api/routes/' + editingRouteId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, points: drawPoints })
+    });
+  } else {
+    await fetch('/api/routes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, imageId: currentId, points: drawPoints })
+    });
+  }
+  cancelDrawRoute();
+  loadRoutes();
+}
+
+async function deleteRoute(id) {
+  if (!confirm('Delete this route? Census events that reference it keep their route name.')) return;
+  await fetch('/api/routes/' + id, { method: 'DELETE' });
+  loadRoutes();
+}
+
+load().then(loadRoutes);
 </script>
 </body>
 </html>
