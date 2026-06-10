@@ -17,6 +17,40 @@
 
 .log-empty { color: #999; font-style: italic; text-align: center; padding: 40px 0; }
 
+/* ── Vertical timeline ── */
+.timeline { position: relative; padding-left: 64px; }
+.timeline::before {
+  content: ''; position: absolute; left: 22px; top: 10px; bottom: 10px;
+  width: 4px; background: #dfe7da; border-radius: 2px;
+}
+.tl-month { position: relative; margin: 28px 0 14px; z-index: 1; }
+.timeline .tl-month:first-child { margin-top: 4px; }
+.tl-month-label {
+  display: inline-block; margin-left: -64px; background: #e4ecdf; color: #1a4a1a;
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 5px 14px; border-radius: 14px; box-shadow: 0 0 0 5px #f0f2f5;
+}
+.tl-item { position: relative; margin-bottom: 14px; }
+.tl-node {
+  position: absolute; left: -60px; top: 4px; width: 40px; height: 40px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 1.15rem; background: white; border: 3px solid #ccc;
+  box-shadow: 0 0 0 4px #f0f2f5; z-index: 1;
+}
+.tl-sub {
+  position: absolute; right: -8px; bottom: -8px; width: 21px; height: 21px;
+  border-radius: 50%; background: white; border: 1px solid #ddd;
+  display: flex; align-items: center; justify-content: center; font-size: 0.72rem;
+}
+.tl-node-General     { border-color: #1a4a1a; background: #e8f0e8; }
+.tl-node-Harvest     { border-color: #8b1a1a; background: #fde8e8; }
+.tl-node-Sighting    { border-color: #1a398b; background: #e8f0fd; }
+.tl-node-Activity    { border-color: #8b5a1a; background: #fdf5e8; }
+.tl-node-Census      { border-color: #5a1a8b; background: #f0e8fd; }
+.tl-node-Predator    { border-color: #8b1a6a; background: #fde8f5; }
+.tl-node-Maintenance { border-color: #1a3a8b; background: #e8eefd; }
+.timeline .entry-card { margin-bottom: 0; }
+
 .entry-card {
   background: white; border: 1px solid #ddd; border-radius: 8px;
   margin-bottom: 12px; overflow: hidden;
@@ -555,6 +589,49 @@ function clearFilter() {
   renderList();
 }
 
+// ── Timeline icons ──
+var TYPE_ICONS = {
+  'General': '📝', 'Harvest': '🎯', 'Sighting': '👀', 'Activity': '🚜',
+  'Census': '📊', 'Predator Control': '🪤', 'Maintenance': '🔧'
+};
+
+var SPECIES_ICONS = {
+  'White-tailed Deer': '🦌', 'Mule Deer': '🦌', 'Axis Deer': '🦌', 'Blackbuck': '🦌', 'Pronghorn': '🦌',
+  'Nilgai': '🐂', 'Aoudad': '🐏', 'Feral Hog': '🐗',
+  'Wild Turkey': '🦃', 'Rio Grande Turkey': '🦃',
+  'Mourning Dove': '🕊️', 'White-winged Dove': '🕊️', 'Northern Bobwhite': '🐦',
+  'Coyote': '🐺', 'Bobcat': '🐈', 'Mountain Lion': '🐆', 'Raccoon': '🦝', 'Striped Skunk': '🦨',
+  'Feral Cat': '🐈', 'Feral Dog': '🐕', 'Rat Snake': '🐍', 'Bull Snake': '🐍',
+  'Brown-headed Cowbird': '🐦', 'Common Grackle': '🐦', 'European Starling': '🐦',
+  'American Alligator': '🐊', 'Canada Goose': '🪿', 'Sandhill Crane': '🪶',
+  'Mallard': '🦆', 'Other Waterfowl': '🦆'
+};
+
+var ACTIVITY_ICONS = {
+  'Habitat Control': '🌳', 'Erosion Control': '🏞️', 'Predator Control': '🪤',
+  'Supplemental Water': '💧', 'Supplemental Food': '🌽', 'Supplemental Shelter': '🏠', 'Census': '📊'
+};
+
+var CENSUS_ICONS = {
+  'Spotlight Count': '🔦', 'Stand Count': '🪜', 'Aerial Count': '🚁', 'Track Count': '🐾',
+  'Browse Utilization': '🌿', 'Incidental Observation': '👁️', 'Camera Survey': '📷', 'Harvest Data': '🎯'
+};
+
+function eventSubIcon(e) {
+  if (e.type === 'Harvest' || e.type === 'Sighting' || e.type === 'Predator Control')
+    return SPECIES_ICONS[e['hv-species'] || e['si-species'] || e['pc-species']] || '';
+  if (e.type === 'Activity') return ACTIVITY_ICONS[e['ac-category']] || '';
+  if (e.type === 'Census') return CENSUS_ICONS[e['ce-surveyType']] || SPECIES_ICONS[e['ce-species']] || '';
+  return '';
+}
+
+function monthLabel(m) {
+  var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var p = m.split('-');
+  var name = months[parseInt(p[1], 10) - 1] || '';
+  return (name + ' ' + p[0]).trim();
+}
+
 // ── Render list ──
 function renderList() {
   // Always show newest first, even after adds/edits change dates
@@ -579,7 +656,24 @@ function renderList() {
     list.innerHTML = '<div class="log-empty">No entries found.</div>';
     return;
   }
-  list.innerHTML = entries.map(function(e) { return renderCard(e); }).join('');
+  var html = '<div class="timeline">';
+  var curMonth = '';
+  entries.forEach(function(e) {
+    var m = (e.datetime || '').slice(0, 7);
+    if (m !== curMonth) {
+      curMonth = m;
+      html += '<div class="tl-month"><span class="tl-month-label">' + monthLabel(m) + '</span></div>';
+    }
+    var sub = eventSubIcon(e);
+    html += '<div class="tl-item">' +
+      '<div class="tl-node tl-node-' + e.type.split(' ')[0] + '" title="' + escHtml(e.type) + '">' +
+        (TYPE_ICONS[e.type] || '📌') +
+        (sub ? '<span class="tl-sub">' + sub + '</span>' : '') +
+      '</div>' +
+      renderCard(e) +
+    '</div>';
+  });
+  list.innerHTML = html + '</div>';
 }
 
 function renderCard(e) {
