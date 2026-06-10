@@ -177,13 +177,19 @@ function loadData() {
     };
     fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
     fs.writeFileSync(DATA_FILE, JSON.stringify(defaultData, null, 2));
-    return defaultData;
+    return migrateData(defaultData);
   }
-  const d = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  return migrateData(JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')));
+}
+
+// Fill in any keys added since the data file was created — also covers the
+// freshly regenerated defaults after Clear All Data (photoQuality: balanced)
+function migrateData(d) {
   if (!d.log) d.log = [];
   if (!d.propertyImages) d.propertyImages = [];
   if (!d.routes) d.routes = [];
-  if (!d.settings) d.settings = { photoQuality: 'balanced' };
+  if (!d.settings) d.settings = {};
+  if (!d.settings.photoQuality) d.settings.photoQuality = 'balanced';
   return d;
 }
 
