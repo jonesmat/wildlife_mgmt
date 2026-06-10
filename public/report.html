@@ -11,6 +11,7 @@
   <h1 id="pageTitle">Wildlife Management Annual Report (PWD 888-W7000)</h1>
   <div class="header-actions">
     <span class="saved-indicator" id="savedIndicator"></span>
+    <button class="btn btn-white" onclick="updateFromLog()" title="Check off qualifying activities, predator/census practices, and harvest records based on this year's Activity Log">Update from Activity Log</button>
     <button class="btn btn-white" onclick="saveData()">Save</button>
     <button class="btn btn-secondary" id="pdfBtn">Generate PDF</button>
     <a href="/" class="btn btn-white">Home</a>
@@ -179,6 +180,113 @@ async function saveData() {
   const ind = document.getElementById('savedIndicator');
   ind.textContent = 'Saved';
   setTimeout(() => ind.textContent = '', 2000);
+}
+
+// ── Update report from Activity Log ──
+async function updateFromLog() {
+  var entries = await (await fetch('/api/log')).json();
+  entries = entries.filter(function(e) { return e.datetime && e.datetime.startsWith(year); });
+  if (!entries.length) { alert('No Activity Log entries for ' + year + '.'); return; }
+
+  var changes = [];
+
+  // Set a path to true only if not already set, recording a change label
+  function check(path, label) {
+    var cur = getNestedValue(reportData, path);
+    if (!cur) {
+      setNestedValue(reportData, path, true);
+      changes.push(label);
+    }
+  }
+
+  var QUAL = {
+    'Habitat Control': ['qualifyingActivities.habitatControl', 'Part II: Habitat control'],
+    'Erosion Control': ['qualifyingActivities.erosionControl', 'Part II: Erosion control'],
+    'Predator Control': ['qualifyingActivities.predatorControl', 'Part II: Predator control'],
+    'Supplemental Water': ['qualifyingActivities.supplementalWater', 'Part II: Supplemental water'],
+    'Supplemental Food': ['qualifyingActivities.supplementalFood', 'Part II: Supplemental food'],
+    'Supplemental Shelter': ['qualifyingActivities.supplementalShelter', 'Part II: Supplemental shelter'],
+    'Census': ['qualifyingActivities.censusCountsPopulation', 'Part II: Census counts']
+  };
+  // Part IV paths use the same data-path strings as the rendered form (prefix is '')
+  var PC_SPECIES = {
+    'Coyote': 'coyotes', 'Feral Hog': 'feralHogs', 'Raccoon': 'raccoon', 'Striped Skunk': 'skunk',
+    'Bobcat': 'bobcat', 'Mountain Lion': 'mountainLion', 'Rat Snake': 'ratSnakes', 'Bull Snake': 'ratSnakes',
+    'Feral Cat': 'feralCatsDogs', 'Feral Dog': 'feralCatsDogs', 'Brown-headed Cowbird': 'cowbirds',
+    'Common Grackle': 'grackles', 'European Starling': 'grackles', 'House Sparrow': 'grackles',
+    'Red Imported Fire Ant': 'fireAnts'
+  };
+  var PC_BIRDS = { 'Brown-headed Cowbird': 1, 'Common Grackle': 1, 'European Starling': 1, 'House Sparrow': 1 };
+  var CE_TYPES = {
+    'Spotlight Count': 'spotlightCounts', 'Stand Count': 'standCounts', 'Aerial Count': 'aerialCounts',
+    'Track Count': 'trackCounts', 'Browse Utilization': 'browseUtilization',
+    'Incidental Observation': 'incidentalObservations', 'Camera Survey': 'miscCameras', 'Harvest Data': 'harvestData'
+  };
+
+  var pcTally = {}; // predator species -> number removed
+  var hvTally = {}; // harvested species -> count
+
+  entries.forEach(function(e) {
+    if (e.type === 'Activity' && QUAL[e['ac-category']]) {
+      check(QUAL[e['ac-category']][0], QUAL[e['ac-category']][1]);
+    }
+    if (e.type === 'Predator Control') {
+      check(QUAL['Predator Control'][0], QUAL['Predator Control'][1]);
+      var sp = e['pc-species'];
+      if (PC_SPECIES[sp]) check('.predatorControl.' + PC_SPECIES[sp], 'Predator control: ' + sp);
+      var m = e['pc-method'];
+      if (m === 'Trap') check(PC_BIRDS[sp] ? '.predatorControl.birdTrapping' : '.predatorControl.mammalTrapping', 'Predator method: trapping');
+      else if (m === 'Shooting') check(PC_BIRDS[sp] ? '.predatorControl.birdShooting' : '.predatorControl.mammalShooting', 'Predator method: shooting');
+      else if (m === 'M-44') check('.predatorControl.mammalM44', 'Predator method: M-44');
+      else if (m === 'Poison collar (1080)') check('.predatorControl.mammalPoison', 'Predator method: 1080 collar');
+      if (sp) pcTally[sp] = (pcTally[sp] || 0) + (parseInt(e['pc-count'], 10) || 1);
+    }
+    if (e.type === 'Census') {
+      check(QUAL['Census'][0], QUAL['Census'][1]);
+      var ct = CE_TYPES[e['ce-surveyType']];
+      if (ct) check('.census.' + ct, 'Census technique: ' + e['ce-surveyType']);
+    }
+    if (e.type === 'Harvest') {
+      check(QUAL['Census'][0], QUAL['Census'][1]);
+      check('.census.harvestData', 'Census technique: harvest data');
+      var hsp = e['hv-species'] || 'Unknown';
+      hvTally[hsp] = (hvTally[hsp] || 0) + 1;
+      if (/Deer|Pronghorn|Nilgai|Aoudad|Blackbuck|Hog/.test(hsp)) check('.census.harvestDeer', 'Harvest records: deer/exotics');
+      if (/Turkey|Dove|Bobwhite|Quail|Mallard|Goose|Crane|Waterfowl/.test(hsp)) check('.census.harvestGameBirds', 'Harvest records: game birds');
+    }
+  });
+
+  // Auto-generated summary lines; re-running replaces this year's line instead of duplicating
+  function tallyLine(tally) {
+    return Object.keys(tally).map(function(s) { return s + ' ×' + tally[s]; }).join(', ');
+  }
+  function upsertAutoLine(path, line, label) {
+    var cur = String(getNestedValue(reportData, path) || '');
+    var markerRe = new RegExp('^From ' + year + ' Activity Log:.*$', 'm');
+    var next = markerRe.test(cur) ? cur.replace(markerRe, line) : (cur ? cur + '\n' + line : line);
+    if (next !== cur) {
+      setNestedValue(reportData, path, next);
+      changes.push(label);
+    }
+  }
+  if (Object.keys(pcTally).length) {
+    upsertAutoLine('.predatorControl.additionalInfo',
+      'From ' + year + ' Activity Log: removed ' + tallyLine(pcTally) + '.',
+      'Predator control summary');
+  }
+  if (Object.keys(hvTally).length) {
+    upsertAutoLine('.census.harvestInfo',
+      'From ' + year + ' Activity Log: harvested ' + tallyLine(hvTally) + '.',
+      'Harvest summary');
+  }
+
+  populateForm(reportData);
+  await saveData();
+  if (changes.length) {
+    alert('Updated from ' + entries.length + ' Activity Log entries:\n\n• ' + changes.join('\n• '));
+  } else {
+    alert('Report already reflects all ' + year + ' Activity Log entries — nothing to change.');
+  }
 }
 
 function navTo(id) {
