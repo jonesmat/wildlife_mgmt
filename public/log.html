@@ -536,7 +536,6 @@ async function init() {
   buildBCPanel();
   document.getElementById('filterYear').value = new Date().getFullYear();
   allEntries = await (await fetch('/api/log')).json();
-  allEntries.sort(function(a,b) { return b.datetime < a.datetime ? -1 : 1; });
   applyFilter();
   // Deep link from Trophy Board on the home page: /log#entry-<id>
   if (location.hash.indexOf('#entry-') === 0) jumpToEntry(location.hash.slice(7));
@@ -558,6 +557,8 @@ function clearFilter() {
 
 // ── Render list ──
 function renderList() {
+  // Always show newest first, even after adds/edits change dates
+  allEntries.sort(function(a, b) { return (b.datetime || '') < (a.datetime || '') ? -1 : 1; });
   var entries = allEntries.filter(function(e) {
     if (filterYear && !e.datetime.startsWith(filterYear)) return false;
     if (filterType && e.type !== filterType) return false;
