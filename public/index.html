@@ -69,28 +69,29 @@
   .modal p { color: #555; font-size: 0.9rem; margin-bottom: 16px; }
   .modal input[type="text"] { width: 100%; margin-bottom: 16px; }
   .modal .row { justify-content: flex-end; }
-  /* ── Trophy board ── */
+  /* ── Wildlife gallery (formerly trophy board) ── */
   .trophy-board {
-    background: linear-gradient(135deg, #2a3a28, #1a2a18); border-radius: 10px;
-    padding: 16px 18px; margin-bottom: 24px; color: #e8e0d0;
+    background: linear-gradient(150deg, #25341f, #1a2a18 60%, #16241a); border-radius: 10px;
+    padding: 20px 22px; margin-bottom: 24px; color: #e8e0d0;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   }
-  .trophy-title { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.03em; margin-bottom: 12px; color: #e8d9a8; }
+  .trophy-title { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.02em; color: #e8d9a8; }
+  .trophy-subtitle { font-size: 0.8rem; color: #a8b29a; margin: 3px 0 16px; font-style: italic; }
+  .trophy-gallery { display: flex; gap: 14px; flex-wrap: wrap; }
   .trophy-card {
-    display: flex; align-items: center; gap: 12px; padding: 8px 10px;
-    border-radius: 8px; cursor: pointer; transition: background 0.15s;
+    width: 158px; border-radius: 8px; overflow: hidden; cursor: pointer;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(233,217,168,0.18);
+    transition: background 0.15s, transform 0.15s;
   }
-  .trophy-card:hover { background: rgba(255,255,255,0.07); }
-  .trophy-rank { font-size: 1.3rem; width: 36px; text-align: center; flex-shrink: 0; font-weight: 700; color: #c9b97e; }
-  .trophy-thumb { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); flex-shrink: 0; }
-  .trophy-thumb-empty { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; background: rgba(255,255,255,0.07); }
-  .trophy-info { flex: 1; min-width: 0; }
-  .trophy-score { font-size: 1.1rem; font-weight: 700; color: #f3e9c8; }
-  .trophy-mode { font-size: 0.68rem; font-weight: 600; padding: 2px 7px; border-radius: 8px; background: rgba(233,217,168,0.18); color: #e8d9a8; vertical-align: middle; margin-left: 6px; }
-  .trophy-hunter { font-size: 0.85rem; font-weight: 600; color: #d8cfb8; margin-left: 10px; vertical-align: middle; }
-  .trophy-meta { font-size: 0.76rem; color: #b8b0a0; margin-top: 1px; }
-  .trophy-bar { height: 5px; background: rgba(255,255,255,0.12); border-radius: 3px; margin-top: 5px; overflow: hidden; }
-  .trophy-bar-fill { height: 100%; background: linear-gradient(90deg, #c9b97e, #f3e9c8); border-radius: 3px; }
+  .trophy-card:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
+  .trophy-photo { width: 100%; height: 110px; object-fit: cover; display: block; }
+  .trophy-photo-empty {
+    display: flex; align-items: center; justify-content: center; font-size: 2.2rem;
+    background: rgba(255,255,255,0.05); height: 110px;
+  }
+  .trophy-body { padding: 9px 11px 11px; }
+  .trophy-name { font-size: 0.92rem; font-weight: 700; color: #f3e9c8; }
+  .trophy-detail { font-size: 0.74rem; color: #c5bda6; margin-top: 3px; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -254,33 +255,32 @@
       return e.type === 'Harvest' && parseFloat(e['hv-bc-net']) > 0;
     });
     if (!scored.length) return;
-    scored.sort(function(a, b) { return parseFloat(b['hv-bc-net']) - parseFloat(a['hv-bc-net']); });
-    var top = scored.slice(0, 5);
-    var max = parseFloat(top[0]['hv-bc-net']);
-    var medals = ['🥇', '🥈', '🥉'];
+    // Chronological, newest first — a gallery of the animals, not a leaderboard
+    scored.sort(function(a, b) { return (b.datetime || '') < (a.datetime || '') ? -1 : 1; });
+    var shown = scored.slice(0, 6);
 
     board.style.display = '';
-    board.innerHTML = '<div class="trophy-title">🏆 Trophy Board &mdash; Best B&amp;C Scores</div>' +
-      top.map(function(e, i) {
+    board.innerHTML =
+      '<div class="trophy-title">🦌 Remarkable Whitetails</div>' +
+      '<div class="trophy-subtitle">Celebrating the deer this land has raised</div>' +
+      '<div class="trophy-gallery">' +
+      shown.map(function(e) {
         var net = parseFloat(e['hv-bc-net']);
-        var pct = Math.max(8, Math.round(net / max * 100));
         var photo = (e.photos && e.photos.length)
-          ? '<img class="trophy-thumb" src="/photos/' + e.photos[0] + '" alt="">'
-          : '<div class="trophy-thumb trophy-thumb-empty">🦌</div>';
+          ? '<img class="trophy-photo" src="/photos/' + e.photos[0] + '" alt="">'
+          : '<div class="trophy-photo-empty">🦌</div>';
         var mode = (e['hv-bc-mode'] === 'Non-Typical') ? 'Non-Typical' : 'Typical';
-        var hunter = e['hv-hunter']
-          ? '<span class="trophy-hunter">' + escHtml(e['hv-hunter']) + '</span>'
-          : '';
-        var meta = [(e.datetime || '').slice(0, 4)];
-        if (e['hv-points']) meta.push(escHtml(e['hv-points']) + '-pt');
+        var name = (e['hv-points'] ? e['hv-points'] + '-Point ' : '') + 'Whitetail';
+        var detail = fmtEighths(net) + ' B&amp;C ' + mode + '<br>' + (e.datetime || '').slice(0, 4) +
+          (e['hv-hunter'] ? ' &middot; Taken by ' + escHtml(e['hv-hunter']) : '');
         return '<div class="trophy-card" onclick="location.href=\'/log#entry-' + e.id + '\'">' +
-          '<div class="trophy-rank">' + (medals[i] || '#' + (i + 1)) + '</div>' + photo +
-          '<div class="trophy-info">' +
-            '<div class="trophy-score">' + fmtEighths(net) + '<span class="trophy-mode">' + mode + '</span>' + hunter + '</div>' +
-            '<div class="trophy-meta">' + meta.join(' · ') + '</div>' +
-            '<div class="trophy-bar"><div class="trophy-bar-fill" style="width:' + pct + '%"></div></div>' +
+          photo +
+          '<div class="trophy-body">' +
+            '<div class="trophy-name">' + escHtml(name) + '</div>' +
+            '<div class="trophy-detail">' + detail + '</div>' +
           '</div></div>';
-      }).join('');
+      }).join('') +
+      '</div>';
   }
 
   loadYears();
