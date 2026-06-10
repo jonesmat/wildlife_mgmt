@@ -190,6 +190,7 @@ function migrateData(d) {
   if (!d.routes) d.routes = [];
   if (!d.settings) d.settings = {};
   if (!d.settings.photoQuality) d.settings.photoQuality = 'balanced';
+  if (!d.bucks) d.bucks = [];
   return d;
 }
 
@@ -385,6 +386,56 @@ app.delete('/api/routes/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Buck watch list ──
+// Named bucks tracked across years; Harvest and Sighting entries link to
+// them via hv-buckId / si-buckId.
+
+app.get('/api/bucks', (req, res) => {
+  res.json(loadData().bucks);
+});
+
+app.post('/api/bucks', (req, res) => {
+  const data = loadData();
+  const buck = {
+    id: String(Date.now()),
+    name: req.body.name || 'Unnamed Buck',
+    notes: req.body.notes || '',
+    status: 'Watching', // 'Watching' | 'Gone'; Harvested is derived from entries
+    createdAt: new Date().toISOString()
+  };
+  data.bucks.push(buck);
+  saveData(data);
+  res.json(buck);
+});
+
+app.put('/api/bucks/:id', (req, res) => {
+  const data = loadData();
+  const buck = data.bucks.find(function(b) { return b.id === req.params.id; });
+  if (!buck) return res.status(404).json({ error: 'Buck not found' });
+  ['name', 'notes', 'status'].forEach(function(k) {
+    if (req.body[k] !== undefined) buck[k] = req.body[k];
+  });
+  saveData(data);
+  res.json(buck);
+});
+
+app.delete('/api/bucks/:id', (req, res) => {
+  const data = loadData();
+  data.bucks = data.bucks.filter(function(b) { return b.id !== req.params.id; });
+  // Unlink entries that referenced this buck
+  data.log.forEach(function(e) {
+    if (e['hv-buckId'] === req.params.id) e['hv-buckId'] = '';
+    if (e['si-buckId'] === req.params.id) e['si-buckId'] = '';
+  });
+  saveData(data);
+  res.json({ ok: true });
+});
+
+// Serve the buck watch page
+app.get('/bucks', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'bucks.html'));
+});
+
 // ── Data export / import / clear ──
 // Archive format: a single JSON file holding property.json plus every photo
 // and property image base64-encoded. `version` gates what imports we accept.
@@ -485,6 +536,9 @@ app.post('/api/import', (req, res) => {
         cur.routes.push(r);
         summary.routes++;
       }
+    });
+    (inc.bucks || []).forEach(function(b) {
+      if (!cur.bucks.some(function(x) { return x.id === b.id; })) cur.bucks.push(b);
     });
     saveData(cur);
     writeDirBase64(files.photos, PHOTOS_DIR, true);

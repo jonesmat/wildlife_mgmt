@@ -303,6 +303,16 @@
         <!-- White-tailed Deer antler fields — shown only when WTD is selected -->
         <div id="hv-antlerSection" style="display:none">
           <div class="form-row">
+            <div class="form-group">
+              <label>Watched Buck</label>
+              <select id="hv-buckId"><option value="">-- None --</option></select>
+              <a href="#" onclick="quickAddBuck('hv');return false" style="font-size:0.78rem;display:inline-block;margin-top:4px;color:#1a4a1a">+ New buck</a>
+              <div id="hv-buckAdd" style="display:none;gap:6px;margin-top:6px">
+                <input type="text" id="hv-buckName" placeholder="Buck name (e.g. Crabclaw)" style="flex:1">
+                <button type="button" class="btn btn-secondary" style="padding:5px 10px;font-size:0.8rem" onclick="buckAddSave('hv')">Add</button>
+                <button type="button" class="btn btn-secondary" style="padding:5px 10px;font-size:0.8rem" onclick="document.getElementById('hv-buckAdd').style.display='none'">&#10005;</button>
+              </div>
+            </div>
             <div class="form-group"><label>Total Points</label><input type="text" id="hv-points" placeholder="e.g. 8"></div>
             <div class="form-group"><label>Main Beam (in)</label><input type="text" id="hv-mainBeam" oninput="syncMainToBC('beam')"></div>
             <div class="form-group"><label>Tines (G1/G2/G3/G4)</label><input type="text" id="hv-tines" placeholder="5/4.5/4/3" oninput="syncMainToBC('tines')"></div>
@@ -413,7 +423,7 @@
         <div class="form-row">
           <div class="form-group">
             <label>Species</label>
-            <select id="si-speciesSelect" onchange="speciesSelectChange('si')">
+            <select id="si-speciesSelect" onchange="speciesSelectChange('si'); updateSightingFields()">
               <option value="">-- Select --</option>
               <option>White-tailed Deer</option>
               <option>Mule Deer</option>
@@ -439,6 +449,16 @@
           </div>
           <div class="form-group"><label>Count</label><input type="number" id="si-count" min="1" value="1"></div>
           <div class="form-group"><label>Sex / Age Description</label><input type="text" id="si-sexAge" placeholder="2 bucks, 3 does"></div>
+          <div class="form-group" id="si-buckGroup" style="display:none">
+            <label>Watched Buck</label>
+            <select id="si-buckId"><option value="">-- None --</option></select>
+            <a href="#" onclick="quickAddBuck('si');return false" style="font-size:0.78rem;display:inline-block;margin-top:4px;color:#1a4a1a">+ New buck</a>
+            <div id="si-buckAdd" style="display:none;gap:6px;margin-top:6px">
+              <input type="text" id="si-buckName" placeholder="Buck name (e.g. Crabclaw)" style="flex:1">
+              <button type="button" class="btn btn-secondary" style="padding:5px 10px;font-size:0.8rem" onclick="buckAddSave('si')">Add</button>
+              <button type="button" class="btn btn-secondary" style="padding:5px 10px;font-size:0.8rem" onclick="document.getElementById('si-buckAdd').style.display='none'">&#10005;</button>
+            </div>
+          </div>
         </div>
         <div class="form-row">
           <div class="form-group"><label>Observation Method</label>
@@ -693,6 +713,7 @@ var sortDir = 'desc';   // 'desc' = newest first
 var visibleCount = 25;  // pagination: how many entries are shown
 var PAGE_SIZE = 25;
 var logRoutes = [];       // census routes from settings: [{ id, name, imageId, points }]
+var logBucks = [];        // watched bucks: [{ id, name, notes, status }]
 var photoQuality = 'balanced'; // photo downscaling setting ('original'|'high'|'balanced'|'compact')
 var propImages = [];      // property images from settings: [{ id, filename, uploadedAt }]
 var currentPropId = null; // active property image id
@@ -716,6 +737,10 @@ async function init() {
     var settings = await (await fetch('/api/settings')).json();
     photoQuality = settings.photoQuality || 'balanced';
   } catch (e) { /* default applies */ }
+  try {
+    logBucks = await (await fetch('/api/bucks')).json();
+  } catch (e) { logBucks = []; }
+  populateBuckSelects();
   var routeSel = document.getElementById('ce-routeId');
   logRoutes.forEach(function(r) {
     var opt = document.createElement('option');
@@ -955,6 +980,7 @@ function renderDetail(e) {
     rows += twoCol('MLDP Tag #', e['hv-tag'], 'Hunter', e['hv-hunter']);
     rows += twoCol('Location', e['hv-location'], 'Method', e['hv-method']);
     if (e['hv-species'] === 'White-tailed Deer') {
+      if (buckNameById(e['hv-buckId'])) rows += labelVal('Watched Buck', buckNameById(e['hv-buckId']));
       rows += twoCol('Total Points', e['hv-points'], 'Inside Spread', e['hv-spread'] ? e['hv-spread'] + ' in' : '');
       rows += twoCol('Main Beam', e['hv-mainBeam'] ? e['hv-mainBeam'] + ' in' : '', 'Tines (G1/G2/G3/G4)', e['hv-tines']);
       if (parseFloat(e['hv-bc-net']) > 0) {
@@ -966,6 +992,7 @@ function renderDetail(e) {
     rows += labelVal('Notes', e['hv-notes']);
   } else if (e.type === 'Sighting') {
     rows += twoCol('Species', e['si-species'], 'Count', e['si-count']);
+    if (buckNameById(e['si-buckId'])) rows += labelVal('Watched Buck', buckNameById(e['si-buckId']));
     rows += twoCol('Sex/Age', e['si-sexAge'], 'Method', e['si-method']);
     rows += twoCol('Location', e['si-location'], '', '');
     rows += labelVal('Notes', e['si-notes']);
@@ -1100,6 +1127,7 @@ function editEntry(id) {
   }
   populateSpeciesField('pc', e['pc-species']);
   populateSpeciesField('si', e['si-species']);
+  updateSightingFields();
   populateSpeciesField('ce', e['ce-species']);
   // Photos already on server
   originalPhotos = (e.photos || []).slice();
@@ -1142,7 +1170,14 @@ function resetForm() {
   ['hv','pc','si','ce'].forEach(function(p) {
     var o = document.getElementById(p + '-speciesOther');
     if (o) o.style.display = 'none';
+    var h = document.getElementById(p + '-species');
+    if (h) h.value = ''; // hidden inputs aren't covered by the generic reset loop
   });
+  // Reset buck quick-add boxes and sighting buck visibility
+  ['hv','si'].forEach(function(p) {
+    document.getElementById(p + '-buckAdd').style.display = 'none';
+  });
+  updateSightingFields();
   // Reset B&C scoring panel
   document.getElementById('bcEnable').checked = false;
   document.getElementById('bcPanel').style.display = 'none';
@@ -1401,6 +1436,56 @@ function jumpToEntry(id) {
   card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+// ── Buck watch list ──
+function populateBuckSelects() {
+  ['hv-buckId', 'si-buckId'].forEach(function(id) {
+    var sel = document.getElementById(id);
+    var cur = sel.value;
+    sel.innerHTML = '<option value="">-- None --</option>';
+    logBucks.forEach(function(b) {
+      var opt = document.createElement('option');
+      opt.value = b.id;
+      opt.textContent = b.name;
+      sel.appendChild(opt);
+    });
+    sel.value = cur;
+  });
+}
+
+function buckNameById(id) {
+  for (var i = 0; i < logBucks.length; i++) {
+    if (logBucks[i].id === id) return logBucks[i].name;
+  }
+  return '';
+}
+
+function quickAddBuck(prefix) {
+  var box = document.getElementById(prefix + '-buckAdd');
+  box.style.display = 'flex';
+  document.getElementById(prefix + '-buckName').focus();
+}
+
+async function buckAddSave(prefix) {
+  var input = document.getElementById(prefix + '-buckName');
+  var name = input.value.trim();
+  if (!name) return;
+  var buck = await (await fetch('/api/bucks', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name })
+  })).json();
+  logBucks.push(buck);
+  populateBuckSelects();
+  document.getElementById(prefix + '-buckId').value = buck.id;
+  input.value = '';
+  document.getElementById(prefix + '-buckAdd').style.display = 'none';
+}
+
+function updateSightingFields() {
+  var species = document.getElementById('si-species').value;
+  document.getElementById('si-buckGroup').style.display =
+    (species === 'White-tailed Deer') ? '' : 'none';
+}
+
 // ── Census route create-and-return ──
 // Saves the in-progress entry form, sends the user to Settings to draw a
 // route, and restores everything (with the new route selected) on return.
@@ -1619,8 +1704,8 @@ function switchType() {
 
 function getTypeFields(type) {
   var map = {
-    'Harvest':   ['hv-species','hv-sex','hv-age','hv-weight','hv-tag','hv-hunter','hv-location','hv-method','hv-points','hv-mainBeam','hv-tines','hv-spread','hv-notes'].concat(BC_FIELDS),
-    'Sighting':  ['si-species','si-count','si-sexAge','si-location','si-method','si-notes'],
+    'Harvest':   ['hv-species','hv-sex','hv-age','hv-weight','hv-tag','hv-hunter','hv-location','hv-method','hv-points','hv-mainBeam','hv-tines','hv-spread','hv-buckId','hv-notes'].concat(BC_FIELDS),
+    'Sighting':  ['si-species','si-count','si-sexAge','si-location','si-method','si-buckId','si-notes'],
     'Activity':  ['ac-category','ac-name','ac-acres','ac-notes'],
     'Census':    ['ce-surveyType','ce-species','ce-routeId','ce-total','ce-conditions','ce-notes'],
     'Predator Control': ['pc-species','pc-method','pc-count','pc-notes'],

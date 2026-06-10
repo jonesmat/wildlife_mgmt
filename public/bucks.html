@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buck Watch</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/form-shared.css">
+<style>
+.buck-card {
+  background: white; border: 1px solid #ddd; border-radius: 10px;
+  padding: 16px 18px; margin-bottom: 16px;
+}
+.buck-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.buck-photo { width: 84px; height: 84px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; flex-shrink: 0; }
+.buck-photo-empty {
+  display: flex; align-items: center; justify-content: center; font-size: 2rem;
+  background: #f0f4ee; width: 84px; height: 84px; border-radius: 8px; flex-shrink: 0;
+}
+.buck-name { font-size: 1.15rem; font-weight: 700; color: #1a4a1a; }
+.buck-stats { font-size: 0.82rem; color: #777; margin-top: 3px; }
+.buck-notes { font-size: 0.85rem; color: #555; margin-top: 4px; font-style: italic; }
+.buck-badge {
+  font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 10px;
+  text-transform: uppercase; letter-spacing: 0.04em; vertical-align: middle; margin-left: 10px;
+}
+.badge-watching  { background: #e8f0e8; color: #1a4a1a; }
+.badge-harvested { background: #fde8e8; color: #8b1a1a; }
+.badge-gone      { background: #f0f0f0; color: #888; }
+.buck-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.buck-actions select { padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.8rem; }
+
+.buck-timeline { margin-top: 14px; border-top: 1px solid #eee; padding-top: 10px; }
+.bt-item {
+  display: flex; align-items: center; gap: 10px; padding: 6px 0;
+  font-size: 0.86rem; border-bottom: 1px dashed #f0f0f0;
+}
+.bt-item:last-child { border-bottom: none; }
+.bt-icon { font-size: 1rem; width: 24px; text-align: center; flex-shrink: 0; }
+.bt-date { color: #777; width: 92px; flex-shrink: 0; font-size: 0.8rem; }
+.bt-title { flex: 1; }
+.bt-thumb { width: 34px; height: 34px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; }
+.bt-link { font-size: 0.78rem; color: #1a4a1a; text-decoration: none; }
+.bt-link:hover { text-decoration: underline; }
+
+.buck-edit { display: none; margin-top: 12px; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.buck-edit .form-group { margin-bottom: 0; }
+.new-buck-box {
+  background: white; border: 2px solid #1a4a1a; border-radius: 10px;
+  padding: 16px 18px; margin-bottom: 18px; display: none;
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>🦌 Buck Watch</h1>
+  <div class="header-actions">
+    <a href="/log" class="btn btn-white">Activity Log</a>
+    <a href="/" class="btn btn-white">Home</a>
+  </div>
+</header>
+
+<div class="layout">
+  <main class="main" style="max-width:860px">
+    <div class="hint-block" style="margin-bottom:16px">
+      Track individual bucks across seasons. Link Harvest and Sighting entries to a watched buck
+      in the Activity Log, then follow his story here — from first camera photo to the season he's taken.
+    </div>
+
+    <button class="btn btn-primary" id="newBuckBtn" onclick="showNewBuck()">+ New Buck</button>
+
+    <div class="new-buck-box" id="newBuckBox">
+      <div class="form-row" style="display:flex;gap:12px;flex-wrap:wrap">
+        <div class="form-group" style="flex:1;min-width:180px"><label>Name</label><input type="text" id="newBuckName" placeholder="e.g. Crabclaw"></div>
+        <div class="form-group" style="flex:2;min-width:220px"><label>Notes</label><input type="text" id="newBuckNotes" placeholder="Distinguishing features, where he hangs out..."></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+        <button class="btn btn-secondary" onclick="hideNewBuck()">Cancel</button>
+        <button class="btn btn-primary" onclick="createBuck()">Add Buck</button>
+      </div>
+    </div>
+
+    <div id="bucksList" style="margin-top:18px">
+      <div style="color:#999;font-size:0.9rem">Loading...</div>
+    </div>
+  </main>
+</div>
+
+<script>
+var bucks = [];
+var entries = [];
+
+var TYPE_ICONS = { 'Harvest': '🎯', 'Sighting': '👀' };
+
+async function load() {
+  bucks = await (await fetch('/api/bucks')).json();
+  entries = await (await fetch('/api/log')).json();
+  render();
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function fmtDate(s) {
+  if (!s) return '';
+  try {
+    return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch (e) { return s; }
+}
+
+function buckEntries(buckId) {
+  return entries.filter(function(e) {
+    return e['hv-buckId'] === buckId || e['si-buckId'] === buckId;
+  }).sort(function(a, b) { return (a.datetime || '') < (b.datetime || '') ? -1 : 1; });
+}
+
+function entryLine(e) {
+  if (e.type === 'Harvest') {
+    var t = 'Harvested';
+    if (e['hv-points']) t += ' — ' + e['hv-points'] + '-pt';
+    if (parseFloat(e['hv-bc-net']) > 0) t += ', B&C scored';
+    if (e['hv-hunter']) t += ', by ' + e['hv-hunter'];
+    return t;
+  }
+  var s = 'Sighted';
+  if (e['si-method']) s += ' (' + e['si-method'] + ')';
+  if (e['si-sexAge']) s += ' — ' + e['si-sexAge'];
+  return s;
+}
+
+function render() {
+  var list = document.getElementById('bucksList');
+  if (!bucks.length) {
+    list.innerHTML = '<div style="color:#999;font-style:italic;text-align:center;padding:30px 0">No bucks on the watch list yet. Add one above, or use "+ New buck" on a Harvest or Sighting entry.</div>';
+    return;
+  }
+  // Watching first, then harvested, then gone; newest first within groups
+  var order = { 'Watching': 0, 'Harvested': 1, 'Gone': 2 };
+  var sorted = bucks.slice().sort(function(a, b) {
+    var sa = effectiveStatus(a), sb = effectiveStatus(b);
+    if (order[sa] !== order[sb]) return order[sa] - order[sb];
+    return (b.createdAt || '') < (a.createdAt || '') ? -1 : 1;
+  });
+
+  list.innerHTML = sorted.map(function(b) {
+    var linked = buckEntries(b.id);
+    var status = effectiveStatus(b);
+    var badgeClass = status === 'Harvested' ? 'badge-harvested' : (status === 'Gone' ? 'badge-gone' : 'badge-watching');
+
+    // Latest photo from any linked entry
+    var photoFile = null;
+    for (var i = linked.length - 1; i >= 0 && !photoFile; i--) {
+      if (linked[i].photos && linked[i].photos.length) photoFile = linked[i].photos[0];
+    }
+    var photo = photoFile
+      ? '<img class="buck-photo" src="/photos/thumb-' + photoFile + '" onerror="this.onerror=null;this.src=\'/photos/' + photoFile + '\'" alt="">'
+      : '<div class="buck-photo-empty">🦌</div>';
+
+    var years = linked.map(function(e) { return (e.datetime || '').slice(0, 4); }).filter(Boolean);
+    var span = '';
+    if (years.length) {
+      var first = years[0], last = years[years.length - 1];
+      span = (first === last) ? first : first + '–' + last;
+    }
+    var stats = linked.length + ' encounter' + (linked.length === 1 ? '' : 's') + (span ? ' · ' + span : '');
+
+    var timeline = linked.map(function(e) {
+      var thumb = (e.photos && e.photos.length)
+        ? '<img class="bt-thumb" src="/photos/thumb-' + e.photos[0] + '" onerror="this.onerror=null;this.src=\'/photos/' + e.photos[0] + '\'" alt="">'
+        : '';
+      return '<div class="bt-item">' +
+        '<span class="bt-icon">' + (TYPE_ICONS[e.type] || '📌') + '</span>' +
+        '<span class="bt-date">' + fmtDate(e.datetime) + '</span>' +
+        '<span class="bt-title">' + escHtml(entryLine(e)) + '</span>' +
+        thumb +
+        '<a class="bt-link" href="/log#entry-' + e.id + '">view</a>' +
+      '</div>';
+    }).join('');
+    if (!timeline) timeline = '<div style="color:#999;font-size:0.82rem;font-style:italic">No linked entries yet — link Harvest or Sighting entries to this buck in the Activity Log.</div>';
+
+    var statusControl = (status === 'Harvested')
+      ? ''
+      : '<select onchange="setStatus(\'' + b.id + '\', this.value)">' +
+          '<option' + (b.status === 'Watching' ? ' selected' : '') + '>Watching</option>' +
+          '<option' + (b.status === 'Gone' ? ' selected' : '') + '>Gone</option>' +
+        '</select>';
+
+    return '<div class="buck-card">' +
+      '<div class="buck-head">' +
+        photo +
+        '<div>' +
+          '<div class="buck-name">' + escHtml(b.name) +
+            '<span class="buck-badge ' + badgeClass + '">' + status + '</span></div>' +
+          '<div class="buck-stats">' + stats + '</div>' +
+          (b.notes ? '<div class="buck-notes">' + escHtml(b.notes) + '</div>' : '') +
+        '</div>' +
+        '<div class="buck-actions">' +
+          statusControl +
+          '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px" onclick="toggleEdit(\'' + b.id + '\')">Edit</button>' +
+          '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px;color:#8b1a1a" onclick="deleteBuck(\'' + b.id + '\')">Delete</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="buck-edit" id="edit-' + b.id + '">' +
+        '<div class="form-group" style="flex:1;min-width:160px"><label>Name</label><input type="text" id="editName-' + b.id + '" value="' + escHtml(b.name).replace(/"/g, '&quot;') + '"></div>' +
+        '<div class="form-group" style="flex:2;min-width:200px"><label>Notes</label><input type="text" id="editNotes-' + b.id + '" value="' + escHtml(b.notes).replace(/"/g, '&quot;') + '"></div>' +
+        '<button class="btn btn-primary" style="font-size:0.82rem;padding:7px 14px" onclick="saveEdit(\'' + b.id + '\')">Save</button>' +
+      '</div>' +
+      '<div class="buck-timeline">' + timeline + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// Harvested is derived from linked entries; Watching/Gone is the stored choice
+function effectiveStatus(b) {
+  var linked = buckEntries(b.id);
+  for (var i = 0; i < linked.length; i++) {
+    if (linked[i].type === 'Harvest') return 'Harvested';
+  }
+  return b.status === 'Gone' ? 'Gone' : 'Watching';
+}
+
+function showNewBuck() {
+  document.getElementById('newBuckBox').style.display = 'block';
+  document.getElementById('newBuckBtn').style.display = 'none';
+  document.getElementById('newBuckName').focus();
+}
+
+function hideNewBuck() {
+  document.getElementById('newBuckBox').style.display = 'none';
+  document.getElementById('newBuckBtn').style.display = '';
+}
+
+async function createBuck() {
+  var name = document.getElementById('newBuckName').value.trim();
+  if (!name) return;
+  await fetch('/api/bucks', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name, notes: document.getElementById('newBuckNotes').value.trim() })
+  });
+  document.getElementById('newBuckName').value = '';
+  document.getElementById('newBuckNotes').value = '';
+  hideNewBuck();
+  load();
+}
+
+async function setStatus(id, status) {
+  await fetch('/api/bucks/' + id, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: status })
+  });
+  load();
+}
+
+function toggleEdit(id) {
+  var el = document.getElementById('edit-' + id);
+  el.style.display = (el.style.display === 'flex') ? 'none' : 'flex';
+}
+
+async function saveEdit(id) {
+  await fetch('/api/bucks/' + id, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: document.getElementById('editName-' + id).value.trim() || 'Unnamed Buck',
+      notes: document.getElementById('editNotes-' + id).value.trim()
+    })
+  });
+  load();
+}
+
+async function deleteBuck(id) {
+  if (!confirm('Remove this buck from the watch list?\nLinked log entries are kept, just unlinked.')) return;
+  await fetch('/api/bucks/' + id, { method: 'DELETE' });
+  load();
+}
+
+load();
+</script>
+</body>
+</html>
