@@ -69,6 +69,19 @@
   .modal p { color: #555; font-size: 0.9rem; margin-bottom: 16px; }
   .modal input[type="text"] { width: 100%; margin-bottom: 16px; }
   .modal .row { justify-content: flex-end; }
+  /* ── Qualifying practices progress ── */
+  .practice-card { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+  .practice-ring { flex-shrink: 0; }
+  .practice-info { flex: 1; min-width: 240px; }
+  .practice-headline { font-size: 1.05rem; font-weight: 700; color: #1a4a1a; margin-bottom: 4px; }
+  .practice-sub { font-size: 0.85rem; color: #777; margin-bottom: 10px; }
+  .practice-chiprow { display: flex; gap: 6px; flex-wrap: wrap; }
+  .practice-chip {
+    font-size: 0.74rem; font-weight: 600; padding: 4px 10px; border-radius: 12px;
+    background: #f0f0f0; color: #999; border: 1px solid #e0e0e0;
+  }
+  .practice-chip.done { background: #e8f0e8; color: #1a4a1a; border-color: #b8d0b8; }
+
   /* ── Wildlife gallery (formerly trophy board) ── */
   .trophy-board {
     background: linear-gradient(150deg, #25341f, #1a2a18 60%, #16241a); border-radius: 10px;
@@ -110,6 +123,9 @@
   <a href="/settings" style="margin-left:auto;color:white;text-decoration:none;font-size:0.9rem;font-weight:600;padding:8px 16px;border:1px solid rgba(255,255,255,0.4);border-radius:6px">⚙️ Settings</a>
 </header>
 <div class="container">
+  <!-- Qualifying practices progress (1-D-1 requires 3 of 7) -->
+  <div class="card practice-card" id="practiceCard" style="display:none"></div>
+
   <!-- Trophy board: best B&C scores from the Activity Log -->
   <div class="trophy-board" id="trophyBoard" style="display:none"></div>
 
@@ -252,6 +268,64 @@
     return eighths ? whole + ' ' + eighths + '/8' : String(whole);
   }
 
+  // ── Qualifying practices progress ring ──
+  var PRACTICES = [
+    'Habitat Control', 'Erosion Control', 'Predator Control',
+    'Census', 'Supplemental Water', 'Supplemental Food', 'Supplemental Shelter'
+  ];
+  var PRACTICE_LABELS = {
+    'Habitat Control': 'Habitat', 'Erosion Control': 'Erosion', 'Predator Control': 'Predator',
+    'Census': 'Census', 'Supplemental Water': 'Water', 'Supplemental Food': 'Food',
+    'Supplemental Shelter': 'Shelter'
+  };
+
+  function renderPracticeRing(entries) {
+    var year = String(new Date().getFullYear());
+    var covered = {};
+    entries.forEach(function(e) {
+      if (!e.datetime || !e.datetime.startsWith(year)) return;
+      if (e.type === 'Activity' && PRACTICES.indexOf(e['ac-category']) !== -1) covered[e['ac-category']] = true;
+      if (e.type === 'Purchase' && PRACTICES.indexOf(e['pu-practice']) !== -1) covered[e['pu-practice']] = true;
+      if (e.type === 'Predator Control') covered['Predator Control'] = true;
+      if (e.type === 'Census' || e.type === 'Harvest') covered['Census'] = true;
+    });
+    var n = Object.keys(covered).length;
+    var qualified = n >= 3;
+
+    // SVG ring: 7 segments worth of progress
+    var r = 34, c = 2 * Math.PI * r;
+    var frac = n / 7;
+    var ring =
+      '<svg class="practice-ring" width="92" height="92" viewBox="0 0 92 92">' +
+        '<circle cx="46" cy="46" r="' + r + '" fill="none" stroke="#e8ece5" stroke-width="9"/>' +
+        '<circle cx="46" cy="46" r="' + r + '" fill="none" stroke="' + (qualified ? '#1a4a1a' : '#c9a227') + '" stroke-width="9" stroke-linecap="round"' +
+          ' stroke-dasharray="' + (c * frac) + ' ' + c + '" transform="rotate(-90 46 46)"/>' +
+        '<text x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#1a4a1a">' + n + '/7</text>' +
+        '<text x="46" y="60" text-anchor="middle" font-size="9" fill="#888">PRACTICES</text>' +
+      '</svg>';
+
+    var headline = qualified
+      ? 'Qualified for ' + year + '! 🎉'
+      : (3 - n) + ' more practice' + (3 - n === 1 ? '' : 's') + ' to qualify for ' + year;
+    var sub = qualified
+      ? n + ' of 7 qualifying practices documented in the Activity Log — the 1-D-1 minimum of three is covered.'
+      : 'A wildlife management annual report needs at least 3 of the 7 qualifying practices. Log activities, purchases, censuses, or predator work to fill the ring.';
+
+    var chips = PRACTICES.map(function(p) {
+      return '<span class="practice-chip' + (covered[p] ? ' done' : '') + '">' +
+        (covered[p] ? '✓ ' : '') + PRACTICE_LABELS[p] + '</span>';
+    }).join('');
+
+    var card = document.getElementById('practiceCard');
+    card.style.display = 'flex';
+    card.innerHTML = ring +
+      '<div class="practice-info">' +
+        '<div class="practice-headline">' + headline + '</div>' +
+        '<div class="practice-sub">' + sub + '</div>' +
+        '<div class="practice-chiprow">' + chips + '</div>' +
+      '</div>';
+  }
+
   // Celebratory facts about this year's work on the ranch
   function yearFactChips(entries) {
     var year = String(new Date().getFullYear());
@@ -286,6 +360,7 @@
     var entries;
     try { entries = await (await fetch('/api/log')).json(); }
     catch (e) { return; }
+    renderPracticeRing(entries);
     var factsHtml = yearFactChips(entries);
     var scored = entries.filter(function(e) {
       return e.type === 'Harvest' && parseFloat(e['hv-bc-net']) > 0;
