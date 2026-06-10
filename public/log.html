@@ -623,6 +623,12 @@
       </div>
     </div>
 
+    <!-- List controls -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <button class="btn btn-secondary" id="sortBtn" onclick="toggleSort()" title="Toggle date sort order">Date &darr; Newest first</button>
+      <span id="listCountLabel" style="font-size:0.82rem;color:#777"></span>
+    </div>
+
     <!-- Log list -->
     <div id="logList">
       <div class="log-empty">Loading...</div>
@@ -658,6 +664,9 @@ var allEntries = [];
 var pendingPhotos = []; // { dataUrl, filename, uploaded } — uploaded means already on server (filename is server filename)
 var filterYear = '';
 var filterType = '';
+var sortDir = 'desc';   // 'desc' = newest first
+var visibleCount = 25;  // pagination: how many entries are shown
+var PAGE_SIZE = 25;
 var propImages = [];      // property images from settings: [{ id, filename, uploadedAt }]
 var currentPropId = null; // active property image id
 var pendingLoc = null;    // location for the entry being edited: { img, x, y } (x/y are 0-1 fractions)
@@ -683,6 +692,7 @@ async function init() {
 function applyFilter() {
   filterYear = document.getElementById('filterYear').value;
   filterType = document.getElementById('filterType').value;
+  visibleCount = PAGE_SIZE;
   renderList();
 }
 function clearFilter() {
@@ -690,6 +700,20 @@ function clearFilter() {
   document.getElementById('filterType').value = '';
   filterYear = '';
   filterType = '';
+  visibleCount = PAGE_SIZE;
+  renderList();
+}
+
+function toggleSort() {
+  sortDir = (sortDir === 'desc') ? 'asc' : 'desc';
+  visibleCount = PAGE_SIZE;
+  document.getElementById('sortBtn').innerHTML = (sortDir === 'desc')
+    ? 'Date &darr; Newest first' : 'Date &uarr; Oldest first';
+  renderList();
+}
+
+function showMore() {
+  visibleCount += PAGE_SIZE;
   renderList();
 }
 
@@ -745,8 +769,11 @@ function monthLabel(m) {
 
 // ── Render list ──
 function renderList() {
-  // Always show newest first, even after adds/edits change dates
-  allEntries.sort(function(a, b) { return (b.datetime || '') < (a.datetime || '') ? -1 : 1; });
+  // Re-sort every render so adds/edits always land in the right spot
+  allEntries.sort(function(a, b) {
+    var cmp = (b.datetime || '') < (a.datetime || '') ? -1 : 1;
+    return sortDir === 'desc' ? cmp : -cmp;
+  });
   var entries = allEntries.filter(function(e) {
     if (filterYear && !e.datetime.startsWith(filterYear)) return false;
     if (filterType && e.type !== filterType) return false;
@@ -765,11 +792,17 @@ function renderList() {
   var list = document.getElementById('logList');
   if (!entries.length) {
     list.innerHTML = '<div class="log-empty">No entries found.</div>';
+    document.getElementById('listCountLabel').textContent = '';
     return;
   }
+
+  var shown = entries.slice(0, visibleCount);
+  document.getElementById('listCountLabel').textContent =
+    'Showing ' + shown.length + ' of ' + entries.length;
+
   var html = '<div class="timeline">';
   var curMonth = '';
-  entries.forEach(function(e) {
+  shown.forEach(function(e) {
     var m = (e.datetime || '').slice(0, 7);
     if (m !== curMonth) {
       curMonth = m;
@@ -784,7 +817,15 @@ function renderList() {
       renderCard(e) +
     '</div>';
   });
-  list.innerHTML = html + '</div>';
+  html += '</div>';
+
+  var remaining = entries.length - shown.length;
+  if (remaining > 0) {
+    html += '<div style="text-align:center;margin:18px 0">' +
+      '<button class="btn btn-secondary" onclick="showMore()">Show more (' + remaining + ' remaining)</button>' +
+    '</div>';
+  }
+  list.innerHTML = html;
 }
 
 function renderCard(e) {
@@ -1218,6 +1259,12 @@ function clearBCInputs() {
 function jumpToEntry(id) {
   var card = document.getElementById('card-' + id);
   if (!card) { clearFilter(); card = document.getElementById('card-' + id); }
+  if (!card) {
+    // Entry may be beyond the current page — show everything and retry
+    visibleCount = allEntries.length;
+    renderList();
+    card = document.getElementById('card-' + id);
+  }
   if (!card) return;
   card.classList.add('open');
   card.scrollIntoView({ behavior: 'smooth', block: 'center' });
