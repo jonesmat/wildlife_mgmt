@@ -173,6 +173,21 @@
 .loc-map-wrap img { display: block; max-width: 100%; max-height: 65vh; }
 #locSaveBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* ── Milestone toasts ── */
+.toast-wrap {
+  position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
+  z-index: 500; display: flex; flex-direction: column; gap: 8px; align-items: center;
+  pointer-events: none;
+}
+.toast {
+  background: linear-gradient(135deg, #1a4a1a, #25341f); color: #f3e9c8;
+  padding: 12px 24px; border-radius: 24px; font-size: 0.92rem; font-weight: 600;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.35); border: 1px solid rgba(233,217,168,0.3);
+  animation: toastIn 0.35s ease; max-width: 90vw; text-align: center;
+}
+.toast.out { transition: opacity 0.5s, transform 0.5s; opacity: 0; transform: translateY(12px); }
+@keyframes toastIn { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+
 /* lightbox */
 .lightbox { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:999; align-items:center; justify-content:center; }
 .lightbox.open { display:flex; }
@@ -695,6 +710,9 @@
     </div>
   </div>
 </div>
+
+<!-- Milestone toasts -->
+<div class="toast-wrap" id="toastWrap"></div>
 
 <!-- Lightbox -->
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
@@ -1436,6 +1454,94 @@ function jumpToEntry(id) {
   card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+// ── Stewardship milestones ──
+// Small celebration toasts when a newly saved entry crosses a threshold.
+
+var ENTRY_MILESTONES = [10, 25, 50, 100, 250, 500, 1000];
+var ACRE_MILESTONES = [100, 250, 500, 1000, 2500];
+var PREDATOR_MILESTONES = [25, 50, 100, 250];
+
+var QUAL_PRACTICES = {
+  'Habitat Control': 1, 'Erosion Control': 1, 'Predator Control': 1, 'Census': 1,
+  'Supplemental Water': 1, 'Supplemental Food': 1, 'Supplemental Shelter': 1
+};
+
+function practicesCovered(list) {
+  var covered = {};
+  list.forEach(function(e) {
+    if (e.type === 'Activity' && QUAL_PRACTICES[e['ac-category']]) covered[e['ac-category']] = 1;
+    if (e.type === 'Purchase' && QUAL_PRACTICES[e['pu-practice']]) covered[e['pu-practice']] = 1;
+    if (e.type === 'Predator Control') covered['Predator Control'] = 1;
+    if (e.type === 'Census' || e.type === 'Harvest') covered['Census'] = 1;
+  });
+  return Object.keys(covered).length;
+}
+
+function sumAcres(list) {
+  var t = 0;
+  list.forEach(function(e) { if (e.type === 'Activity') t += parseFloat(e['ac-acres']) || 0; });
+  return t;
+}
+
+function sumPredators(list) {
+  var t = 0;
+  list.forEach(function(e) { if (e.type === 'Predator Control') t += parseInt(e['pc-count'], 10) || 1; });
+  return t;
+}
+
+function checkMilestones(prev, entry) {
+  var msgs = [];
+  var y = (entry.datetime || '').slice(0, 4);
+  var yearPrev = prev.filter(function(e) { return (e.datetime || '').startsWith(y); });
+
+  var total = prev.length + 1;
+  if (ENTRY_MILESTONES.indexOf(total) !== -1) {
+    msgs.push('🎉 That\'s your ' + total + 'th log entry — quite a record of stewardship!');
+  }
+  if (!yearPrev.length && prev.length) {
+    msgs.push('🌱 First entry of ' + y + ' — here\'s to a great season!');
+  }
+  if (entry.type === 'Census') {
+    var nc = yearPrev.filter(function(e) { return e.type === 'Census'; }).length + 1;
+    if (nc === 1 && yearPrev.length) msgs.push('📊 First census of ' + y + '!');
+    if (nc === 3) msgs.push('📊 Three censuses in ' + y + ' — TPWD\'s recommended minimum met!');
+  }
+  if (entry.type === 'Harvest') {
+    var nh = yearPrev.filter(function(e) { return e.type === 'Harvest'; }).length + 1;
+    if (nh === 1) msgs.push('🎯 First harvest of the ' + y + ' season!');
+  }
+  var acresPrev = sumAcres(prev);
+  var acresNow = acresPrev + (entry.type === 'Activity' ? (parseFloat(entry['ac-acres']) || 0) : 0);
+  ACRE_MILESTONES.forEach(function(t) {
+    if (acresPrev < t && acresNow >= t) msgs.push('🌳 Over ' + t.toLocaleString() + ' acres of habitat treated all-time!');
+  });
+  var predPrev = sumPredators(prev);
+  var predNow = predPrev + (entry.type === 'Predator Control' ? (parseInt(entry['pc-count'], 10) || 1) : 0);
+  PREDATOR_MILESTONES.forEach(function(t) {
+    if (predPrev < t && predNow >= t) msgs.push('🪤 ' + t + ' predators removed all-time — the nesting birds thank you!');
+  });
+  if (practicesCovered(yearPrev) < 3 && practicesCovered(yearPrev.concat([entry])) >= 3) {
+    msgs.push('🏆 Qualified for ' + y + '! Three qualifying practices documented.');
+  }
+  return msgs;
+}
+
+function showToasts(msgs) {
+  var wrap = document.getElementById('toastWrap');
+  msgs.forEach(function(msg, i) {
+    setTimeout(function() {
+      var t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      wrap.appendChild(t);
+      setTimeout(function() {
+        t.classList.add('out');
+        setTimeout(function() { wrap.removeChild(t); }, 600);
+      }, 4500 + i * 300);
+    }, i * 700);
+  });
+}
+
 // ── Buck watch list ──
 function populateBuckSelects() {
   ['hv-buckId', 'si-buckId'].forEach(function(id) {
@@ -1776,12 +1882,16 @@ async function saveEntry() {
       if (entry.photos.indexOf(f) === -1) deletePhotoFile(f);
     });
   } else {
+    // Milestones only fire for brand-new entries, computed against the
+    // log as it stood before this one
+    var milestoneMsgs = checkMilestones(allEntries, entry);
     var res = await (await fetch('/api/log', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(entry)
     })).json();
     entry.id = res.id;
     allEntries.unshift(entry);
+    showToasts(milestoneMsgs);
   }
   pendingPhotos = [];
   document.getElementById('newEntrySection').style.display = 'none';
