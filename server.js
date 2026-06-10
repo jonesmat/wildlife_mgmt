@@ -211,6 +211,16 @@ app.post('/api/reports/:year', (req, res) => {
   res.json({ ok: true });
 });
 
+app.delete('/api/reports/:year', (req, res) => {
+  const data = loadData();
+  if (!data.reports || !data.reports[req.params.year]) {
+    return res.status(404).json({ error: 'Report not found' });
+  }
+  delete data.reports[req.params.year];
+  saveData(data);
+  res.json({ ok: true });
+});
+
 // ── Log API ──
 
 const PHOTOS_DIR = path.join(__dirname, 'data', 'photos');

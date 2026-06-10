@@ -49,6 +49,25 @@
     font-size: 0.75rem; padding: 2px 8px; border-radius: 10px;
     background: #e8f0e8; color: #1a4a1a; font-weight: 600;
   }
+  .btn-danger { background: #fde8e8; color: #8b1a1a; }
+  .btn-danger:hover { background: #f5c8c8; }
+  .btn-danger-solid { background: #b32424; color: white; }
+  .btn-danger-solid:hover { background: #8b1a1a; }
+  .btn-danger-solid:disabled { background: #e0b8b8; cursor: not-allowed; }
+  /* ── Delete confirmation modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    z-index: 100; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: white; border-radius: 10px; padding: 28px; width: 420px;
+    max-width: calc(100vw - 48px); box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  }
+  .modal h3 { color: #8b1a1a; font-size: 1.1rem; margin-bottom: 10px; }
+  .modal p { color: #555; font-size: 0.9rem; margin-bottom: 16px; }
+  .modal input[type="text"] { width: 100%; margin-bottom: 16px; }
+  .modal .row { justify-content: flex-end; }
   /* ── Trophy board ── */
   .trophy-board {
     background: linear-gradient(135deg, #2a3a28, #1a2a18); border-radius: 10px;
@@ -114,6 +133,19 @@
   </div>
 </div>
 
+<!-- Delete report confirmation modal -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal">
+    <h3>Delete <span id="deleteModalYear"></span> Annual Report?</h3>
+    <p>This permanently removes the report and everything entered on it. Activity Log entries are <strong>not</strong> affected. Type <strong>delete</strong> to confirm.</p>
+    <input type="text" id="deleteConfirmInput" placeholder="Type delete to confirm" autocomplete="off" oninput="deleteConfirmChanged()">
+    <div class="row">
+      <button class="btn btn-secondary btn-sm" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger-solid btn-sm" id="deleteConfirmBtn" disabled onclick="confirmDeleteReport()">Delete Report</button>
+    </div>
+  </div>
+</div>
+
 <script>
   document.getElementById('newYear').value = new Date().getFullYear();
 
@@ -131,6 +163,7 @@
         <div class="row">
           <a href="/report/${y}" class="btn btn-outline btn-sm">Edit</a>
           <button class="btn btn-secondary btn-sm" onclick="generatePDF('/report-print/${y}')">Generate PDF</button>
+          <button class="btn btn-danger btn-sm" onclick="openDeleteModal('${y}')">Delete</button>
         </div>
       </div>
     `).join('');
@@ -155,6 +188,46 @@
   function generatePDF(url) {
     window.open(url, '_blank');
   }
+
+  // ── Delete report (type-to-confirm) ──
+  var deleteTargetYear = null;
+
+  function openDeleteModal(year) {
+    deleteTargetYear = year;
+    document.getElementById('deleteModalYear').textContent = year;
+    document.getElementById('deleteConfirmInput').value = '';
+    document.getElementById('deleteConfirmBtn').disabled = true;
+    document.getElementById('deleteModal').classList.add('open');
+    document.getElementById('deleteConfirmInput').focus();
+  }
+
+  function closeDeleteModal() {
+    deleteTargetYear = null;
+    document.getElementById('deleteModal').classList.remove('open');
+  }
+
+  function deleteConfirmChanged() {
+    var typed = document.getElementById('deleteConfirmInput').value.trim().toLowerCase();
+    document.getElementById('deleteConfirmBtn').disabled = (typed !== 'delete');
+  }
+
+  async function confirmDeleteReport() {
+    if (!deleteTargetYear) return;
+    var resp = await fetch('/api/reports/' + deleteTargetYear, { method: 'DELETE' });
+    if (!resp.ok) alert('Failed to delete report (HTTP ' + resp.status + ')');
+    closeDeleteModal();
+    loadYears();
+  }
+
+  // Close modal on overlay click or Escape
+  document.getElementById('deleteModal').addEventListener('click', function(ev) {
+    if (ev.target === this) closeDeleteModal();
+  });
+  document.addEventListener('keydown', function(ev) {
+    if (ev.key === 'Escape') closeDeleteModal();
+    if (ev.key === 'Enter' && document.getElementById('deleteModal').classList.contains('open') &&
+        !document.getElementById('deleteConfirmBtn').disabled) confirmDeleteReport();
+  });
 
   // ── Trophy board ──
   function escHtml(s) {
