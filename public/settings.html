@@ -29,6 +29,15 @@
 .past-card img { width: 100%; height: 120px; object-fit: cover; display: block; }
 .past-card .past-body { padding: 8px 10px; }
 .past-card .past-date { font-size: 0.76rem; color: #777; margin-bottom: 6px; }
+.set-modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  z-index: 300; align-items: center; justify-content: center;
+}
+.set-modal-overlay.open { display: flex; }
+.set-modal {
+  background: white; border-radius: 10px; padding: 24px 28px; width: 440px;
+  max-width: calc(100vw - 48px); box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+}
 </style>
 </head>
 <body>
@@ -44,6 +53,7 @@
     <div class="sidebar-section">Settings</div>
     <div class="sidebar-item active" id="nav-property" onclick="showPane('property')">Property</div>
     <div class="sidebar-item" id="nav-routes" onclick="showPane('routes')">Routes</div>
+    <div class="sidebar-item" id="nav-data" onclick="showPane('data')">Data Export &amp; Restore</div>
   </nav>
 
   <main class="main">
@@ -120,7 +130,74 @@
         </div>
       </div>
     </div>
+    <!-- Data pane -->
+    <div class="section" id="data" style="display:none">
+      <div class="section-title">Data Export &amp; Restore</div>
+
+      <div class="sub-section">
+        <div class="section-subtitle">Export</div>
+        <div class="hint-block">
+          Saves everything — plan, reports, activity log, photos, property images, and routes —
+          to a single backup file. Your browser will ask where to save it (or use your Downloads
+          folder). Keep backups somewhere safe, like a cloud drive.
+        </div>
+        <button class="btn btn-primary" style="margin-top:10px" onclick="location.href='/api/export'">Export All Data</button>
+      </div>
+
+      <div class="sub-section" style="margin-top:26px">
+        <div class="section-subtitle">Import</div>
+        <div class="hint-block">
+          Restore from a backup file created by this app. You'll choose whether to clear the
+          current data first or add the backup's contents alongside it.
+        </div>
+        <button class="btn btn-primary" style="margin-top:10px" onclick="document.getElementById('importFileInput').click()">Import from File</button>
+        <input type="file" id="importFileInput" accept=".json,application/json" style="display:none" onchange="importFilePicked(this)">
+        <span id="importStatus" style="margin-left:10px;font-size:0.85rem;color:#777"></span>
+      </div>
+
+      <div class="sub-section" style="margin-top:26px">
+        <div class="section-subtitle" style="color:#8b1a1a">Clear All Data</div>
+        <div class="hint-block" style="border-color:#d9a0a0;background:#fdf3f3">
+          Permanently deletes the plan, all reports, the entire activity log, every photo,
+          property image, and route. <strong>This cannot be recovered.</strong> Export an
+          archive backup first.
+        </div>
+        <button class="btn btn-secondary" style="margin-top:10px;color:#8b1a1a" onclick="openClearModal()">Clear All Data...</button>
+      </div>
+    </div>
   </main>
+</div>
+
+<!-- Import mode modal -->
+<div class="set-modal-overlay" id="importModal">
+  <div class="set-modal">
+    <h3 style="color:#1a4a1a;font-size:1.05rem;margin-bottom:8px">Import backup</h3>
+    <p id="importModalInfo" style="font-size:0.88rem;color:#555;margin-bottom:14px"></p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-primary" onclick="runImport('replace')">Clear current data, then restore backup</button>
+      <button class="btn btn-secondary" onclick="runImport('append')">Append backup to current data</button>
+      <button class="btn btn-secondary" onclick="closeImportModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Clear data confirm modal -->
+<div class="set-modal-overlay" id="clearModal">
+  <div class="set-modal">
+    <h3 style="color:#8b1a1a;font-size:1.05rem;margin-bottom:8px">Clear all app data?</h3>
+    <p style="font-size:0.88rem;color:#555;margin-bottom:8px">
+      Everything will be permanently deleted and <strong>cannot be recovered</strong>.
+      If you haven't already, Cancel and export an archive backup first.
+    </p>
+    <p style="font-size:0.88rem;color:#555;margin-bottom:10px">Type <strong>delete</strong> to confirm.</p>
+    <input type="text" id="clearConfirmInput" autocomplete="off" placeholder="Type delete to confirm"
+           style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:4px;margin-bottom:14px"
+           oninput="document.getElementById('clearConfirmBtn').disabled = this.value.trim().toLowerCase() !== 'delete'">
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeClearModal()">Cancel</button>
+      <button class="btn btn-primary" id="clearConfirmBtn" disabled style="background:#b32424" onclick="runClearData()">Clear All Data</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -216,10 +293,92 @@ function escHtml(s) {
 
 // ── Pane switching ──
 function showPane(p) {
-  ['property', 'routes'].forEach(function(id) {
+  ['property', 'routes', 'data'].forEach(function(id) {
     document.getElementById(id).style.display = (id === p) ? '' : 'none';
     document.getElementById('nav-' + id).classList.toggle('active', id === p);
   });
+}
+
+// ── Data export / import / clear ──
+var pendingArchive = null;
+
+function importFilePicked(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var status = document.getElementById('importStatus');
+  status.textContent = 'Reading file...';
+  var reader = new FileReader();
+  reader.onload = function() {
+    input.value = '';
+    var archive;
+    try { archive = JSON.parse(reader.result); }
+    catch (e) { status.textContent = ''; alert('That file is not valid JSON.'); return; }
+    if (!archive || archive.format !== 'wildlife-mgmt-export') {
+      status.textContent = '';
+      alert('That file is not a Wildlife Management Tool backup.');
+      return;
+    }
+    status.textContent = '';
+    pendingArchive = archive;
+    var d = archive.data || {};
+    document.getElementById('importModalInfo').textContent =
+      'Backup from ' + (archive.exportedAt || 'unknown date').slice(0, 10) +
+      ' (format v' + archive.version + '): ' +
+      (d.log || []).length + ' log entries, ' +
+      Object.keys(d.reports || {}).length + ' reports, ' +
+      (d.propertyImages || []).length + ' property images, ' +
+      (d.routes || []).length + ' routes. How should it be imported?';
+    document.getElementById('importModal').classList.add('open');
+  };
+  reader.readAsText(file);
+}
+
+function closeImportModal() {
+  pendingArchive = null;
+  document.getElementById('importModal').classList.remove('open');
+}
+
+async function runImport(mode) {
+  if (!pendingArchive) return;
+  var archive = pendingArchive;
+  closeImportModal();
+  var status = document.getElementById('importStatus');
+  status.textContent = 'Importing...';
+  try {
+    var resp = await fetch('/api/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: mode, archive: archive })
+    });
+    var result = await resp.json();
+    if (!resp.ok) throw new Error(result.error || ('HTTP ' + resp.status));
+    var s = result.summary || {};
+    alert('Import complete (' + mode + '):\n' +
+      s.log + ' log entries, ' + s.reports + ' reports, ' +
+      s.propertyImages + ' property images, ' + s.routes + ' routes.');
+    location.reload();
+  } catch (err) {
+    status.textContent = '';
+    alert('Import failed: ' + err.message);
+  }
+}
+
+function openClearModal() {
+  document.getElementById('clearConfirmInput').value = '';
+  document.getElementById('clearConfirmBtn').disabled = true;
+  document.getElementById('clearModal').classList.add('open');
+  document.getElementById('clearConfirmInput').focus();
+}
+
+function closeClearModal() {
+  document.getElementById('clearModal').classList.remove('open');
+}
+
+async function runClearData() {
+  closeClearModal();
+  await fetch('/api/clear-data', { method: 'POST' });
+  alert('All app data has been cleared.');
+  location.reload();
 }
 
 // ── Routes ──

@@ -6,7 +6,7 @@ const app = express();
 const PORT = 3000;
 const DATA_FILE = path.join(__dirname, 'data', 'property.json');
 
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '500mb' })); // import archives bundle all photos as base64
 app.use(express.static(path.join(__dirname, 'public')));
 
 function loadData() {
@@ -360,6 +360,121 @@ app.delete('/api/routes/:id', (req, res) => {
   const data = loadData();
   data.routes = data.routes.filter(function(r) { return r.id !== req.params.id; });
   saveData(data);
+  res.json({ ok: true });
+});
+
+// ── Data export / import / clear ──
+// Archive format: a single JSON file holding property.json plus every photo
+// and property image base64-encoded. `version` gates what imports we accept.
+
+const EXPORT_FORMAT = 'wildlife-mgmt-export';
+const EXPORT_VERSION = 1;
+const SUPPORTED_IMPORT_VERSIONS = [1];
+
+function readDirBase64(dir) {
+  const out = {};
+  if (!fs.existsSync(dir)) return out;
+  fs.readdirSync(dir).forEach(function(f) {
+    const fp = path.join(dir, f);
+    if (fs.statSync(fp).isFile()) out[f] = fs.readFileSync(fp).toString('base64');
+  });
+  return out;
+}
+
+function writeDirBase64(map, dir, skipExisting) {
+  if (!map) return;
+  fs.mkdirSync(dir, { recursive: true });
+  Object.keys(map).forEach(function(f) {
+    const fp = path.join(dir, path.basename(f));
+    if (skipExisting && fs.existsSync(fp)) return;
+    fs.writeFileSync(fp, Buffer.from(map[f], 'base64'));
+  });
+}
+
+function clearDir(dir) {
+  if (fs.existsSync(dir)) fs.rmdirSync(dir, { recursive: true });
+}
+
+app.get('/api/export', (req, res) => {
+  const archive = {
+    format: EXPORT_FORMAT,
+    version: EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    data: loadData(),
+    files: {
+      photos: readDirBase64(PHOTOS_DIR),
+      'property-images': readDirBase64(PROPERTY_IMAGES_DIR)
+    }
+  };
+  const fname = 'wildlife-mgmt-backup-v' + EXPORT_VERSION + '-' + new Date().toISOString().slice(0, 10) + '.json';
+  res.setHeader('Content-Disposition', 'attachment; filename="' + fname + '"');
+  res.setHeader('Content-Type', 'application/json');
+  res.send(JSON.stringify(archive));
+});
+
+app.post('/api/import', (req, res) => {
+  const archive = req.body.archive;
+  const mode = req.body.mode; // 'replace' | 'append'
+  if (!archive || archive.format !== EXPORT_FORMAT) {
+    return res.status(400).json({ error: 'Not a Wildlife Management Tool export file.' });
+  }
+  if (SUPPORTED_IMPORT_VERSIONS.indexOf(archive.version) === -1) {
+    return res.status(400).json({ error: 'Unsupported export version ' + archive.version + '. This app supports: ' + SUPPORTED_IMPORT_VERSIONS.join(', ') + '.' });
+  }
+  const files = archive.files || {};
+  const summary = { log: 0, reports: 0, propertyImages: 0, routes: 0 };
+
+  if (mode === 'replace') {
+    clearDir(PHOTOS_DIR);
+    clearDir(PROPERTY_IMAGES_DIR);
+    saveData(archive.data || {});
+    writeDirBase64(files.photos, PHOTOS_DIR, false);
+    writeDirBase64(files['property-images'], PROPERTY_IMAGES_DIR, false);
+    const d = archive.data || {};
+    summary.log = (d.log || []).length;
+    summary.reports = Object.keys(d.reports || {}).length;
+    summary.propertyImages = (d.propertyImages || []).length;
+    summary.routes = (d.routes || []).length;
+  } else {
+    const cur = loadData();
+    const inc = archive.data || {};
+    (inc.log || []).forEach(function(e) {
+      // Same id = same entry (ids are creation timestamps) — skip so
+      // importing the same archive twice doesn't duplicate everything
+      if (cur.log.some(function(x) { return x.id === e.id; })) return;
+      cur.log.push(e);
+      summary.log++;
+    });
+    if (!cur.reports) cur.reports = {};
+    Object.keys(inc.reports || {}).forEach(function(y) {
+      if (!cur.reports[y]) { cur.reports[y] = inc.reports[y]; summary.reports++; }
+    });
+    (inc.propertyImages || []).forEach(function(img) {
+      if (!cur.propertyImages.some(function(x) { return x.id === img.id; })) {
+        cur.propertyImages.push(img);
+        summary.propertyImages++;
+      }
+    });
+    if (!cur.currentPropertyImageId && inc.currentPropertyImageId) {
+      cur.currentPropertyImageId = inc.currentPropertyImageId;
+    }
+    (inc.routes || []).forEach(function(r) {
+      if (!cur.routes.some(function(x) { return x.id === r.id; })) {
+        cur.routes.push(r);
+        summary.routes++;
+      }
+    });
+    saveData(cur);
+    writeDirBase64(files.photos, PHOTOS_DIR, true);
+    writeDirBase64(files['property-images'], PROPERTY_IMAGES_DIR, true);
+  }
+  res.json({ ok: true, mode: mode, summary: summary });
+});
+
+app.post('/api/clear-data', (req, res) => {
+  if (fs.existsSync(DATA_FILE)) fs.unlinkSync(DATA_FILE);
+  clearDir(PHOTOS_DIR);
+  clearDir(PROPERTY_IMAGES_DIR);
   res.json({ ok: true });
 });
 
