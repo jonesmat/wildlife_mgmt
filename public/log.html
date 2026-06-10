@@ -144,6 +144,25 @@
 .bc-sum-box.bc-final .bc-sum-label { color: #cfe0cf; }
 .bc-sum-box.bc-final .bc-sum-val { color: white; font-size: 1.25rem; }
 
+/* ── Location picker ── */
+.loc-crosshair {
+  position: absolute; transform: translate(-50%, -50%); color: #e01818;
+  font-size: 26px; font-weight: 700; line-height: 1; pointer-events: none;
+  text-shadow: 0 0 3px #fff, 0 0 6px #fff, 0 0 9px #fff;
+}
+.loc-modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  z-index: 300; align-items: center; justify-content: center;
+}
+.loc-modal-overlay.open { display: flex; }
+.loc-modal {
+  background: white; border-radius: 10px; padding: 18px;
+  max-width: min(92vw, 900px); max-height: 92vh; overflow: auto;
+}
+.loc-map-wrap { position: relative; cursor: crosshair; display: inline-block; }
+.loc-map-wrap img { display: block; max-width: 100%; max-height: 65vh; }
+#locSaveBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* lightbox */
 .lightbox { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:999; align-items:center; justify-content:center; }
 .lightbox.open { display:flex; }
@@ -258,7 +277,6 @@
         <div class="form-row">
           <div class="form-group" id="hv-tagGroup" style="display:none"><label>MLDP Tag #</label><input type="text" id="hv-tag" placeholder="Tag number"></div>
           <div class="form-group"><label>Hunter</label><input type="text" id="hv-hunter" placeholder="Hunter name"></div>
-          <div class="form-group"><label>Location on Property</label><input type="text" id="hv-location"></div>
           <div class="form-group"><label>Method</label>
             <select id="hv-method"><option value="">--</option><option>Rifle</option><option>Bow</option><option>Crossbow</option><option>Muzzleloader</option><option>Other</option></select>
           </div>
@@ -403,7 +421,6 @@
           <div class="form-group"><label>Sex / Age Description</label><input type="text" id="si-sexAge" placeholder="2 bucks, 3 does"></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Location on Property</label><input type="text" id="si-location"></div>
           <div class="form-group"><label>Observation Method</label>
             <select id="si-method"><option value="">--</option><option>Visual</option><option>Camera trap</option><option>Spotlight</option><option>Track</option><option>Other</option></select>
           </div>
@@ -527,6 +544,20 @@
       </div>
 
 
+      <!-- Location on property (all types except Census) -->
+      <div class="entry-photos-section" id="locSection">
+        <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px">Location on Property</label>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <button type="button" class="btn btn-secondary" onclick="openLocPicker()">&#128205; Set Location</button>
+          <span id="locStatus" style="font-size:0.85rem;color:#777">No location set</span>
+          <button type="button" class="btn-danger" id="locClearBtn" style="display:none" onclick="clearLoc()">Remove</button>
+        </div>
+        <div id="locPreview" style="display:none;position:relative;max-width:320px;margin-top:8px;border:1px solid #ddd;border-radius:6px;overflow:hidden">
+          <img id="locPreviewImg" style="width:100%;display:block" alt="Property location">
+          <span id="locPreviewMark" class="loc-crosshair">&#10010;</span>
+        </div>
+      </div>
+
       <!-- Photos (all types) -->
       <div class="entry-photos-section">
         <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px">Photos</label>
@@ -552,6 +583,22 @@
   </main>
 </div>
 
+<!-- Location picker modal -->
+<div class="loc-modal-overlay" id="locModal">
+  <div class="loc-modal">
+    <h3 style="color:#1a4a1a;margin-bottom:4px;font-size:1rem">Set Location</h3>
+    <p style="font-size:0.84rem;color:#777;margin-bottom:10px">Click the spot on the property map. A red crosshair marks the location.</p>
+    <div class="loc-map-wrap" id="locMapWrap" onclick="locMapClick(event)">
+      <img id="locMapImg" draggable="false" alt="Property map">
+      <span id="locMark" class="loc-crosshair" style="display:none">&#10010;</span>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn btn-secondary" onclick="closeLocPicker()">Cancel</button>
+      <button class="btn btn-primary" id="locSaveBtn" disabled onclick="saveLoc()">Save Location</button>
+    </div>
+  </div>
+</div>
+
 <!-- Lightbox -->
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
   <span class="lightbox-close">&times;</span>
@@ -564,11 +611,21 @@ var allEntries = [];
 var pendingPhotos = []; // { dataUrl, filename, uploaded } — uploaded means already on server (filename is server filename)
 var filterYear = '';
 var filterType = '';
+var propImages = [];      // property images from settings: [{ id, filename, uploadedAt }]
+var currentPropId = null; // active property image id
+var pendingLoc = null;    // location for the entry being edited: { img, x, y } (x/y are 0-1 fractions)
+var modalLoc = null;      // staged location while the picker modal is open
+var locModalImgId = null; // property image shown in the open picker
 
 // ── Init ──
 async function init() {
   buildBCPanel();
   document.getElementById('filterYear').value = new Date().getFullYear();
+  try {
+    var pi = await (await fetch('/api/property-images')).json();
+    propImages = pi.images || [];
+    currentPropId = pi.currentId;
+  } catch (e) { /* property images unavailable; location features degrade gracefully */ }
   allEntries = await (await fetch('/api/log')).json();
   applyFilter();
   // Deep link from Trophy Board on the home page: /log#entry-<id>
@@ -742,8 +799,6 @@ function renderDetail(e) {
   } else if (e.type === 'Maintenance') {
     rows += twoCol('Item', e['ma-item'], 'Action', e['ma-action']);
     rows += labelVal('Notes', e['ma-notes']);
-
-    rows += labelVal('Notes', e['we-notes']);
   }
 
   var photosHtml = '';
@@ -755,7 +810,7 @@ function renderDetail(e) {
     '</div></div>';
   }
 
-  return '<div style="margin-top:10px">' + rows + photosHtml + '</div>' +
+  return '<div style="margin-top:10px">' + rows + locDetailHtml(e) + photosHtml + '</div>' +
     '<div class="entry-actions">' +
       '<button class="btn btn-secondary btn-sm" onclick="editEntry(\'' + e.id + '\');event.stopPropagation()">Edit</button>' +
     '</div>';
@@ -828,6 +883,8 @@ function editEntry(id) {
   // Photos already on server
   pendingPhotos = (e.photos || []).map(function(f) { return { filename: f, uploaded: true, localUrl: '/photos/' + f }; });
   renderFormPhotos();
+  pendingLoc = e.loc || null;
+  updateLocUI();
   document.getElementById('newEntrySection').style.display = 'block';
   document.getElementById('newEntrySection').scrollIntoView({ behavior: 'smooth' });
 }
@@ -868,6 +925,8 @@ function resetForm() {
   document.getElementById('bcAbnNT').style.display = 'none';
   pendingPhotos = [];
   renderFormPhotos();
+  pendingLoc = null;
+  updateLocUI();
 }
 
 // ── Harvest field visibility ──
@@ -1105,6 +1164,94 @@ function jumpToEntry(id) {
   card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+// ── Location picker ──
+function propImgFile(id) {
+  for (var i = 0; i < propImages.length; i++) {
+    if (propImages[i].id === id) return propImages[i].filename;
+  }
+  return null;
+}
+
+function openLocPicker() {
+  // Keep the image the location was originally set against; default to the current one
+  var imgId = (pendingLoc && pendingLoc.img) || currentPropId;
+  var fn = propImgFile(imgId);
+  if (!fn) {
+    alert('No property image yet.\nUpload one in Settings → Property first.');
+    return;
+  }
+  locModalImgId = imgId;
+  modalLoc = pendingLoc ? { img: pendingLoc.img, x: pendingLoc.x, y: pendingLoc.y } : null;
+  document.getElementById('locMapImg').src = '/property-images/' + fn;
+  var mark = document.getElementById('locMark');
+  if (modalLoc) {
+    mark.style.left = (modalLoc.x * 100) + '%';
+    mark.style.top = (modalLoc.y * 100) + '%';
+    mark.style.display = '';
+  } else {
+    mark.style.display = 'none';
+  }
+  document.getElementById('locSaveBtn').disabled = !modalLoc;
+  document.getElementById('locModal').classList.add('open');
+}
+
+function locMapClick(ev) {
+  var img = document.getElementById('locMapImg');
+  var r = img.getBoundingClientRect();
+  var x = (ev.clientX - r.left) / r.width;
+  var y = (ev.clientY - r.top) / r.height;
+  if (x < 0 || x > 1 || y < 0 || y > 1) return;
+  modalLoc = { img: locModalImgId, x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 };
+  var mark = document.getElementById('locMark');
+  mark.style.left = (modalLoc.x * 100) + '%';
+  mark.style.top = (modalLoc.y * 100) + '%';
+  mark.style.display = '';
+  document.getElementById('locSaveBtn').disabled = false;
+}
+
+function saveLoc() {
+  pendingLoc = modalLoc;
+  closeLocPicker();
+  updateLocUI();
+}
+
+function closeLocPicker() {
+  document.getElementById('locModal').classList.remove('open');
+}
+
+function clearLoc() {
+  pendingLoc = null;
+  updateLocUI();
+}
+
+function updateLocUI() {
+  var fn = pendingLoc && propImgFile(pendingLoc.img);
+  document.getElementById('locStatus').textContent = fn ? 'Location set ✓' : 'No location set';
+  document.getElementById('locClearBtn').style.display = fn ? '' : 'none';
+  var preview = document.getElementById('locPreview');
+  if (fn) {
+    document.getElementById('locPreviewImg').src = '/property-images/' + fn;
+    var mark = document.getElementById('locPreviewMark');
+    mark.style.left = (pendingLoc.x * 100) + '%';
+    mark.style.top = (pendingLoc.y * 100) + '%';
+    preview.style.display = '';
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
+function locDetailHtml(e) {
+  if (!e.loc || !e.loc.img) return '';
+  var fn = propImgFile(e.loc.img);
+  if (!fn) return '';
+  return '<div style="margin-top:10px">' +
+    '<div style="font-size:0.72rem;font-weight:600;color:#777;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px">Location</div>' +
+    '<div style="position:relative;max-width:320px;border:1px solid #ddd;border-radius:6px;overflow:hidden">' +
+      '<img src="/property-images/' + fn + '" style="width:100%;display:block" alt="Location on property">' +
+      '<span class="loc-crosshair" style="left:' + (e.loc.x * 100) + '%;top:' + (e.loc.y * 100) + '%">&#10010;</span>' +
+    '</div></div>';
+}
+
 // ── Species select+other helpers ──
 function speciesSelectChange(prefix) {
   var sel = document.getElementById(prefix + '-speciesSelect');
@@ -1158,6 +1305,8 @@ function switchType() {
     var el = document.getElementById('fields-' + typ);
     if (el) el.style.display = (typ === t) ? '' : 'none';
   });
+  // Census uses Route/Stand ID instead of a map location
+  document.getElementById('locSection').style.display = (t === 'Census') ? 'none' : '';
 }
 
 function getTypeFields(type) {
@@ -1177,7 +1326,8 @@ async function saveEntry() {
   var entry = {
     datetime: datePickerToDatetime(document.getElementById('fDatetime').value),
     type: type,
-    photos: pendingPhotos.filter(function(p) { return p.uploaded; }).map(function(p) { return p.filename; })
+    photos: pendingPhotos.filter(function(p) { return p.uploaded; }).map(function(p) { return p.filename; }),
+    loc: (type === 'Census') ? null : pendingLoc
   };
 
   if (type === 'General') {

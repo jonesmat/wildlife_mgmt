@@ -103,6 +103,14 @@ document.getElementById('pdfBtn').onclick = () => window.open(`/report-print/${y
 
 let reportData = {};
 let planOwner = {};
+let propImages = [];
+
+function propImgFile(id) {
+  for (var i = 0; i < propImages.length; i++) {
+    if (propImages[i].id === id) return propImages[i].filename;
+  }
+  return null;
+}
 
 async function init() {
   const allData = await (await fetch('/api/data')).json();
@@ -213,6 +221,10 @@ var TYPE_COLORS = {
 
 async function loadLogEntries() {
   document.getElementById('logYearLabel').textContent = year;
+  try {
+    var pi = await (await fetch('/api/property-images')).json();
+    propImages = pi.images || [];
+  } catch (err) { /* maps just won't render */ }
   var entries = await (await fetch('/api/log')).json();
   entries = entries.filter(function(e) { return e.datetime && e.datetime.startsWith(year); });
   entries.sort(function(a, b) { return a.datetime < b.datetime ? -1 : 1; });
@@ -266,6 +278,13 @@ function renderLogEntries() {
             return '<a href="/photos/' + f + '" target="_blank"><img src="/photos/' + f + '" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #ddd"></a>';
           }).join('') + '</div>';
       }
+      var locHtml = '';
+      if (e.loc && e.loc.img && propImgFile(e.loc.img)) {
+        locHtml = '<div style="position:relative;max-width:280px;margin-top:8px;border:1px solid #ddd;border-radius:6px;overflow:hidden">' +
+          '<img src="/property-images/' + propImgFile(e.loc.img) + '" style="width:100%;display:block" alt="Location">' +
+          '<span style="position:absolute;left:' + (e.loc.x * 100) + '%;top:' + (e.loc.y * 100) + '%;transform:translate(-50%,-50%);color:#e01818;font-size:24px;font-weight:700;line-height:1;text-shadow:0 0 3px #fff,0 0 6px #fff;pointer-events:none">&#10010;</span>' +
+        '</div>';
+      }
       var dimStyle = included ? '' : 'opacity:0.45;';
       return '<div style="' + dimStyle + 'border:1px solid #ddd;border-radius:6px;margin-bottom:8px;overflow:hidden">' +
         '<div style="background:#f5f8f5;padding:8px 12px;display:flex;align-items:center;gap:10px">' +
@@ -273,7 +292,7 @@ function renderLogEntries() {
           '<span style="font-weight:600;font-size:0.9rem;flex:1">' + escHtml(title) + '</span>' +
           '<span style="font-size:0.78rem;color:#777">' + dt + '</span>' +
         '</div>' +
-        (details || photosHtml ? '<div style="padding:8px 12px;font-size:0.86rem">' + details + photosHtml + '</div>' : '') +
+        (details || photosHtml || locHtml ? '<div style="padding:8px 12px;font-size:0.86rem">' + details + locHtml + photosHtml + '</div>' : '') +
       '</div>';
     }).join('');
 

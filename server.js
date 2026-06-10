@@ -874,8 +874,16 @@ function renderActivitiesPrint(a) {
   `;
 }
 
-function renderLogEntries(entries) {
+function renderLogEntries(entries, propertyImages) {
   if (!entries || !entries.length) return '<div style="font-size:9pt;color:#666;font-style:italic">No log entries for this year.</div>';
+
+  function propImgFile(id) {
+    var imgs = propertyImages || [];
+    for (var i = 0; i < imgs.length; i++) {
+      if (imgs[i].id === id) return imgs[i].filename;
+    }
+    return null;
+  }
 
   function entryTitle(e) {
     if (e.type === 'General') return e.name || e['f-name'] || 'General Entry';
@@ -962,6 +970,14 @@ function renderLogEntries(entries) {
         }).join('') +
       '</div>';
     }
+    var locHtml = '';
+    if (e.loc && e.loc.img && propImgFile(e.loc.img)) {
+      locHtml = '<div style="font-size:7pt;font-weight:700;color:#666;text-transform:uppercase;margin-bottom:2pt">Location</div>' +
+        '<div style="position:relative;max-width:240pt;border:0.5pt solid #ccc;border-radius:3pt;overflow:hidden">' +
+          '<img src="/property-images/' + esc(propImgFile(e.loc.img)) + '" style="width:100%;height:auto;display:block">' +
+          '<span style="position:absolute;left:' + (e.loc.x * 100) + '%;top:' + (e.loc.y * 100) + '%;transform:translate(-50%,-50%);color:#e01818;font-size:16pt;font-weight:700;line-height:1;text-shadow:0 0 2pt #fff,0 0 4pt #fff">&#10010;</span>' +
+        '</div>';
+    }
     return '<div style="border:0.5pt solid #ccc;border-radius:3pt;margin-bottom:6pt;overflow:hidden;page-break-inside:avoid">' +
       '<div style="background:#f0f0f0;padding:4pt 8pt;display:flex;gap:8pt;align-items:baseline">' +
         '<span style="font-size:7pt;font-weight:700;padding:1pt 5pt;border-radius:8pt;background:#ddd;white-space:nowrap">' + esc(e.type) + '</span>' +
@@ -969,6 +985,7 @@ function renderLogEntries(entries) {
         '<span style="margin-left:auto;font-size:8pt;color:#666">' + esc(fmtDate(e.datetime)) + '</span>' +
       '</div>' +
       (detailHtml ? '<div style="padding:4pt 8pt 2pt;font-size:8pt">' + detailHtml + '</div>' : '') +
+      (locHtml ? '<div style="padding:4pt 8pt">' + locHtml + '</div>' : '') +
       (photosHtml ? '<div style="padding:0 8pt 8pt">' + photosHtml + '</div>' : '') +
     '</div>';
   }).join('');
@@ -1208,7 +1225,7 @@ app.get('/report-print/:year', (req, res) => {
 
   <div class="section-head">Activity Log — ${esc(year)}</div>
   <div style="font-size:9pt;margin-bottom:6pt">Entries recorded throughout the year. Photos are embedded below each entry.</div>
-  ${renderLogEntries(logEntries)}
+  ${renderLogEntries(logEntries, data.propertyImages)}
 
   <div class="section-head">Part V. Supporting Documentation</div>
   <div class="box" style="min-height:80pt">Attach copies of supporting documentation such as receipts, maps, photos, etc. Use additional pages if necessary.</div>
