@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<title>PWD 885 - Wildlife Management Plan</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script src="/store.js"></script>
+<link rel="stylesheet" href="/print-shared.css">
+</head><body>
+<div class="print-btn-bar no-print">
+  <button class="btn-print" onclick="window.print()">Print / Save as PDF</button>
+  <button class="btn-close" onclick="window.close()">Close</button>
+  <span style="font-size:0.85rem;opacity:0.8">Use your browser's Print dialog → Save as PDF</span>
+</div>
+<div class="print-spacer"></div>
+<div id="root" style="text-align:center;color:#888;padding:40px">Loading...</div>
+
+<script src="/print-helpers.js"></script>
+<script>
+async function render() {
+  const data = await (await fetch('/api/data')).json();
+  const { plan, activities } = data;
+  const owner = plan.owner;
+  const prop = plan.property;
+  const sp = plan.species;
+  const qa = plan.qualifyingActivities;
+  const dm = plan.deerManagement;
+  const assoc = plan.association;
+  const ht = prop.habitatTypes || {};
+
+  document.getElementById('root').outerHTML = `
+<div class="page">
+  <div class="print-header">
+    <div class="logo-area">
+      <div class="tpwd-box">TEXAS<br>PARKS &amp;<br>WILDLIFE</div>
+      <div>
+        <h1>1-D-1 Open Space Agricultural Valuation</h1>
+        <h2>Wildlife Management Plan for the Year(s) ____</h2>
+        <div class="submit-note">Submit this plan to your County Chief Appraiser, not to Texas Parks and Wildlife Department</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-head">Part I. Owner Information &nbsp;&nbsp;&nbsp; Account Number: <span style="font-weight:400">${esc(owner.accountNumber)}</span></div>
+  ${renderOwner(owner)}
+
+  <div class="section-head">Part II. Property Description</div>
+  <div class="box">
+    <div class="field-row">${field('Legal Description of Property', prop.legalDescription)}</div>
+    <div class="field-row">${field('Location (distance/direction from nearest town; highway/road numbers)', prop.location)}</div>
+    <div class="field-row">
+      <div class="field">Is Acreage under high fence:
+        ${cbItem('Yes', prop.highFence==='yes')} ${cbItem('No', prop.highFence==='no')} ${cbItem('Partial', prop.highFence==='partial')}
+        ${prop.highFence==='partial' ? ' Describe: ' + esc(prop.highFenceDescription) : ''}
+      </div>
+      ${field('Total Acreage', prop.totalAcreage)}
+      ${field('Ecoregion', prop.ecoregion)}
+    </div>
+    <div>Habitat Types and Amounts of Acres:</div>
+    <div class="checkbox-row" style="margin-top:4pt">
+      ${cbItem('Cropland', ht.cropland)} <span style="font-size:9pt">${esc(ht.croplandAcres)} ac</span>
+      &nbsp;${cbItem('Bottomland/Riparian (Native)', ht.bottomlandRiparian)} <span style="font-size:9pt">${esc(ht.bottomlandRiparianAcres)} ac</span>
+      &nbsp;${cbItem('Wetlands', ht.wetlands)} <span style="font-size:9pt">${esc(ht.wetlandsAcres)} ac</span>
+      &nbsp;${cbItem('Non-native Pasture', ht.nonNativePasture)} <span style="font-size:9pt">${esc(ht.nonNativePastureAcres)} ac</span>
+      &nbsp;${cbItem('Pasture/Grassland', ht.pastureGrassland)} <span style="font-size:9pt">${esc(ht.pastureGrasslandAcres)} ac</span>
+      &nbsp;${cbItem('Timberlands', ht.timberlands)} <span style="font-size:9pt">${esc(ht.timberlandsAcres)} ac</span>
+      &nbsp;${cbItem('Native Range/Brush', ht.nativeRangeBrush)} <span style="font-size:9pt">${esc(ht.nativeRangeBrushAcres)} ac</span>
+      &nbsp;${cbItem('Other', ht.other)} ${esc(ht.otherDescription)} <span style="font-size:9pt">${esc(ht.otherAcres)} ac</span>
+    </div>
+  </div>
+
+  <div class="section-head">Part III. Species Targeted for Management</div>
+  <div class="box">
+    <div class="checkbox-row">
+      ${cbItem('Deer', sp.deer)} ${cbItem('Turkey', sp.turkey)} ${cbItem('Quail', sp.quail)}
+      ${cbItem('Songbirds', sp.songbirds)} ${cbItem('Waterfowl', sp.waterfowl)}
+      ${cbItem('Doves', sp.doves)} ${cbItem('Bats', sp.bats)}
+    </div>
+    <div class="field-row" style="margin-top:4pt">
+      ${field('Neotropical Songbirds', sp.neotropical_list)}
+      ${field('Reptiles', sp.reptiles_list)}
+      ${field('Amphibians', sp.amphibians_list)}
+    </div>
+    <div class="field-row">
+      ${field('Small Mammals', sp.smallMammals_list)}
+      ${field('Insects', sp.insects_list)}
+      ${field('Species of Concern', sp.speciesOfConcern_list)}
+      ${field('Other', sp.other_list)}
+    </div>
+  </div>
+
+  <div class="section-head">Part IV. Management Plan Goals and Objectives</div>
+  <div class="box">${fieldMulti('', plan.goals)}</div>
+
+  <div class="section-head">Part V. Qualifying Wildlife Management Activities</div>
+  <div class="box">
+    <div style="font-size:9pt;margin-bottom:4pt">Check the wildlife management practices to be implemented during the coming year. A minimum of three practices is required.</div>
+    ${renderQualifying(qa)}
+  </div>
+
+  <div class="section-head">Part VI. White-tail Deer and Mule Deer Population Management</div>
+  <div class="box">
+    <div class="field-row">
+      <div class="field">Is hunting to be a part of this wildlife management plan?
+        ${cbItem('Yes', String(dm.huntingIncluded)==='true')} ${cbItem('No', String(dm.huntingIncluded)==='false')}
+      </div>
+      <div class="field">If YES, type:
+        ${cbItem('Lease hunting', dm.huntingType==='lease')}
+        ${cbItem('Family/guests only', dm.huntingType==='family')}
+        ${cbItem('Both', dm.huntingType==='both')}
+      </div>
+    </div>
+    <div style="margin:4pt 0 2pt">List deer harvest for past three seasons:</div>
+    <table style="width:100%;border-collapse:collapse;font-size:9pt">
+      <tr><th style="border:1pt solid #000;padding:3pt;background:#eee">Year</th><th style="border:1pt solid #000;padding:3pt;background:#eee">Bucks</th><th style="border:1pt solid #000;padding:3pt;background:#eee">Does</th></tr>
+      ${(dm.harvestHistory||[]).map(r=>`<tr><td style="border:1pt solid #000;padding:3pt">${esc(r.year)}</td><td style="border:1pt solid #000;padding:3pt">${esc(r.bucks)}</td><td style="border:1pt solid #000;padding:3pt">${esc(r.does)}</td></tr>`).join('')}
+    </table>
+    <div class="field-row" style="margin-top:4pt">
+      ${field('Target Density (fall pre-season)', dm.targetDensity)}
+      ${field('Target Sex Ratio (does/buck)', dm.targetSexRatio)}
+      ${field('Target Production (fawns/doe)', dm.targetProduction)}
+    </div>
+    <div class="field-row">${field('Other goals (age, weight, antler, browse, etc.)', dm.otherGoals)}</div>
+    <div class="field-row">${fieldMulti('Deer Harvest Strategy', dm.harvestStrategy)}</div>
+  </div>
+
+  <div class="section-head">Part VII. Wildlife Management Association Membership</div>
+  <div class="box">
+    <div>Are you a member of a wildlife management association (co-op)?
+      ${cbItem('Yes', String(assoc.managementAssociation)==='true')} ${cbItem('No', String(assoc.managementAssociation)==='false')}
+    </div>
+    <div style="margin-top:3pt">Are you a member of a wildlife property association?
+      ${cbItem('Yes', String(assoc.propertyAssociation)==='true')} ${cbItem('No', String(assoc.propertyAssociation)==='false')}
+    </div>
+    <div style="margin-top:3pt">${field('Name of wildlife property co-op/association, if YES', assoc.associationName)}</div>
+  </div>
+</div>
+
+<div class="page">
+  <div class="section-head">Part VIII. Wildlife Management Activities</div>
+  <div style="font-size:9pt;margin-bottom:8pt">Check the activities you intend to implement during the year to support each of the wildlife management activities listed in Part V.</div>
+  ${renderActivitiesPrint(activities, '')}
+
+  <div class="section-head">Part IX. Additional Supporting Information (Optional)</div>
+  <div class="box" style="min-height:80pt">Attach any other supporting information, such as maps or photographs that you believe to be relevant to this wildlife management plan.</div>
+
+  <div class="sig-area">
+    <div style="font-size:9pt">I certify that the above information provided by me in this application is to the best of my knowledge and belief, true and complete.</div>
+    <div class="sig-row">
+      <div class="sig-field"><div class="sig-line"></div><label>Landowner Signature</label></div>
+      <div class="sig-field"><div class="sig-line"></div><label>Date</label></div>
+    </div>
+    <div style="margin-top:12pt;font-size:9pt;font-weight:700">This area for use only if the wildlife management plan was prepared for the above landowner for a fee by a wildlife professional or consultant.*</div>
+    <div class="box" style="margin-top:6pt">
+      <div class="sig-row">
+        <div class="sig-field"><div class="sig-line"></div><label>Signature of person preparing wildlife management plan</label></div>
+        <div class="sig-field"><div class="sig-line"></div><label>Date</label></div>
+      </div>
+      <div class="sig-row">
+        <div class="sig-field"><div class="sig-line"></div><label>Company</label></div>
+        <div class="sig-field"><div class="sig-line"></div><label>Phone Number</label></div>
+      </div>
+      <div style="font-size:8.5pt;margin-top:4pt">*Signature by TPWD not required for this plan to be valid.</div>
+    </div>
+  </div>
+  <div class="footer-note">Texas Parks and Wildlife does not maintain the information collected through this form. This completed form is only provided to the County Tax Appraiser. Please inquire with your County Central Appraisal District on any local laws concerning any information collected through this form.</div>
+  <div class="form-num">PWD 885-W7000 (07/08)</div>
+</div>`;
+}
+render();
+</script>
+</body></html>

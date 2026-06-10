@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<title>PWD 888 - Annual Report</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script src="/store.js"></script>
+<link rel="stylesheet" href="/print-shared.css">
+</head><body>
+<div class="print-btn-bar no-print">
+  <button class="btn-print" onclick="window.print()">Print / Save as PDF</button>
+  <button class="btn-close" onclick="window.close()">Close</button>
+  <span style="font-size:0.85rem;opacity:0.8">Use your browser's Print dialog → Save as PDF</span>
+</div>
+<div class="print-spacer"></div>
+<div id="root" style="text-align:center;color:#888;padding:40px">Loading...</div>
+
+<script src="/print-helpers.js"></script>
+<script>
+function renderLogEntries(entries, propertyImages, routes) {
+  if (!entries || !entries.length) return '<div style="font-size:9pt;color:#666;font-style:italic">No log entries for this year.</div>';
+
+  function propImgFile(id) {
+    var imgs = propertyImages || [];
+    for (var i = 0; i < imgs.length; i++) {
+      if (imgs[i].id === id) return imgs[i].filename;
+    }
+    return null;
+  }
+
+  function routeById(id) {
+    var rs = routes || [];
+    for (var i = 0; i < rs.length; i++) {
+      if (rs[i].id === id) return rs[i];
+    }
+    return null;
+  }
+
+  function entryTitle(e) {
+    if (e.type === 'General') return e.name || e['f-name'] || 'General Entry';
+    if (e.type === 'Harvest') {
+      var t = (e['hv-species'] || 'Harvest') + (e['hv-sex'] ? ' — ' + e['hv-sex'] : '');
+      if (e['hv-points']) t += ' (' + e['hv-points'] + '-pt)';
+      return t;
+    }
+    if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + '× ' : '') + (e['si-species'] || 'Sighting');
+    if (e.type === 'Activity') return e['ac-name'] || e['ac-category'] || 'Activity';
+    if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
+    if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
+    if (e.type === 'Maintenance') return e['ma-item'] || 'Maintenance';
+    if (e.type === 'Purchase') {
+      var pt = e['pu-item'] || 'Purchase';
+      if (e['pu-cost']) pt += ' — $' + Number(e['pu-cost']).toLocaleString();
+      return pt;
+    }
+    return e.type;
+  }
+
+  function fmtDate(s) {
+    if (!s) return '';
+    var d = new Date(s);
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+  }
+
+  function fmtEighths(v) {
+    var whole = Math.floor(v + 1e-9);
+    var eighths = Math.round((v - whole) * 8);
+    if (eighths === 8) { whole += 1; eighths = 0; }
+    return eighths ? whole + ' ' + eighths + '/8' : String(whole);
+  }
+
+  function detailPairs(e) {
+    var pairs = [];
+    if (e.type === 'General') {
+      if (e.description || e['f-description']) pairs.push(['Notes', e.description || e['f-description']]);
+    } else if (e.type === 'Harvest') {
+      if (e['hv-age']) pairs.push(['Age Class', e['hv-age']]);
+      if (e['hv-weight']) pairs.push(['Weight', e['hv-weight'] + ' lbs']);
+      if (e['hv-tag']) pairs.push(['MLDP Tag #', e['hv-tag']]);
+      if (e['hv-hunter']) pairs.push(['Hunter', e['hv-hunter']]);
+      if (e['hv-location']) pairs.push(['Location', e['hv-location']]);
+      if (e['hv-method']) pairs.push(['Method', e['hv-method']]);
+      if (e['hv-species'] === 'White-tailed Deer') {
+        if (e['hv-points']) pairs.push(['Total Points', e['hv-points']]);
+        var antler = [e['hv-mainBeam'] && 'Beam: '+e['hv-mainBeam']+' in', e['hv-tines'] && 'Tines: '+e['hv-tines'], e['hv-spread'] && 'Spread: '+e['hv-spread']+' in'].filter(Boolean).join(' | ');
+        if (antler) pairs.push(['Antler', antler]);
+        if (parseFloat(e['hv-bc-net']) > 0)
+          pairs.push(['B&C Score', fmtEighths(parseFloat(e['hv-bc-net'])) + ' net (' + (e['hv-bc-mode'] === 'Non-Typical' ? 'Non-Typical' : 'Typical') + ')']);
+      }
+      if (e['hv-notes']) pairs.push(['Notes', e['hv-notes']]);
+    } else if (e.type === 'Sighting') {
+      if (e['si-sexAge']) pairs.push(['Detail', e['si-sexAge']]);
+      if (e['si-location']) pairs.push(['Location', e['si-location']]);
+      if (e['si-method']) pairs.push(['Method', e['si-method']]);
+      if (e['si-notes']) pairs.push(['Notes', e['si-notes']]);
+    } else if (e.type === 'Activity') {
+      if (e['ac-category']) pairs.push(['Category', e['ac-category']]);
+      if (e['ac-acres']) pairs.push(['Acres', e['ac-acres']]);
+      if (e['ac-notes']) pairs.push(['Notes', e['ac-notes']]);
+    } else if (e.type === 'Census') {
+      if (e['ce-route']) pairs.push(['Route/Stand', e['ce-route']]);
+      if (e['ce-total']) pairs.push(['Observed', e['ce-total']]);
+      if (e['ce-conditions']) pairs.push(['Conditions', e['ce-conditions']]);
+      if (e['ce-notes']) pairs.push(['Notes', e['ce-notes']]);
+    } else if (e.type === 'Predator Control') {
+      if (e['pc-count']) pairs.push(['Removed', e['pc-count']]);
+      if (e['pc-notes']) pairs.push(['Notes', e['pc-notes']]);
+    } else if (e.type === 'Maintenance') {
+      if (e['ma-action']) pairs.push(['Action', e['ma-action']]);
+      if (e['ma-notes']) pairs.push(['Notes', e['ma-notes']]);
+    } else if (e.type === 'Purchase') {
+      if (e['pu-category']) pairs.push(['Category', e['pu-category']]);
+      if (e['pu-vendor']) pairs.push(['Vendor', e['pu-vendor']]);
+      if (e['pu-qty']) pairs.push(['Quantity', e['pu-qty']]);
+      if (e['pu-cost']) pairs.push(['Cost', '$' + Number(e['pu-cost']).toLocaleString()]);
+      if (e['pu-practice']) pairs.push(['Practice', e['pu-practice']]);
+      if (e['pu-notes']) pairs.push(['Notes', e['pu-notes']]);
+    }
+    return pairs;
+  }
+
+  return entries.map(function(e) {
+    var pairs = detailPairs(e);
+    var detailHtml = pairs.map(function(p) {
+      return '<span style="margin-right:12pt"><strong>' + esc(p[0]) + ':</strong> ' + esc(String(p[1])) + '</span>';
+    }).join('');
+    var photosHtml = '';
+    if (e.photos && e.photos.length) {
+      photosHtml = '<div style="margin-top:6pt;display:grid;grid-template-columns:1fr 1fr;gap:6pt">' +
+        e.photos.map(function(f) {
+          return '<img src="/photos/' + esc(f) + '" style="width:100%;height:auto;display:block;border:0.5pt solid #ccc;border-radius:3pt">';
+        }).join('') +
+      '</div>';
+    }
+    var locHtml = '';
+    if (e.loc && e.loc.img && propImgFile(e.loc.img)) {
+      locHtml = '<div style="font-size:7pt;font-weight:700;color:#666;text-transform:uppercase;margin-bottom:2pt">Location</div>' +
+        '<div style="position:relative;max-width:240pt;border:0.5pt solid #ccc;border-radius:3pt;overflow:hidden">' +
+          '<img src="/property-images/' + esc(propImgFile(e.loc.img)) + '" style="width:100%;height:auto;display:block">' +
+          '<span style="position:absolute;left:' + (e.loc.x * 100) + '%;top:' + (e.loc.y * 100) + '%;transform:translate(-50%,-50%);color:#e01818;font-size:16pt;font-weight:700;line-height:1;text-shadow:0 0 2pt #fff,0 0 4pt #fff">&#10010;</span>' +
+        '</div>';
+    }
+    // Census route map
+    var route = e['ce-routeId'] ? routeById(e['ce-routeId']) : null;
+    if (route && route.points && route.points.length && propImgFile(route.imageId)) {
+      var rpts = route.points.map(function(p) { return (p.x * 100) + ',' + (p.y * 100); }).join(' ');
+      locHtml += '<div style="font-size:7pt;font-weight:700;color:#666;text-transform:uppercase;margin:4pt 0 2pt">Route: ' + esc(route.name) + '</div>' +
+        '<div style="position:relative;max-width:240pt;border:0.5pt solid #ccc;border-radius:3pt;overflow:hidden">' +
+          '<img src="/property-images/' + esc(propImgFile(route.imageId)) + '" style="width:100%;height:auto;display:block">' +
+          '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;top:0;left:0;width:100%;height:100%">' +
+            '<polyline points="' + rpts + '" fill="none" stroke="#e01818" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>' +
+          '</svg>' +
+        '</div>';
+    }
+    return '<div style="border:0.5pt solid #ccc;border-radius:3pt;margin-bottom:6pt;overflow:hidden;page-break-inside:avoid">' +
+      '<div style="background:#f0f0f0;padding:4pt 8pt;display:flex;gap:8pt;align-items:baseline">' +
+        '<span style="font-size:7pt;font-weight:700;padding:1pt 5pt;border-radius:8pt;background:#ddd;white-space:nowrap">' + esc(e.type) + '</span>' +
+        '<span style="font-weight:700;font-size:9pt">' + esc(entryTitle(e)) + '</span>' +
+        '<span style="margin-left:auto;font-size:8pt;color:#666">' + esc(fmtDate(e.datetime)) + '</span>' +
+      '</div>' +
+      (detailHtml ? '<div style="padding:4pt 8pt 2pt;font-size:8pt">' + detailHtml + '</div>' : '') +
+      (locHtml ? '<div style="padding:4pt 8pt">' + locHtml + '</div>' : '') +
+      (photosHtml ? '<div style="padding:0 8pt 8pt">' + photosHtml + '</div>' : '') +
+    '</div>';
+  }).join('');
+}
+
+async function render() {
+  const data = await (await fetch('/api/data')).json();
+  const year = location.pathname.split('/').pop();
+  document.title = 'PWD 888 - ' + year + ' Annual Report';
+  const owner = data.plan.owner;
+  const reportData = (data.reports && data.reports[year]) || {};
+  const qa = reportData.qualifyingActivities || {};
+  const assoc = reportData.association || {};
+  const activities = reportData;
+  const excludedIds = (reportData.excludedLogIds || []);
+  const logEntries = (data.log || [])
+    .filter(function(e) { return e.datetime && e.datetime.startsWith(year); })
+    .filter(function(e) { return excludedIds.indexOf(e.id) === -1; })
+    .sort(function(a, b) { return a.datetime < b.datetime ? -1 : 1; });
+
+  // Per-type counts for the Supporting Documentation note
+  const logStats = {};
+  logEntries.forEach(function(e) { logStats[e.type] = (logStats[e.type] || 0) + 1; });
+  const logStatsLine = Object.keys(logStats).sort().map(function(t) {
+    return logStats[t] + ' ' + t;
+  }).join(', ');
+
+  document.getElementById('root').outerHTML = `
+<div class="page">
+  <div class="print-header">
+    <div class="logo-area">
+      <div class="tpwd-box">TEXAS<br>PARKS &amp;<br>WILDLIFE</div>
+      <div>
+        <h1>1-D-1 Open Space Agricultural Valuation</h1>
+        <h2>Wildlife Management Annual Report for the Year(s) ${esc(year)}</h2>
+        <div class="submit-note">Submit this plan to your County Tax Appraiser, not to Texas Parks and Wildlife Department</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-head">Part I. Owner Information &nbsp;&nbsp;&nbsp; Account Number: <span style="font-weight:400">${esc(owner.accountNumber)}</span></div>
+  ${renderOwner(owner)}
+
+  <div class="section-head">Part II. Qualifying Wildlife Management Activities</div>
+  <div class="box">
+    <div style="font-size:9pt;margin-bottom:4pt">Check the wildlife management practices implemented on the property during the year being reported. A minimum of three practices is required.</div>
+    ${renderQualifying(qa)}
+  </div>
+
+  <div class="section-head">Part III. Wildlife Management Association Membership</div>
+  <div class="box">
+    <div>Are you a member of a wildlife property association?
+      ${cbItem('Yes', String(assoc.propertyAssociation)==='true')} ${cbItem('No', String(assoc.propertyAssociation)==='false')}
+    </div>
+    <div style="margin-top:3pt">${field('Name of wildlife property co-op/association, if YES', assoc.associationName)}</div>
+  </div>
+</div>
+
+<div class="page">
+  <div class="section-head">Part IV. Wildlife Management Activities</div>
+  <div style="font-size:9pt;margin-bottom:8pt">Check the activities you have implemented during the year to support each of the wildlife management activities listed in Part II.</div>
+  ${renderActivitiesPrint(activities, '')}
+
+  <div class="section-head">Part V. Supporting Documentation</div>
+  <div class="box" style="min-height:80pt">
+    <div>Attach copies of supporting documentation such as receipts, maps, photos, etc. Use additional pages if necessary.</div>
+    ${reportData.supplementalNotes ? '<div style="margin-top:6pt;font-size:9pt;white-space:pre-wrap">' + esc(reportData.supplementalNotes) + '</div>' : ''}
+    ${logEntries.length ? '<div style="margin-top:6pt;padding:5pt 8pt;background:#f0f4ee;border:0.5pt solid #b8c8b0;border-radius:3pt;font-size:9pt"><strong>Attached:</strong> An Activity Log for ' + esc(year) + ' follows this report — ' + logEntries.length + ' entr' + (logEntries.length === 1 ? 'y' : 'ies') + ' (' + esc(logStatsLine) + ') with photos and property locations.</div>' : ''}
+  </div>
+
+  <div class="sig-area">
+    <div style="font-size:9pt">I certify that the above information provided by me is to the best of my knowledge and belief, true and complete.</div>
+    <div class="sig-row">
+      <div class="sig-field"><div class="sig-line"></div><label>Signature</label></div>
+      <div class="sig-field"><div class="sig-line"></div><label>Date</label></div>
+    </div>
+  </div>
+  <div class="footer-note">Texas Parks and Wildlife does not maintain the information collected through this form. This completed form is only provided to the County Tax Appraiser. Please inquire with your County Central Appraisal District on any local laws concerning any information collected through this form.</div>
+  <div class="form-num">PWD 888-W7000 (07/08)</div>
+</div>
+
+<div class="page">
+  <div class="section-head">Activity Log — ${esc(year)}</div>
+  <div style="font-size:9pt;margin-bottom:6pt">Supporting documentation: entries recorded throughout the year. Photos and property locations are embedded below each entry.</div>
+  ${renderLogEntries(logEntries, data.propertyImages, data.routes)}
+</div>`;
+}
+render();
+</script>
+</body></html>

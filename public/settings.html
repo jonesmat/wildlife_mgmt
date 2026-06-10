@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Settings</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script src="/store.js"></script>
 <script src="/dialog.js"></script>
 <link rel="stylesheet" href="/form-shared.css">
 <style>
@@ -167,7 +168,8 @@
           to a single backup file. Your browser will ask where to save it (or use your Downloads
           folder). Keep backups somewhere safe, like a cloud drive.
         </div>
-        <button class="btn btn-primary" style="margin-top:10px" onclick="location.href='/api/export'">Export All Data</button>
+        <button class="btn btn-primary" style="margin-top:10px" onclick="exportData()">Export All Data</button>
+        <span id="exportStatus" style="margin-left:10px;font-size:0.85rem;color:#777"></span>
       </div>
 
       <div class="sub-section" style="margin-top:26px">
@@ -424,6 +426,26 @@ function importFilePicked(input) {
 function closeImportModal() {
   pendingArchive = null;
   document.getElementById('importModal').classList.remove('open');
+}
+
+async function exportData() {
+  var status = document.getElementById('exportStatus');
+  status.textContent = 'Building archive...';
+  try {
+    var archive = await (await fetch('/api/export')).json();
+    var blob = new Blob([JSON.stringify(archive)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'wildlife-mgmt-backup-v' + archive.version + '-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(a.href); }, 5000);
+    status.textContent = '';
+  } catch (err) {
+    status.textContent = '';
+    appDialog('Export failed: ' + err.message);
+  }
 }
 
 function extMime(name) {

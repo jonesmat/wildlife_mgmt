@@ -1,0 +1,624 @@
+// Local data store: all app data lives in the browser (IndexedDB), no
+// filesystem files. This script patches window.fetch so every existing
+// '/api/...' call is served locally, and registers a service worker that
+// serves '/photos/*' and '/property-images/*' images from the same store.
+//
+// Must be included BEFORE any other script that calls fetch.
+(function() {
+  'use strict';
+
+  var DB_NAME = 'wildlife-mgmt';
+  var DB_VERSION = 1;
+  var EXPORT_FORMAT = 'wildlife-mgmt-export';
+  var EXPORT_VERSION = 1;
+  var SUPPORTED_IMPORT_VERSIONS = [1];
+
+  // ── IndexedDB ──
+
+  var dbPromise = null;
+  function openDb() {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise(function(resolve, reject) {
+      var req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = function() {
+        var db = req.result;
+        if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
+        if (!db.objectStoreNames.contains('files')) db.createObjectStore('files');
+      };
+      req.onsuccess = function() { resolve(req.result); };
+      req.onerror = function() { reject(req.error); };
+    });
+    return dbPromise;
+  }
+
+  function idb(storeName, mode, fn) {
+    return openDb().then(function(db) {
+      return new Promise(function(resolve, reject) {
+        var tx = db.transaction(storeName, mode);
+        var store = tx.objectStore(storeName);
+        var result = fn(store);
+        tx.oncomplete = function() {
+          resolve(result && result.result !== undefined ? result.result : undefined);
+        };
+        tx.onerror = function() { reject(tx.error); };
+      });
+    });
+  }
+
+  function kvGet(key) { return idb('kv', 'readonly', function(s) { return s.get(key); }); }
+  function kvSet(key, val) { return idb('kv', 'readwrite', function(s) { s.put(val, key); }); }
+  function filePut(path, b64, mime) { return idb('files', 'readwrite', function(s) { s.put({ b64: b64, mime: mime }, path); }); }
+  function fileDelete(path) { return idb('files', 'readwrite', function(s) { s.delete(path); }); }
+  function fileKeys() { return idb('files', 'readonly', function(s) { return s.getAllKeys(); }); }
+  function fileGet(path) { return idb('files', 'readonly', function(s) { return s.get(path); }); }
+  function clearStore(name) { return idb(name, 'readwrite', function(s) { s.clear(); }); }
+
+  // ── Data defaults & migration (ported from server) ──
+
+  function defaultData() {
+    return {
+      plan: {
+        owner: {
+          accountNumber: '', name: '', address: '', cityStateZip: '',
+          phone: '', tractName: '', majorityCounty: '', additionalCounties: ''
+        },
+        property: {
+          legalDescription: '', location: '',
+          highFence: 'no', highFenceDescription: '',
+          totalAcreage: '', ecoregion: '',
+          habitatTypes: {
+            cropland: false, croplandAcres: '',
+            bottomlandRiparian: false, bottomlandRiparianAcres: '',
+            wetlands: false, wetlandsAcres: '',
+            nonNativePasture: false, nonNativePastureAcres: '',
+            pastureGrassland: false, pastureGrasslandAcres: '',
+            timberlands: false, timberlandsAcres: '',
+            nativeRangeBrush: false, nativeRangeBrushAcres: '',
+            other: false, otherDescription: '', otherAcres: ''
+          }
+        },
+        species: {
+          deer: false, turkey: false, quail: false, songbirds: false,
+          waterfowl: false, doves: false, bats: false,
+          neotropical: false, neotropical_list: '',
+          reptiles: false, reptiles_list: '',
+          amphibians: false, amphibians_list: '',
+          smallMammals: false, smallMammals_list: '',
+          insects: false, insects_list: '',
+          speciesOfConcern: false, speciesOfConcern_list: '',
+          other: false, other_list: ''
+        },
+        goals: '',
+        qualifyingActivities: {
+          habitatControl: false, erosionControl: false, predatorControl: false,
+          censusCountsPopulation: false, supplementalWater: false,
+          supplementalFood: false, supplementalShelter: false
+        },
+        deerManagement: {
+          huntingIncluded: false,
+          huntingType: '',
+          harvestHistory: [
+            { year: '', bucks: '', does: '' },
+            { year: '', bucks: '', does: '' },
+            { year: '', bucks: '', does: '' }
+          ],
+          targetDensity: '', targetSexRatio: '', targetProduction: '',
+          otherGoals: '', harvestStrategy: ''
+        },
+        association: {
+          managementAssociation: false, propertyAssociation: false,
+          associationName: ''
+        }
+      },
+      activities: {
+        habitatControl: {
+          grazingManagement: false, grazingSystem: '',
+          grazingSystemOther: '', grazingInfo: '',
+          prescribedBurning: false, burnAcres: '', burnDate: '', burnInfo: '',
+          rangeEnhancement: false, reseededAcres: '', reseededDate: '',
+          seedingMethod: '', seedingMixture: '', reseededFertilized: false,
+          reseededWeedControl: false, reseededInfo: '',
+          brushManagement: false, brushAcres: '', brushMechanical: false,
+          brushMechanicalMethods: [], brushChemical: false,
+          brushChemicalKind: '', brushChemicalRate: '',
+          brushDesign: '', brushStripsWidth: '', brushStripsLength: '', brushInfo: '',
+          fenceModification: false, fenceTargetSpecies: '',
+          fenceTechnique: '', fenceGapWidth: '', fenceMiles: '', fenceInfo: '',
+          riparian: false, riparianFencing: '', riparianDeferment: '',
+          riparianDefermentSeason: '', riparianVegetation: false,
+          riparianTrees: '', riparianShrubs: '', riparianHerbaceous: '', riparianInfo: '',
+          wetlandEnhancement: false, wetlandType: [], wetlandOther: '', wetlandInfo: '',
+          habitatProtection: false, habitatProtectionMethods: [],
+          habitatProtectionOther: '', habitatProtectionInfo: '',
+          prescribedControl: false, prescribedControlVegetation: false,
+          prescribedControlAnimals: false, prescribedControlSpecies: '',
+          prescribedControlMethod: '', prescribedControlInfo: '',
+          wildlifeRestoration: false, restorationHabitat: false,
+          restorationWildlife: false, restorationTargetSpecies: '',
+          restorationMethod: '', restorationInfo: ''
+        },
+        erosionControl: {
+          pondConstruction: false, pondSurfaceArea: '', pondCubicYards: '',
+          pondDamLength: '', pondDate: '', pondInfo: '',
+          gullyShaping: false, gullyAcres: '', gullyAcresAnnual: '',
+          gullySeedingMix: '', gullyDate: '', gullyInfo: '',
+          streamside: false, streamsideTechniques: [], streamsideOther: '',
+          streamsideDate: '', streamsideInfo: '',
+          plantEstablishment: false, plantEstablishmentMethods: [], plantEstablishmentInfo: '',
+          dikeLevee: false, dikeMethods: [], dikeInfo: '',
+          waterDiversion: false, waterDiversionType: '', waterDiversionSlope: '',
+          waterDiversionLength: '', waterDiversionVegetated: false,
+          waterDiversionNative: '', waterDiversionCrop: '', waterDiversionInfo: ''
+        },
+        predatorControl: {
+          fireAnts: false,
+          cowbirds: false, cowbirdsMethod: [],
+          grackles: false,
+          coyotes: false, feralHogs: false, raccoon: false, skunk: false,
+          bobcat: false, mountainLion: false, ratSnakes: false, feralCatsDogs: false,
+          mammalMethod: [], mammalMethodOther: '', additionalInfo: ''
+        },
+        supplementalWater: {
+          marshWetland: false, marshWetlandTypes: [], marshDate: '', marshInfo: '',
+          wellTrough: false, drillNewWell: false, wellDepth: '', wellGPM: '',
+          windmill: false, pump: false, pipeline: false, pipelineSize: '', pipelineLength: '',
+          modifyExisting: false, modifyMethods: [],
+          distanceBetween: '', facilityTypes: {}, facilityInfo: '',
+          springDevelopment: false, springMethods: [], springOther: '', springInfo: ''
+        },
+        supplementalFood: {
+          grazingManagement: false, prescribedBurning: false, rangeEnhancement: false,
+          foodPlots: false, foodPlotSize: '', foodPlotFenced: false, foodPlotIrrigated: false,
+          coolSeasonCrops: false, coolSeasonCropsDetail: '',
+          warmSeasonCrops: false, warmSeasonCropsDetail: '',
+          annualNativeMix: false, annualNativeMixDetail: '',
+          perennialNativeMix: false, perennialNativeMixDetail: '', foodPlotInfo: '',
+          feeders: false, feederPurpose: '', feederTargetSpecies: '',
+          feedType: '', mineralType: '', feederType: '', feederCount: '',
+          mineralMethod: '', mineralLocations: '',
+          feederYearRound: false, feederWhen: '', feederInfo: '',
+          tamePasture: false, tamePastureOverseeding: false,
+          tamePastureDisturbance: false, tamePastureNoTill: false, tamePastureInfo: '',
+          tameGrass: false, tameGrassSpecies: [], tameGrassOther: '', tameGrassInfo: ''
+        },
+        supplementalShelter: {
+          nestBoxes: false, nestBoxTargetSpecies: '',
+          nestBoxCavity: false, nestBoxCavityCount: '',
+          nestBoxBat: false, nestBoxBatCount: '',
+          nestBoxRaptor: false, nestBoxRaptorCount: '', nestBoxInfo: '',
+          brushPiles: false, brushPileType: [], brushPilePerAcre: '', brushPileInfo: '',
+          fenceLineMgmt: false, fenceLineLength: '', fenceLineInitial: false,
+          fenceLinePlantTypes: [], fenceLineInfo: '',
+          hayMeadow: false, hayMeadowAcres: '', hayMeadowShelterTypes: [],
+          hayMeadowVegType: '', hayMeadowSpeciesMix: '',
+          deferredMowing: false, deferredMowingPeriod: '',
+          mowing: false, mowingAcres: '', noTill: false, hayMeadowInfo: '',
+          halfCutting: false, halfCuttingAcres: '', halfCuttingCount: '', halfCuttingInfo: '',
+          woodyPlant: false, woodyPattern: '', woodyStripsWidth: '',
+          woodyAcresLength: '', woodySpacing: '', woodySpecies: '', woodyInfo: '',
+          snagDevelopment: false, snagSpecies: '', snagSize: '',
+          snagPerAcre: '', snagInfo: ''
+        },
+        census: {
+          spotlightCounts: false, spotlightSpecies: '', spotlightRouteLength: '',
+          spotlightVisibility: '', spotlightDateA: '', spotlightDateB: '',
+          spotlightDateC: '', spotlightInfo: '',
+          incidentalObservations: false, incidentalSpecies: '',
+          incidentalSources: [], incidentalDates: '', incidentalInfo: '',
+          standCounts: false, standCountStands: '', standCountDates: '', standCountInfo: '',
+          aerialCounts: false, aerialSpecies: '', aerialType: '', aerialCoverage: '',
+          aerialCoverageOther: '', aerialInfo: '',
+          trackCounts: false, trackCountTypes: [], trackCountInfo: '',
+          daylightCounts: false, daylightSpecies: [], daylightInfo: '',
+          harvestData: false, harvestTypes: [], harvestAttributes: [], harvestInfo: '',
+          browseUtilization: false, browseInfo: '',
+          endangeredCensus: false, endangeredSpecies: '', endangeredMethod: '', endangeredInfo: '',
+          nongameCensus: false, nongameSpecies: '', nongameMethod: '', nongameInfo: '',
+          miscCounts: false, miscSpecies: '', miscMethods: [], miscInfo: ''
+        }
+      },
+      reports: {},
+      log: []
+    };
+  }
+
+  function migrateData(d) {
+    if (!d.log) d.log = [];
+    if (!d.propertyImages) d.propertyImages = [];
+    if (!d.routes) d.routes = [];
+    if (!d.settings) d.settings = {};
+    if (!d.settings.photoQuality) d.settings.photoQuality = 'balanced';
+    if (!d.bucks) d.bucks = [];
+    if (!d.reportsMeta) d.reportsMeta = {};
+    return d;
+  }
+
+  function loadData() {
+    return kvGet('data').then(function(d) {
+      if (!d) {
+        d = defaultData();
+        return kvSet('data', d).then(function() { return migrateData(d); });
+      }
+      return migrateData(d);
+    });
+  }
+
+  function saveData(d) {
+    return kvSet('data', d);
+  }
+
+  // ── Helpers ──
+
+  function mimeFromName(name) {
+    var ext = String(name).split('.').pop().toLowerCase();
+    var map = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml' };
+    return map[ext] || 'image/jpeg';
+  }
+
+  function stripDataUrl(s) {
+    return String(s || '').replace(/^data:[^,]*,/, '');
+  }
+
+  function json(body, status) {
+    return new Response(JSON.stringify(body), {
+      status: status || 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  function parseBody(init) {
+    try { return init && init.body ? JSON.parse(init.body) : {}; }
+    catch (e) { return {}; }
+  }
+
+  // Delete an entry's photo files + thumbnails
+  function deleteEntryPhotos(entry) {
+    var ops = [];
+    (entry && entry.photos || []).forEach(function(f) {
+      ops.push(fileDelete('/photos/' + f));
+      ops.push(fileDelete('/photos/thumb-' + f));
+    });
+    return Promise.all(ops);
+  }
+
+  // Collect all files under a prefix as { filename: b64 }
+  function collectFiles(prefix) {
+    return fileKeys().then(function(keys) {
+      var mine = (keys || []).filter(function(k) { return k.indexOf(prefix) === 0; });
+      return Promise.all(mine.map(function(k) { return fileGet(k); })).then(function(vals) {
+        var out = {};
+        mine.forEach(function(k, i) {
+          if (vals[i]) out[k.slice(prefix.length)] = vals[i].b64;
+        });
+        return out;
+      });
+    });
+  }
+
+  function clearFilesUnder(prefix) {
+    return fileKeys().then(function(keys) {
+      return Promise.all((keys || []).filter(function(k) { return k.indexOf(prefix) === 0; })
+        .map(function(k) { return fileDelete(k); }));
+    });
+  }
+
+  function writeFilesUnder(prefix, map, skipExisting) {
+    if (!map) return Promise.resolve();
+    var names = Object.keys(map);
+    return fileKeys().then(function(keys) {
+      var existing = {};
+      (keys || []).forEach(function(k) { existing[k] = true; });
+      return Promise.all(names.map(function(f) {
+        var key = prefix + f.replace(/[\\/]/g, ''); // no path tricks
+        if (skipExisting && existing[key]) return Promise.resolve();
+        return filePut(key, map[f], mimeFromName(f));
+      }));
+    });
+  }
+
+  // ── API implementation (mirrors the old server routes) ──
+
+  async function handleApi(method, pathname, init) {
+    var data = await loadData();
+    var body = parseBody(init);
+    var m;
+    var now = new Date().toISOString();
+
+    if (pathname === '/api/data') {
+      if (method === 'GET') return json(data);
+      if (method === 'POST') {
+        body.planUpdatedAt = now;
+        await saveData(body);
+        return json({ ok: true });
+      }
+    }
+
+    if (pathname === '/api/years' && method === 'GET') {
+      return json({
+        planUpdatedAt: data.planUpdatedAt || null,
+        years: Object.keys(data.reports || {}).sort().reverse().map(function(y) {
+          return { year: y, updatedAt: (data.reportsMeta[y] || {}).updatedAt || null };
+        })
+      });
+    }
+
+    if ((m = pathname.match(/^\/api\/reports\/([^/]+)$/))) {
+      var ry = m[1];
+      if (method === 'POST') {
+        if (!data.reports) data.reports = {};
+        data.reports[ry] = body;
+        data.reportsMeta[ry] = { updatedAt: now };
+        await saveData(data);
+        return json({ ok: true });
+      }
+      if (method === 'DELETE') {
+        if (!data.reports || !data.reports[ry]) return json({ error: 'Report not found' }, 404);
+        delete data.reports[ry];
+        delete data.reportsMeta[ry];
+        await saveData(data);
+        return json({ ok: true });
+      }
+    }
+
+    if (pathname === '/api/log') {
+      if (method === 'GET') return json(data.log || []);
+      if (method === 'POST') {
+        body.id = String(Date.now());
+        data.log.push(body);
+        await saveData(data);
+        return json(body);
+      }
+    }
+
+    if ((m = pathname.match(/^\/api\/log\/([^/]+)$/))) {
+      var lid = m[1];
+      if (method === 'PUT') {
+        var idx = data.log.findIndex(function(e) { return e.id === lid; });
+        if (idx === -1) return json({ error: 'Entry not found' }, 404);
+        body.id = lid;
+        data.log[idx] = body;
+        await saveData(data);
+        return json(body);
+      }
+      if (method === 'DELETE') {
+        var entry = data.log.find(function(e) { return e.id === lid; });
+        await deleteEntryPhotos(entry);
+        data.log = data.log.filter(function(e) { return e.id !== lid; });
+        await saveData(data);
+        return json({ ok: true });
+      }
+    }
+
+    if (pathname === '/api/photos' && method === 'POST') {
+      var origName = body.filename || 'photo.jpg';
+      var ext = origName.split('.').pop().toLowerCase() || 'jpg';
+      var pid = Date.now() + '-' + Math.random().toString(36).slice(2) + '.' + ext;
+      await filePut('/photos/' + pid, stripDataUrl(body.dataUrl), mimeFromName(pid));
+      if (body.thumbUrl) {
+        await filePut('/photos/thumb-' + pid, stripDataUrl(body.thumbUrl), 'image/jpeg');
+      }
+      return json({ ok: true, filename: pid });
+    }
+
+    if ((m = pathname.match(/^\/api\/photos\/([^/]+)$/)) && method === 'DELETE') {
+      var pf = decodeURIComponent(m[1]);
+      await fileDelete('/photos/' + pf);
+      await fileDelete('/photos/thumb-' + pf);
+      return json({ ok: true });
+    }
+
+    if (pathname === '/api/property-images') {
+      if (method === 'GET') {
+        return json({ images: data.propertyImages, currentId: data.currentPropertyImageId || null });
+      }
+      if (method === 'POST') {
+        var iname = body.filename || 'property.jpg';
+        var iext = iname.split('.').pop().toLowerCase() || 'jpg';
+        var iid = Date.now() + '-' + Math.random().toString(36).slice(2);
+        var ifn = iid + '.' + iext;
+        await filePut('/property-images/' + ifn, stripDataUrl(body.dataUrl), mimeFromName(ifn));
+        if (body.thumbUrl) {
+          await filePut('/property-images/thumb-' + ifn, stripDataUrl(body.thumbUrl), 'image/jpeg');
+        }
+        data.propertyImages.push({ id: iid, filename: ifn, name: iname, uploadedAt: now });
+        data.currentPropertyImageId = iid;
+        await saveData(data);
+        return json({ ok: true, id: iid, filename: ifn });
+      }
+    }
+
+    if ((m = pathname.match(/^\/api\/property-images\/([^/]+)\/activate$/)) && method === 'POST') {
+      var img = data.propertyImages.find(function(i) { return i.id === m[1]; });
+      if (!img) return json({ error: 'Image not found' }, 404);
+      data.currentPropertyImageId = img.id;
+      await saveData(data);
+      return json({ ok: true });
+    }
+
+    if (pathname === '/api/routes') {
+      if (method === 'GET') return json(data.routes);
+      if (method === 'POST') {
+        var route = {
+          id: String(Date.now()),
+          name: body.name || 'Unnamed Route',
+          imageId: body.imageId || null,
+          points: body.points || [],
+          createdAt: now
+        };
+        data.routes.push(route);
+        await saveData(data);
+        return json(route);
+      }
+    }
+
+    if ((m = pathname.match(/^\/api\/routes\/([^/]+)$/))) {
+      var rid = m[1];
+      if (method === 'PUT') {
+        var r = data.routes.find(function(x) { return x.id === rid; });
+        if (!r) return json({ error: 'Route not found' }, 404);
+        if (body.name !== undefined) r.name = body.name;
+        if (body.points !== undefined) r.points = body.points;
+        await saveData(data);
+        return json(r);
+      }
+      if (method === 'DELETE') {
+        data.routes = data.routes.filter(function(x) { return x.id !== rid; });
+        await saveData(data);
+        return json({ ok: true });
+      }
+    }
+
+    if (pathname === '/api/bucks') {
+      if (method === 'GET') return json(data.bucks);
+      if (method === 'POST') {
+        var buck = {
+          id: String(Date.now()),
+          name: body.name || 'Unnamed Buck',
+          notes: body.notes || '',
+          status: 'Watching',
+          createdAt: now
+        };
+        data.bucks.push(buck);
+        await saveData(data);
+        return json(buck);
+      }
+    }
+
+    if ((m = pathname.match(/^\/api\/bucks\/([^/]+)$/))) {
+      var bid = m[1];
+      if (method === 'PUT') {
+        var b = data.bucks.find(function(x) { return x.id === bid; });
+        if (!b) return json({ error: 'Buck not found' }, 404);
+        ['name', 'notes', 'status'].forEach(function(k) {
+          if (body[k] !== undefined) b[k] = body[k];
+        });
+        await saveData(data);
+        return json(b);
+      }
+      if (method === 'DELETE') {
+        data.bucks = data.bucks.filter(function(x) { return x.id !== bid; });
+        data.log.forEach(function(e) {
+          if (e['hv-buckId'] === bid) e['hv-buckId'] = '';
+          if (e['si-buckId'] === bid) e['si-buckId'] = '';
+        });
+        await saveData(data);
+        return json({ ok: true });
+      }
+    }
+
+    if (pathname === '/api/settings') {
+      if (method === 'GET') return json(data.settings);
+      if (method === 'POST') {
+        Object.keys(body).forEach(function(k) { data.settings[k] = body[k]; });
+        await saveData(data);
+        return json(data.settings);
+      }
+    }
+
+    if (pathname === '/api/export' && method === 'GET') {
+      var photos = await collectFiles('/photos/');
+      var propImgs = await collectFiles('/property-images/');
+      return json({
+        format: EXPORT_FORMAT,
+        version: EXPORT_VERSION,
+        exportedAt: now,
+        data: data,
+        files: { photos: photos, 'property-images': propImgs }
+      });
+    }
+
+    if (pathname === '/api/import' && method === 'POST') {
+      var archive = body.archive;
+      var mode = body.mode;
+      if (!archive || archive.format !== EXPORT_FORMAT) {
+        return json({ error: 'Not a Wildlife Management Tool export file.' }, 400);
+      }
+      if (SUPPORTED_IMPORT_VERSIONS.indexOf(archive.version) === -1) {
+        return json({ error: 'Unsupported export version ' + archive.version + '. This app supports: ' + SUPPORTED_IMPORT_VERSIONS.join(', ') + '.' }, 400);
+      }
+      var files = archive.files || {};
+      var summary = { log: 0, reports: 0, propertyImages: 0, routes: 0 };
+
+      if (mode === 'replace') {
+        await clearFilesUnder('/photos/');
+        await clearFilesUnder('/property-images/');
+        var nd = migrateData(archive.data || {});
+        await saveData(nd);
+        await writeFilesUnder('/photos/', files.photos, false);
+        await writeFilesUnder('/property-images/', files['property-images'], false);
+        summary.log = (nd.log || []).length;
+        summary.reports = Object.keys(nd.reports || {}).length;
+        summary.propertyImages = (nd.propertyImages || []).length;
+        summary.routes = (nd.routes || []).length;
+      } else {
+        var inc = archive.data || {};
+        (inc.log || []).forEach(function(e) {
+          if (data.log.some(function(x) { return x.id === e.id; })) return;
+          data.log.push(e);
+          summary.log++;
+        });
+        if (!data.reports) data.reports = {};
+        Object.keys(inc.reports || {}).forEach(function(y) {
+          if (!data.reports[y]) {
+            data.reports[y] = inc.reports[y];
+            if (inc.reportsMeta && inc.reportsMeta[y]) data.reportsMeta[y] = inc.reportsMeta[y];
+            summary.reports++;
+          }
+        });
+        (inc.propertyImages || []).forEach(function(img2) {
+          if (!data.propertyImages.some(function(x) { return x.id === img2.id; })) {
+            data.propertyImages.push(img2);
+            summary.propertyImages++;
+          }
+        });
+        if (!data.currentPropertyImageId && inc.currentPropertyImageId) {
+          data.currentPropertyImageId = inc.currentPropertyImageId;
+        }
+        (inc.routes || []).forEach(function(r2) {
+          if (!data.routes.some(function(x) { return x.id === r2.id; })) {
+            data.routes.push(r2);
+            summary.routes++;
+          }
+        });
+        (inc.bucks || []).forEach(function(b2) {
+          if (!data.bucks.some(function(x) { return x.id === b2.id; })) data.bucks.push(b2);
+        });
+        await saveData(data);
+        await writeFilesUnder('/photos/', files.photos, true);
+        await writeFilesUnder('/property-images/', files['property-images'], true);
+      }
+      return json({ ok: true, mode: mode, summary: summary });
+    }
+
+    if (pathname === '/api/clear-data' && method === 'POST') {
+      await clearStore('kv');
+      await clearStore('files');
+      return json({ ok: true });
+    }
+
+    return json({ error: 'Unknown endpoint ' + method + ' ' + pathname }, 404);
+  }
+
+  // ── fetch patch ──
+
+  var realFetch = window.fetch.bind(window);
+  window.fetch = function(input, init) {
+    var url = (typeof input === 'string') ? input : input.url;
+    var a = document.createElement('a');
+    a.href = url;
+    if (a.pathname.indexOf('/api/') === 0 || a.pathname.indexOf('api/') === 0) {
+      var pathname = a.pathname.charAt(0) === '/' ? a.pathname : '/' + a.pathname;
+      var method = ((init && init.method) || (typeof input !== 'string' && input.method) || 'GET').toUpperCase();
+      return handleApi(method, pathname, init).catch(function(err) {
+        return json({ error: String(err && err.message || err) }, 500);
+      });
+    }
+    return realFetch(input, init);
+  };
+
+  // ── Service worker: serves /photos/* and /property-images/* from IndexedDB ──
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(function() { /* images degrade */ });
+  }
+})();
