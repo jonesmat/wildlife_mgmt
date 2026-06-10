@@ -1247,6 +1247,7 @@ app.get('/report-print/:year', (req, res) => {
   <div class="section-head">Part V. Supporting Documentation</div>
   <div class="box" style="min-height:80pt">
     <div>Attach copies of supporting documentation such as receipts, maps, photos, etc. Use additional pages if necessary.</div>
+    ${reportData.supplementalNotes ? '<div style="margin-top:6pt;font-size:9pt;white-space:pre-wrap">' + esc(reportData.supplementalNotes) + '</div>' : ''}
     ${logEntries.length ? '<div style="margin-top:6pt;padding:5pt 8pt;background:#f0f4ee;border:0.5pt solid #b8c8b0;border-radius:3pt;font-size:9pt"><strong>Attached:</strong> An Activity Log for ' + esc(year) + ' follows this report — ' + logEntries.length + ' entr' + (logEntries.length === 1 ? 'y' : 'ies') + ' (' + esc(logStatsLine) + ') with photos and property locations.</div>' : ''}
   </div>
 

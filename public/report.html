@@ -33,6 +33,8 @@
     <div class="sidebar-item" data-target="food" onclick="navTo('food')">5. Supplemental Food</div>
     <div class="sidebar-item" data-target="shelter" onclick="navTo('shelter')">6. Supplemental Shelter</div>
     <div class="sidebar-item" data-target="census" onclick="navTo('census')">7. Census</div>
+    <div class="sidebar-section">Supporting Docs</div>
+    <div class="sidebar-item" data-target="supplemental" onclick="navTo('supplemental')">V. Supplemental Info</div>
     <div class="sidebar-section">Log Entries</div>
     <div class="sidebar-item" data-target="logEntries" onclick="navTo('logEntries')">Activity Log</div>
   </nav>
@@ -80,6 +82,16 @@
 
     <!-- Part IV Activities -->
     <div id="activitiesSection"></div>
+
+    <!-- Part V Supporting Documentation -->
+    <div class="section" id="supplemental">
+      <div class="section-title">Part V. Supporting Documentation</div>
+      <div class="hint-block">Describe any supporting documentation you are attaching or want noted on the report — surveys, receipts, biologist correspondence, maps, etc. This text prints in Part V, above the note about the attached Activity Log.</div>
+      <div class="form-group">
+        <label>Supplemental information</label>
+        <textarea data-path="supplementalNotes" rows="5" placeholder="e.g. Spotlight survey data sheets attached; receipts for protein feed and feeder parts attached; TPWD biologist site visit notes from March included."></textarea>
+      </div>
+    </div>
 
     <!-- Activity Log Entries -->
     <div class="section" id="logEntries">
