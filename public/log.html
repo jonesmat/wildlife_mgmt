@@ -648,7 +648,7 @@
     </div>
 
     <!-- List controls -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+    <div id="listControls" style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
       <button class="btn btn-secondary" id="sortBtn" onclick="toggleSort()" title="Toggle date sort order">Date &darr; Newest first</button>
       <span id="listCountLabel" style="font-size:0.82rem;color:#777"></span>
     </div>
@@ -1001,6 +1001,8 @@ function toggleCard(id) {
 }
 
 // ── New / Edit form ──
+var hiddenCardId = null; // card hidden while its entry is edited in place
+
 function scrollToForm() {
   // scrollIntoView alone leaves the form top hidden under the sticky header
   var sec = document.getElementById('newEntrySection');
@@ -1008,7 +1010,21 @@ function scrollToForm() {
   window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
 }
 
+// Move the form back to its spot above the list. Must run before any
+// renderList(), or the relocated form gets wiped with logList's innerHTML.
+function restoreFormHome() {
+  var form = document.getElementById('newEntrySection');
+  var home = document.getElementById('listControls');
+  home.parentNode.insertBefore(form, home);
+  if (hiddenCardId) {
+    var card = document.getElementById('card-' + hiddenCardId);
+    if (card) card.style.display = '';
+    hiddenCardId = null;
+  }
+}
+
 function showNewForm() {
+  restoreFormHome();
   document.getElementById('editingId').value = '';
   document.getElementById('formTitle').textContent = 'New Entry';
   document.getElementById('deleteBtn').style.display = 'none';
@@ -1060,7 +1076,16 @@ function editEntry(id) {
   renderFormPhotos();
   pendingLoc = e.loc || null;
   updateLocUI();
-  document.getElementById('newEntrySection').style.display = 'block';
+  // Open the form in place of the entry's card instead of jumping to the top
+  restoreFormHome();
+  var form = document.getElementById('newEntrySection');
+  var card = document.getElementById('card-' + id);
+  if (card) {
+    card.style.display = 'none';
+    hiddenCardId = id;
+    card.parentNode.insertBefore(form, card.nextSibling);
+  }
+  form.style.display = 'block';
   scrollToForm();
 }
 
@@ -1072,6 +1097,7 @@ function cancelForm() {
   });
   pendingPhotos = [];
   document.getElementById('newEntrySection').style.display = 'none';
+  restoreFormHome();
 }
 
 function resetForm() {
@@ -1622,6 +1648,7 @@ async function saveEntry() {
   }
   pendingPhotos = [];
   document.getElementById('newEntrySection').style.display = 'none';
+  restoreFormHome();
   renderList();
 }
 
@@ -1632,6 +1659,7 @@ async function deleteEntry() {
   allEntries = allEntries.filter(function(x) { return x.id !== id; });
   pendingPhotos = [];
   document.getElementById('newEntrySection').style.display = 'none';
+  restoreFormHome();
   renderList();
 }
 
