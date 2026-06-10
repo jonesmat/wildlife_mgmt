@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Settings</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script src="/dialog.js"></script>
 <link rel="stylesheet" href="/form-shared.css">
 <style>
 .current-image-wrap {
@@ -337,7 +338,7 @@ function uploadImage(input) {
       load();
     } catch (err) {
       status.textContent = '';
-      alert('Upload failed: ' + err.message);
+      appDialog('Upload failed: ' + err.message);
     }
     input.value = '';
   };
@@ -399,10 +400,10 @@ function importFilePicked(input) {
     input.value = '';
     var archive;
     try { archive = JSON.parse(reader.result); }
-    catch (e) { status.textContent = ''; alert('That file is not valid JSON.'); return; }
+    catch (e) { status.textContent = ''; appDialog('That file is not valid JSON.'); return; }
     if (!archive || archive.format !== 'wildlife-mgmt-export') {
       status.textContent = '';
-      alert('That file is not a Wildlife Management Tool backup.');
+      appDialog('That file is not a Wildlife Management Tool backup.');
       return;
     }
     status.textContent = '';
@@ -473,13 +474,14 @@ async function runImport(mode) {
     var result = await resp.json();
     if (!resp.ok) throw new Error(result.error || ('HTTP ' + resp.status));
     var s = result.summary || {};
-    alert('Import complete (' + mode + '):\n' +
+    await appDialog(
       s.log + ' log entries, ' + s.reports + ' reports, ' +
-      s.propertyImages + ' property images, ' + s.routes + ' routes.');
+      s.propertyImages + ' property images, ' + s.routes + ' routes.',
+      'Import complete (' + mode + ')');
     location.reload();
   } catch (err) {
     status.textContent = '';
-    alert('Import failed: ' + err.message);
+    appDialog('Import failed: ' + err.message);
   }
 }
 
@@ -497,7 +499,7 @@ function closeClearModal() {
 async function runClearData() {
   closeClearModal();
   await fetch('/api/clear-data', { method: 'POST' });
-  alert('All app data has been cleared.');
+  await appDialog('All app data has been cleared.');
   location.reload();
 }
 
@@ -592,7 +594,7 @@ function openRoutePanel(title, imgFn) {
 function startDrawRoute() {
   var fn = imgFileById(currentId);
   if (!fn) {
-    alert('No property image yet.\nUpload one on the Property pane first.');
+    appDialog('No property image yet.\nUpload one on the Property pane first.');
     return;
   }
   editingRouteId = null;
@@ -608,7 +610,7 @@ function startEditRoute(id) {
   // Edit against the image the route was drawn on, not necessarily the current one
   var fn = imgFileById(route.imageId);
   if (!fn) {
-    alert('The property image this route was drawn on is unavailable.');
+    appDialog('The property image this route was drawn on is unavailable.');
     return;
   }
   editingRouteId = id;
@@ -676,7 +678,7 @@ async function saveRoute() {
 }
 
 async function deleteRoute(id) {
-  if (!confirm('Delete this route? Census events that reference it keep their route name.')) return;
+  if (!(await appConfirm('Census events that reference this route keep their route name.', 'Delete this route?'))) return;
   await fetch('/api/routes/' + id, { method: 'DELETE' });
   loadRoutes();
 }

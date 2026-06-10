@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TPWD Wildlife Management Tool</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script src="/dialog.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; background: #f0f2f5; color: #222; }
@@ -224,7 +225,7 @@
 
   async function createReport() {
     const year = document.getElementById('newYear').value;
-    if (!year) return alert('Enter a year');
+    if (!year) return appDialog('Enter a year');
     // Load base activities from plan to seed the report
     const data = await (await fetch('/api/data')).json();
     const reportData = JSON.parse(JSON.stringify(data.activities));
@@ -267,7 +268,7 @@
   async function confirmDeleteReport() {
     if (!deleteTargetYear) return;
     var resp = await fetch('/api/reports/' + deleteTargetYear, { method: 'DELETE' });
-    if (!resp.ok) alert('Failed to delete report (HTTP ' + resp.status + ')');
+    if (!resp.ok) appDialog('Failed to delete report (HTTP ' + resp.status + ')');
     closeDeleteModal();
     loadYears();
   }

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Buck Watch</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script src="/dialog.js"></script>
 <link rel="stylesheet" href="/form-shared.css">
 <style>
 .buck-card {
@@ -270,7 +271,7 @@ async function saveEdit(id) {
 }
 
 async function deleteBuck(id) {
-  if (!confirm('Remove this buck from the watch list?\nLinked log entries are kept, just unlinked.')) return;
+  if (!(await appConfirm('Linked log entries are kept, just unlinked.', 'Remove this buck from the watch list?', 'Remove'))) return;
   await fetch('/api/bucks/' + id, { method: 'DELETE' });
   load();
 }

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Activity Log</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script src="/dialog.js"></script>
 <link rel="stylesheet" href="/form-shared.css">
 <style>
 /* ── log-specific ── */
@@ -1676,7 +1677,7 @@ function openLocPicker() {
   var imgId = (pendingLoc && pendingLoc.img) || currentPropId;
   var fn = propImgFile(imgId);
   if (!fn) {
-    alert('No property image yet.\nUpload one in Settings → Property first.');
+    appDialog('No property image yet.\nUpload one in Settings → Property first.');
     return;
   }
   locModalImgId = imgId;
@@ -1901,7 +1902,8 @@ async function saveEntry() {
 
 async function deleteEntry() {
   var id = document.getElementById('editingId').value;
-  if (!id || !confirm('Delete this entry?')) return;
+  if (!id) return;
+  if (!(await appConfirm('This permanently removes the entry and its photos.', 'Delete this entry?'))) return;
   await fetch('/api/log/' + id, { method: 'DELETE' });
   allEntries = allEntries.filter(function(x) { return x.id !== id; });
   // The server removed the entry's saved photos; also clean up any photo
@@ -1944,7 +1946,7 @@ async function handlePhotoFiles(input) {
     } catch (err) {
       pending.error = true;
       console.error('Photo upload failed:', err);
-      alert('Photo upload failed: ' + file.name + '\n' + err.message);
+      appDialog('Photo upload failed: ' + file.name + '\n' + err.message);
     }
     renderFormPhotos();
   }
