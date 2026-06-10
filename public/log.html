@@ -105,6 +105,13 @@
 .photo-add-btn:hover { border-color: #1a4a1a; color: #1a4a1a; }
 .photo-add-icon { font-size: 1.6rem; line-height: 1; }
 
+/* Entry tips */
+.entry-tip {
+  background: #f4f8ee; border-left: 3px solid #7a9a5a; border-radius: 0 6px 6px 0;
+  padding: 8px 12px; font-size: 0.8rem; color: #4a5a42; line-height: 1.5; margin-bottom: 12px;
+}
+.entry-tip strong { color: #1a4a1a; }
+
 /* New entry form */
 .new-entry-section {
   background: white; border: 2px solid #1a4a1a; border-radius: 8px;
@@ -245,6 +252,7 @@
 
       <!-- General -->
       <div id="fields-General">
+        <div class="entry-tip">💡 <strong>Tip:</strong> Use General for anything that doesn't fit another type — site visits, observations, planning notes. Give it a short descriptive name and enough detail in the notes that it makes sense on the annual report months later.</div>
         <div class="form-row">
           <div class="form-group"><label>Name / Title</label><input type="text" id="f-name" placeholder="e.g. Site visit"></div>
         </div>
@@ -253,6 +261,7 @@
 
       <!-- Harvest -->
       <div id="fields-Harvest" style="display:none">
+        <div class="entry-tip">💡 <strong>Tip:</strong> Log harvests the <strong>same day</strong> — MLDP requires the daily harvest log to be filled in before the deer leaves the property. Record the tag number and hunter, and estimate age and field-dressed weight; that data feeds your population trend records. For whitetail bucks, add antler measurements (or a full B&amp;C score) and a photo.</div>
         <div class="form-row">
           <div class="form-group">
             <label>Species</label>
@@ -400,6 +409,7 @@
 
       <!-- Sighting -->
       <div id="fields-Sighting" style="display:none">
+        <div class="entry-tip">💡 <strong>Tip:</strong> Record the count and a sex/age breakdown ("2 bucks, 3 does, 1 fawn") — consistent sightings become incidental census data. Set the map location and attach game-camera photos when you have them; they're strong supporting documentation.</div>
         <div class="form-row">
           <div class="form-group">
             <label>Species</label>
@@ -440,6 +450,7 @@
 
       <!-- Activity -->
       <div id="fields-Activity" style="display:none">
+        <div class="entry-tip">💡 <strong>Tip:</strong> Pick the category matching one of the seven 1-D-1 qualifying practices — "Update from Activity Log" on the annual report checks the Part II box for you. Record acres treated and take before/after photos; appraisal districts want evidence the practice actually happened.</div>
         <div class="form-row">
           <div class="form-group"><label>Category</label>
             <select id="ac-category">
@@ -461,6 +472,7 @@
 
       <!-- Census -->
       <div id="fields-Census" style="display:none">
+        <div class="entry-tip">💡 <strong>Tip:</strong> Run the <strong>same route under the same conditions</strong> each time — TPWD recommends at least three spotlight counts on a fixed route in late summer/fall. Record route, conditions, and totals consistently so year-over-year trends are comparable.</div>
         <div class="form-row">
           <div class="form-group"><label>Survey Type</label>
             <select id="ce-surveyType">
@@ -511,6 +523,7 @@
 
       <!-- Predator Control -->
       <div id="fields-Predator Control" style="display:none">
+        <div class="entry-tip">💡 <strong>Tip:</strong> Log every removal with species, method, and count — these document the predator-control qualifying practice on your annual report. Brown-headed cowbird trapping requires a free TPWD trapping certification; note trap locations on the map.</div>
         <div class="form-row">
           <div class="form-group">
             <label>Species Targeted</label>
@@ -546,6 +559,7 @@
 
       <!-- Maintenance -->
       <div id="fields-Maintenance" style="display:none">
+        <div class="entry-tip">💡 <strong>Tip:</strong> Upkeep of wildlife infrastructure — feeders, water troughs, nest boxes, fences — counts as ongoing practice implementation. Name the specific item and what was done; a quick photo of the completed work makes good documentation.</div>
         <div class="form-row">
           <div class="form-group"><label>Item / Facility</label><input type="text" id="ma-item" placeholder="Water trough, fence, feeder..."></div>
           <div class="form-group"><label>Action Taken</label><input type="text" id="ma-action" placeholder="Repaired, replaced, installed..."></div>
@@ -555,6 +569,7 @@
 
       <!-- Purchase -->
       <div id="fields-Purchase" style="display:none">
+        <div class="entry-tip">💡 <strong>Tip:</strong> Photograph the receipt and attach it — receipts are the supporting documentation appraisal districts ask for. Tie the purchase to the management practice it supports so it strengthens the matching Part II checkbox on your annual report.</div>
         <div class="form-row">
           <div class="form-group"><label>Item Purchased</label><input type="text" id="pu-item" placeholder="Protein feed, feeder, seed mix..."></div>
           <div class="form-group"><label>Category</label>
