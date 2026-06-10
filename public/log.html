@@ -512,7 +512,10 @@
             <input type="text" id="ce-speciesOther" placeholder="Specify species" style="display:none;margin-top:6px">
             <input type="hidden" id="ce-species">
           </div>
-          <div class="form-group"><label>Route / Stand ID</label><input type="text" id="ce-route"></div>
+          <div class="form-group"><label>Route</label>
+            <select id="ce-routeId"><option value="">-- Select route --</option></select>
+            <a href="#" onclick="createRouteFromCensus();return false" style="font-size:0.78rem;display:inline-block;margin-top:4px;color:#1a4a1a">+ Create route</a>
+          </div>
         </div>
         <div class="form-row">
           <div class="form-group"><label>Total Observed</label><input type="text" id="ce-total" placeholder="12 deer (8M/4F)"></div>
@@ -689,6 +692,7 @@ var searchTerm = '';
 var sortDir = 'desc';   // 'desc' = newest first
 var visibleCount = 25;  // pagination: how many entries are shown
 var PAGE_SIZE = 25;
+var logRoutes = [];       // census routes from settings: [{ id, name, imageId, points }]
 var propImages = [];      // property images from settings: [{ id, filename, uploadedAt }]
 var currentPropId = null; // active property image id
 var pendingLoc = null;    // location for the entry being edited: { img, x, y } (x/y are 0-1 fractions)
@@ -704,10 +708,27 @@ async function init() {
     propImages = pi.images || [];
     currentPropId = pi.currentId;
   } catch (e) { /* property images unavailable; location features degrade gracefully */ }
+  try {
+    logRoutes = await (await fetch('/api/routes')).json();
+  } catch (e) { logRoutes = []; }
+  var routeSel = document.getElementById('ce-routeId');
+  logRoutes.forEach(function(r) {
+    var opt = document.createElement('option');
+    opt.value = r.id;
+    opt.textContent = r.name;
+    routeSel.appendChild(opt);
+  });
   allEntries = await (await fetch('/api/log')).json();
   applyFilter();
   // Deep link from Trophy Board on the home page: /log#entry-<id>
   if (location.hash.indexOf('#entry-') === 0) jumpToEntry(location.hash.slice(7));
+  // Returning from Settings after creating a route mid-Census-entry
+  var params = new URLSearchParams(location.search);
+  var savedState = localStorage.getItem('censusFormState');
+  if (savedState && (params.get('newRoute') || params.get('restoreForm'))) {
+    localStorage.removeItem('censusFormState');
+    try { restoreFormState(JSON.parse(savedState), params.get('newRoute')); } catch (e) { /* corrupt state — start fresh */ }
+  }
 }
 
 // ── Filter ──
@@ -1319,6 +1340,70 @@ function jumpToEntry(id) {
   card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+// ── Census route create-and-return ──
+// Saves the in-progress entry form, sends the user to Settings to draw a
+// route, and restores everything (with the new route selected) on return.
+function captureFormState() {
+  var type = document.getElementById('fType').value;
+  var state = {
+    editingId: document.getElementById('editingId').value,
+    datetime: document.getElementById('fDatetime').value,
+    type: type,
+    fields: {},
+    photos: pendingPhotos.filter(function(p) { return p.uploaded; }).map(function(p) { return p.filename; }),
+    loc: pendingLoc
+  };
+  getTypeFields(type).forEach(function(f) {
+    var el = document.getElementById(f);
+    if (el) state.fields[f] = el.value;
+  });
+  if (type === 'General') {
+    state.fields['f-name'] = document.getElementById('f-name').value;
+    state.fields['f-description'] = document.getElementById('f-description').value;
+  }
+  return state;
+}
+
+function restoreFormState(state, newRouteId) {
+  showNewForm();
+  document.getElementById('editingId').value = state.editingId || '';
+  if (state.editingId) {
+    document.getElementById('formTitle').textContent = 'Edit Entry';
+    document.getElementById('deleteBtn').style.display = '';
+  }
+  document.getElementById('fDatetime').value = state.datetime || nowDatetimeLocal();
+  document.getElementById('fType').value = state.type || 'General';
+  switchType();
+  Object.keys(state.fields || {}).forEach(function(f) {
+    var el = document.getElementById(f);
+    if (el) el.value = state.fields[f];
+  });
+  ['hv','pc','si','ce'].forEach(function(p) {
+    populateSpeciesField(p, (state.fields || {})[p + '-species']);
+  });
+  updateHarvestFields();
+  pendingPhotos = (state.photos || []).map(function(f) {
+    return { filename: f, uploaded: true, localUrl: '/photos/' + f };
+  });
+  renderFormPhotos();
+  pendingLoc = state.loc || null;
+  updateLocUI();
+  if (newRouteId) document.getElementById('ce-routeId').value = newRouteId;
+  scrollToForm();
+}
+
+function createRouteFromCensus() {
+  localStorage.setItem('censusFormState', JSON.stringify(captureFormState()));
+  location.href = '/settings?createRoute=1';
+}
+
+function routeNameById(id) {
+  for (var i = 0; i < logRoutes.length; i++) {
+    if (logRoutes[i].id === id) return logRoutes[i].name;
+  }
+  return '';
+}
+
 // ── Location picker ──
 function propImgFile(id) {
   for (var i = 0; i < propImages.length; i++) {
@@ -1469,7 +1554,7 @@ function getTypeFields(type) {
     'Harvest':   ['hv-species','hv-sex','hv-age','hv-weight','hv-tag','hv-hunter','hv-location','hv-method','hv-points','hv-mainBeam','hv-tines','hv-spread','hv-notes'].concat(BC_FIELDS),
     'Sighting':  ['si-species','si-count','si-sexAge','si-location','si-method','si-notes'],
     'Activity':  ['ac-category','ac-name','ac-acres','ac-notes'],
-    'Census':    ['ce-surveyType','ce-species','ce-route','ce-total','ce-conditions','ce-notes'],
+    'Census':    ['ce-surveyType','ce-species','ce-routeId','ce-total','ce-conditions','ce-notes'],
     'Predator Control': ['pc-species','pc-method','pc-count','pc-notes'],
     'Maintenance': ['ma-item','ma-action','ma-notes'],
     'Purchase':  ['pu-item','pu-category','pu-vendor','pu-qty','pu-cost','pu-practice','pu-notes']
@@ -1499,6 +1584,18 @@ async function saveEntry() {
       var el = document.getElementById(f);
       if (el) entry[f] = el.value;
     });
+    if (type === 'Census') {
+      // Keep ce-route as the route NAME so cards, reports, and the PDF
+      // keep working; preserve legacy free-text on entries without a route
+      var routeName = routeNameById(entry['ce-routeId']);
+      if (routeName) {
+        entry['ce-route'] = routeName;
+      } else {
+        var prevId = document.getElementById('editingId').value;
+        var prev = prevId && allEntries.find(function(x) { return x.id === prevId; });
+        entry['ce-route'] = (prev && prev['ce-route']) || '';
+      }
+    }
   }
 
   var editingId = document.getElementById('editingId').value;

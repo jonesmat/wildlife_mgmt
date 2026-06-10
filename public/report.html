@@ -129,6 +129,14 @@ document.getElementById('pdfBtn').onclick = () => window.open(`/report-print/${y
 let reportData = {};
 let planOwner = {};
 let propImages = [];
+let allRoutes = [];
+
+function routeById(id) {
+  for (var i = 0; i < allRoutes.length; i++) {
+    if (allRoutes[i].id === id) return allRoutes[i];
+  }
+  return null;
+}
 
 function propImgFile(id) {
   for (var i = 0; i < propImages.length; i++) {
@@ -375,6 +383,7 @@ async function loadLogEntries() {
   try {
     var pi = await (await fetch('/api/property-images')).json();
     propImages = pi.images || [];
+    allRoutes = await (await fetch('/api/routes')).json();
   } catch (err) { /* maps just won't render */ }
   var entries = await (await fetch('/api/log')).json();
   entries = entries.filter(function(e) { return e.datetime && e.datetime.startsWith(year); });
@@ -434,6 +443,17 @@ function renderLogEntries() {
         locHtml = '<div style="position:relative;max-width:280px;margin-top:8px;border:1px solid #ddd;border-radius:6px;overflow:hidden">' +
           '<img src="/property-images/' + propImgFile(e.loc.img) + '" style="width:100%;display:block" alt="Location">' +
           '<span style="position:absolute;left:' + (e.loc.x * 100) + '%;top:' + (e.loc.y * 100) + '%;transform:translate(-50%,-50%);color:#e01818;font-size:24px;font-weight:700;line-height:1;text-shadow:0 0 3px #fff,0 0 6px #fff;pointer-events:none">&#10010;</span>' +
+        '</div>';
+      }
+      // Census entries with a saved route: show the route on its property image
+      var route = e['ce-routeId'] ? routeById(e['ce-routeId']) : null;
+      if (route && route.points && route.points.length && propImgFile(route.imageId)) {
+        var rpts = route.points.map(function(p) { return (p.x * 100) + ',' + (p.y * 100); }).join(' ');
+        locHtml += '<div style="position:relative;max-width:280px;margin-top:8px;border:1px solid #ddd;border-radius:6px;overflow:hidden">' +
+          '<img src="/property-images/' + propImgFile(route.imageId) + '" style="width:100%;display:block" alt="Route">' +
+          '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">' +
+            '<polyline points="' + rpts + '" fill="none" stroke="#e01818" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>' +
+          '</svg>' +
         '</div>';
       }
       var dimStyle = included ? '' : 'opacity:0.45;';

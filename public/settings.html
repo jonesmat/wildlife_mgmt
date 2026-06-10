@@ -359,6 +359,11 @@ function undoRoutePoint() { drawPoints.pop(); selectedPointIdx = null; redrawRou
 function clearRoutePoints() { drawPoints = []; selectedPointIdx = null; redrawRoute(); }
 
 function cancelDrawRoute() {
+  // Mid-Census flow: go back to the saved entry form without a new route
+  if (createRouteReturn) {
+    location.href = '/log?restoreForm=1';
+    return;
+  }
   drawPoints = [];
   editingRouteId = null;
   selectedPointIdx = null;
@@ -368,6 +373,7 @@ function cancelDrawRoute() {
 
 async function saveRoute() {
   var name = document.getElementById('routeName').value.trim() || ('Route ' + (routes.length + 1));
+  var savedRoute = null;
   if (editingRouteId) {
     await fetch('/api/routes/' + editingRouteId, {
       method: 'PUT',
@@ -375,11 +381,16 @@ async function saveRoute() {
       body: JSON.stringify({ name: name, points: drawPoints })
     });
   } else {
-    await fetch('/api/routes', {
+    savedRoute = await (await fetch('/api/routes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name, imageId: currentId, points: drawPoints })
-    });
+    })).json();
+  }
+  // Came here from a Census entry — return with the new route selected
+  if (createRouteReturn && savedRoute) {
+    location.href = '/log?newRoute=' + savedRoute.id;
+    return;
   }
   cancelDrawRoute();
   loadRoutes();
@@ -391,7 +402,15 @@ async function deleteRoute(id) {
   loadRoutes();
 }
 
-load().then(loadRoutes);
+// Arrived from a Census entry's "+ Create route" link?
+var createRouteReturn = new URLSearchParams(location.search).get('createRoute') === '1';
+
+load().then(loadRoutes).then(function() {
+  if (createRouteReturn) {
+    showPane('routes');
+    startDrawRoute();
+  }
+});
 </script>
 </body>
 </html>

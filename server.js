@@ -913,13 +913,21 @@ function renderActivitiesPrint(a) {
   `;
 }
 
-function renderLogEntries(entries, propertyImages) {
+function renderLogEntries(entries, propertyImages, routes) {
   if (!entries || !entries.length) return '<div style="font-size:9pt;color:#666;font-style:italic">No log entries for this year.</div>';
 
   function propImgFile(id) {
     var imgs = propertyImages || [];
     for (var i = 0; i < imgs.length; i++) {
       if (imgs[i].id === id) return imgs[i].filename;
+    }
+    return null;
+  }
+
+  function routeById(id) {
+    var rs = routes || [];
+    for (var i = 0; i < rs.length; i++) {
+      if (rs[i].id === id) return rs[i];
     }
     return null;
   }
@@ -1027,6 +1035,18 @@ function renderLogEntries(entries, propertyImages) {
         '<div style="position:relative;max-width:240pt;border:0.5pt solid #ccc;border-radius:3pt;overflow:hidden">' +
           '<img src="/property-images/' + esc(propImgFile(e.loc.img)) + '" style="width:100%;height:auto;display:block">' +
           '<span style="position:absolute;left:' + (e.loc.x * 100) + '%;top:' + (e.loc.y * 100) + '%;transform:translate(-50%,-50%);color:#e01818;font-size:16pt;font-weight:700;line-height:1;text-shadow:0 0 2pt #fff,0 0 4pt #fff">&#10010;</span>' +
+        '</div>';
+    }
+    // Census route map
+    var route = e['ce-routeId'] ? routeById(e['ce-routeId']) : null;
+    if (route && route.points && route.points.length && propImgFile(route.imageId)) {
+      var rpts = route.points.map(function(p) { return (p.x * 100) + ',' + (p.y * 100); }).join(' ');
+      locHtml += '<div style="font-size:7pt;font-weight:700;color:#666;text-transform:uppercase;margin:4pt 0 2pt">Route: ' + esc(route.name) + '</div>' +
+        '<div style="position:relative;max-width:240pt;border:0.5pt solid #ccc;border-radius:3pt;overflow:hidden">' +
+          '<img src="/property-images/' + esc(propImgFile(route.imageId)) + '" style="width:100%;height:auto;display:block">' +
+          '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;top:0;left:0;width:100%;height:100%">' +
+            '<polyline points="' + rpts + '" fill="none" stroke="#e01818" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>' +
+          '</svg>' +
         '</div>';
     }
     return '<div style="border:0.5pt solid #ccc;border-radius:3pt;margin-bottom:6pt;overflow:hidden;page-break-inside:avoid">' +
@@ -1304,7 +1324,7 @@ app.get('/report-print/:year', (req, res) => {
 <div class="page">
   <div class="section-head">Activity Log — ${esc(year)}</div>
   <div style="font-size:9pt;margin-bottom:6pt">Supporting documentation: entries recorded throughout the year. Photos and property locations are embedded below each entry.</div>
-  ${renderLogEntries(logEntries, data.propertyImages)}
+  ${renderLogEntries(logEntries, data.propertyImages, data.routes)}
 </div>
 
 <script src="/print-helpers.js"></script>
