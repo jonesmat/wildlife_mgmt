@@ -1632,8 +1632,19 @@ function getTypeFields(type) {
 
 async function saveEntry() {
   var type = document.getElementById('fType').value;
+  // Editing with an unchanged date keeps the original timestamp so the
+  // entry doesn't move in the timeline; a changed date gets a fresh time
+  var pickedDate = document.getElementById('fDatetime').value;
+  var entryDatetime = datePickerToDatetime(pickedDate);
+  var curEditId = document.getElementById('editingId').value;
+  if (curEditId) {
+    var prevEntry = allEntries.find(function(x) { return x.id === curEditId; });
+    if (prevEntry && prevEntry.datetime && prevEntry.datetime.slice(0, 10) === pickedDate) {
+      entryDatetime = prevEntry.datetime;
+    }
+  }
   var entry = {
-    datetime: datePickerToDatetime(document.getElementById('fDatetime').value),
+    datetime: entryDatetime,
     type: type,
     photos: pendingPhotos.filter(function(p) { return p.uploaded; }).map(function(p) { return p.filename; }),
     loc: (type === 'Census') ? null : pendingLoc
