@@ -186,6 +186,11 @@
     <div class="sidebar-section">Filter</div>
     <div style="padding: 8px 12px;">
       <div class="form-group" style="margin-bottom:10px">
+        <label style="font-size:0.78rem">Search</label>
+        <input type="text" id="filterSearch" placeholder="Search everything..." oninput="searchChanged()"
+               style="width:100%;padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-size:0.85rem">
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
         <label style="font-size:0.78rem">Year</label>
         <input type="number" id="filterYear" style="width:100%;padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-size:0.85rem">
       </div>
@@ -664,6 +669,7 @@ var allEntries = [];
 var pendingPhotos = []; // { dataUrl, filename, uploaded } — uploaded means already on server (filename is server filename)
 var filterYear = '';
 var filterType = '';
+var searchTerm = '';
 var sortDir = 'desc';   // 'desc' = newest first
 var visibleCount = 25;  // pagination: how many entries are shown
 var PAGE_SIZE = 25;
@@ -698,10 +704,30 @@ function applyFilter() {
 function clearFilter() {
   document.getElementById('filterYear').value = '';
   document.getElementById('filterType').value = '';
+  document.getElementById('filterSearch').value = '';
   filterYear = '';
   filterType = '';
+  searchTerm = '';
   visibleCount = PAGE_SIZE;
   renderList();
+}
+
+function searchChanged() {
+  searchTerm = document.getElementById('filterSearch').value.trim().toLowerCase();
+  visibleCount = PAGE_SIZE;
+  renderList();
+}
+
+// Omni search: match against every field value on the entry, plus the
+// computed title and the display date (so "162 3/8" or "Jun 9" hit too)
+function matchesSearch(e) {
+  if (!searchTerm) return true;
+  var hay = [entryTitle(e), e.type, formatDatetime(e.datetime)];
+  Object.keys(e).forEach(function(k) {
+    var v = e[k];
+    if (typeof v === 'string' || typeof v === 'number') hay.push(String(v));
+  });
+  return hay.join(' ').toLowerCase().indexOf(searchTerm) !== -1;
 }
 
 function toggleSort() {
@@ -777,7 +803,7 @@ function renderList() {
   var entries = allEntries.filter(function(e) {
     if (filterYear && !e.datetime.startsWith(filterYear)) return false;
     if (filterType && e.type !== filterType) return false;
-    return true;
+    return matchesSearch(e);
   });
 
   // Stats
