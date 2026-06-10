@@ -1188,6 +1188,13 @@ app.get('/report-print/:year', (req, res) => {
     .filter(function(e) { return excludedIds.indexOf(e.id) === -1; })
     .sort(function(a, b) { return a.datetime < b.datetime ? -1 : 1; });
 
+  // Per-type counts for the Supporting Documentation note
+  const logStats = {};
+  logEntries.forEach(function(e) { logStats[e.type] = (logStats[e.type] || 0) + 1; });
+  const logStatsLine = Object.keys(logStats).sort().map(function(t) {
+    return logStats[t] + ' ' + t;
+  }).join(', ');
+
   res.send(`<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8">
@@ -1237,12 +1244,11 @@ app.get('/report-print/:year', (req, res) => {
   <div style="font-size:9pt;margin-bottom:8pt">Check the activities you have implemented during the year to support each of the wildlife management activities listed in Part II.</div>
   ${renderActivitiesPrint(activities, '')}
 
-  <div class="section-head">Activity Log — ${esc(year)}</div>
-  <div style="font-size:9pt;margin-bottom:6pt">Entries recorded throughout the year. Photos are embedded below each entry.</div>
-  ${renderLogEntries(logEntries, data.propertyImages)}
-
   <div class="section-head">Part V. Supporting Documentation</div>
-  <div class="box" style="min-height:80pt">Attach copies of supporting documentation such as receipts, maps, photos, etc. Use additional pages if necessary.</div>
+  <div class="box" style="min-height:80pt">
+    <div>Attach copies of supporting documentation such as receipts, maps, photos, etc. Use additional pages if necessary.</div>
+    ${logEntries.length ? '<div style="margin-top:6pt;padding:5pt 8pt;background:#f0f4ee;border:0.5pt solid #b8c8b0;border-radius:3pt;font-size:9pt"><strong>Attached:</strong> An Activity Log for ' + esc(year) + ' follows this report — ' + logEntries.length + ' entr' + (logEntries.length === 1 ? 'y' : 'ies') + ' (' + esc(logStatsLine) + ') with photos and property locations.</div>' : ''}
+  </div>
 
   <div class="sig-area">
     <div style="font-size:9pt">I certify that the above information provided by me is to the best of my knowledge and belief, true and complete.</div>
@@ -1253,6 +1259,12 @@ app.get('/report-print/:year', (req, res) => {
   </div>
   <div class="footer-note">Texas Parks and Wildlife does not maintain the information collected through this form. This completed form is only provided to the County Tax Appraiser. Please inquire with your County Central Appraisal District on any local laws concerning any information collected through this form.</div>
   <div class="form-num">PWD 888-W7000 (07/08)</div>
+</div>
+
+<div class="page">
+  <div class="section-head">Activity Log — ${esc(year)}</div>
+  <div style="font-size:9pt;margin-bottom:6pt">Supporting documentation: entries recorded throughout the year. Photos and property locations are embedded below each entry.</div>
+  ${renderLogEntries(logEntries, data.propertyImages)}
 </div>
 
 <script src="/print-helpers.js"></script>
