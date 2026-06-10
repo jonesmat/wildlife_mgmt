@@ -272,13 +272,48 @@ function render() {
   section.style.display = '';
   document.getElementById('pastGrid').innerHTML = past.map(function(img) {
     return '<div class="past-card">' +
-      '<img src="/property-images/' + img.filename + '" alt="">' +
+      '<img ' + propThumbAttr(img.filename) + ' alt="">' +
       '<div class="past-body">' +
         '<div class="past-date">Uploaded ' + fmtDate(img.uploadedAt) + '</div>' +
         '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px" onclick="activate(\'' + img.id + '\')">Use This Image</button>' +
       '</div>' +
     '</div>';
   }).join('');
+}
+
+// Scale an image dataURL down so its longest side is maxDim, as JPEG
+function makeScaledDataUrl(dataUrl, maxDim, quality, forceReencode) {
+  return new Promise(function(resolve) {
+    var img = new Image();
+    img.onload = function() {
+      var scale = maxDim / Math.max(img.width, img.height);
+      if (scale >= 1) {
+        if (!forceReencode) { resolve(dataUrl); return; }
+        scale = 1;
+      }
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = function() { resolve(dataUrl); };
+    img.src = dataUrl;
+  });
+}
+
+var PHOTO_MAX_DIMS = { high: 2400, balanced: 1600, compact: 1200 };
+
+async function downscaleForUpload(dataUrl) {
+  var maxDim = PHOTO_MAX_DIMS[document.getElementById('photoQuality').value];
+  if (!maxDim) return dataUrl; // 'original'
+  var qualities = [0.8, 0.65, 0.5];
+  var out = dataUrl;
+  for (var i = 0; i < qualities.length; i++) {
+    out = await makeScaledDataUrl(dataUrl, maxDim, qualities[i], true);
+    if (out.length * 0.75 < 1024 * 1024) break;
+  }
+  return (out.length < dataUrl.length) ? out : dataUrl;
 }
 
 function uploadImage(input) {
@@ -289,10 +324,13 @@ function uploadImage(input) {
   var reader = new FileReader();
   reader.onload = async function() {
     try {
+      // Same downscaling as photos; maps get a larger 480px thumb to stay legible
+      var dataUrl = await downscaleForUpload(reader.result);
+      var thumbUrl = await makeScaledDataUrl(dataUrl, 480, 0.72);
       var resp = await fetch('/api/property-images', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dataUrl: reader.result, filename: file.name })
+        body: JSON.stringify({ dataUrl: dataUrl, thumbUrl: thumbUrl, filename: file.name })
       });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       status.textContent = '';
@@ -304,6 +342,11 @@ function uploadImage(input) {
     input.value = '';
   };
   reader.readAsDataURL(file);
+}
+
+// thumb src with fallback for property images uploaded before thumbnails existed
+function propThumbAttr(filename) {
+  return 'src="/property-images/thumb-' + filename + '" onerror="this.onerror=null;this.src=\'/property-images/' + filename + '\'"';
 }
 
 async function activate(id) {
@@ -485,7 +528,7 @@ function renderRoutes() {
     var fn = imgFileById(r.imageId);
     var preview = fn
       ? '<div style="position:relative;width:220px;flex-shrink:0;border-radius:6px;overflow:hidden;border:1px solid #ddd">' +
-          '<img src="/property-images/' + fn + '" style="width:100%;display:block">' +
+          '<img ' + propThumbAttr(fn) + ' style="width:100%;display:block">' +
           '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%">' +
             routeSvgMarkup(r.points) + '</svg>' +
         '</div>'

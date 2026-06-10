@@ -316,6 +316,11 @@ app.post('/api/property-images', (req, res) => {
   var base64 = dataUrl.replace(/^data:image\/[^;]+;base64,/, '');
   if (!fs.existsSync(PROPERTY_IMAGES_DIR)) fs.mkdirSync(PROPERTY_IMAGES_DIR, { recursive: true });
   fs.writeFileSync(path.join(PROPERTY_IMAGES_DIR, filename), Buffer.from(base64, 'base64'));
+  var thumbUrl = req.body.thumbUrl || '';
+  if (thumbUrl) {
+    var thumb64 = thumbUrl.replace(/^data:image\/[^;]+;base64,/, '');
+    fs.writeFileSync(path.join(PROPERTY_IMAGES_DIR, 'thumb-' + filename), Buffer.from(thumb64, 'base64'));
+  }
 
   const data = loadData();
   data.propertyImages.push({

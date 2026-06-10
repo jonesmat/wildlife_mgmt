@@ -77,6 +77,12 @@
   }
   .trophy-title { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.02em; color: #e8d9a8; }
   .trophy-subtitle { font-size: 0.8rem; color: #a8b29a; margin: 3px 0 16px; font-style: italic; }
+  .fact-chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+  .fact-chip {
+    background: rgba(233,217,168,0.1); border: 1px solid rgba(233,217,168,0.25);
+    border-radius: 18px; padding: 7px 14px; font-size: 0.82rem; color: #e8e0c8;
+  }
+  .fact-chip strong { color: #f3e9c8; }
   .trophy-gallery { display: flex; gap: 14px; flex-wrap: wrap; }
   .trophy-card {
     width: 158px; border-radius: 8px; overflow: hidden; cursor: pointer;
@@ -246,21 +252,52 @@
     return eighths ? whole + ' ' + eighths + '/8' : String(whole);
   }
 
+  // Celebratory facts about this year's work on the ranch
+  function yearFactChips(entries) {
+    var year = String(new Date().getFullYear());
+    var acres = 0, predators = 0, census = 0, sightings = 0, activities = 0, invested = 0, photos = 0;
+    entries.forEach(function(e) {
+      if (!e.datetime || !e.datetime.startsWith(year)) return;
+      photos += (e.photos || []).length;
+      if (e.type === 'Activity') { activities++; acres += parseFloat(e['ac-acres']) || 0; }
+      if (e.type === 'Predator Control') predators += parseInt(e['pc-count'], 10) || 1;
+      if (e.type === 'Census') census++;
+      if (e.type === 'Sighting') sightings++;
+      if (e.type === 'Purchase') invested += parseFloat(e['pu-cost']) || 0;
+    });
+    var facts = [];
+    if (acres) facts.push('🌳 <strong>' + Math.round(acres).toLocaleString() + ' acres</strong> of habitat improved');
+    if (activities) facts.push('🚜 <strong>' + activities + '</strong> management ' + (activities === 1 ? 'activity' : 'activities') + ' completed');
+    if (census) facts.push('📊 <strong>' + census + '</strong> census ' + (census === 1 ? 'survey' : 'surveys') + ' run');
+    if (predators) facts.push('🪤 <strong>' + predators + '</strong> predators removed');
+    if (sightings) facts.push('👀 <strong>' + sightings + '</strong> wildlife sightings logged');
+    if (invested) facts.push('💰 <strong>$' + Math.round(invested).toLocaleString() + '</strong> invested in the habitat');
+    if (photos) facts.push('📷 <strong>' + photos + '</strong> photos captured');
+    if (!facts.length) return '';
+    return '<div class="trophy-title">🌿 ' + year + ' on the Ranch</div>' +
+      '<div class="trophy-subtitle">A year of stewardship worth celebrating</div>' +
+      '<div class="fact-chips">' +
+        facts.map(function(f) { return '<div class="fact-chip">' + f + '</div>'; }).join('') +
+      '</div>';
+  }
+
   async function loadTrophies() {
     var board = document.getElementById('trophyBoard');
     var entries;
     try { entries = await (await fetch('/api/log')).json(); }
     catch (e) { return; }
+    var factsHtml = yearFactChips(entries);
     var scored = entries.filter(function(e) {
       return e.type === 'Harvest' && parseFloat(e['hv-bc-net']) > 0;
     });
-    if (!scored.length) return;
+    if (!scored.length && !factsHtml) return;
     // Chronological, newest first — a gallery of the animals, not a leaderboard
     scored.sort(function(a, b) { return (b.datetime || '') < (a.datetime || '') ? -1 : 1; });
     var shown = scored.slice(0, 6);
 
     board.style.display = '';
-    board.innerHTML =
+    board.innerHTML = factsHtml +
+      (!shown.length ? '' :
       '<div class="trophy-title">🦌 Remarkable Whitetails</div>' +
       '<div class="trophy-subtitle">Celebrating the deer this land has raised</div>' +
       '<div class="trophy-gallery">' +
@@ -280,7 +317,7 @@
             '<div class="trophy-detail">' + detail + '</div>' +
           '</div></div>';
       }).join('') +
-      '</div>';
+      '</div>');
   }
 
   loadYears();

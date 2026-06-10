@@ -441,7 +441,7 @@ function renderLogEntries() {
       var locHtml = '';
       if (e.loc && e.loc.img && propImgFile(e.loc.img)) {
         locHtml = '<div style="position:relative;max-width:280px;margin-top:8px;border:1px solid #ddd;border-radius:6px;overflow:hidden">' +
-          '<img src="/property-images/' + propImgFile(e.loc.img) + '" style="width:100%;display:block" alt="Location">' +
+          '<img src="/property-images/thumb-' + propImgFile(e.loc.img) + '" onerror="this.onerror=null;this.src=\'/property-images/' + propImgFile(e.loc.img) + '\'" style="width:100%;display:block" alt="Location">' +
           '<span style="position:absolute;left:' + (e.loc.x * 100) + '%;top:' + (e.loc.y * 100) + '%;transform:translate(-50%,-50%);color:#e01818;font-size:24px;font-weight:700;line-height:1;text-shadow:0 0 3px #fff,0 0 6px #fff;pointer-events:none">&#10010;</span>' +
         '</div>';
       }
@@ -450,7 +450,7 @@ function renderLogEntries() {
       if (route && route.points && route.points.length && propImgFile(route.imageId)) {
         var rpts = route.points.map(function(p) { return (p.x * 100) + ',' + (p.y * 100); }).join(' ');
         locHtml += '<div style="position:relative;max-width:280px;margin-top:8px;border:1px solid #ddd;border-radius:6px;overflow:hidden">' +
-          '<img src="/property-images/' + propImgFile(route.imageId) + '" style="width:100%;display:block" alt="Route">' +
+          '<img src="/property-images/thumb-' + propImgFile(route.imageId) + '" onerror="this.onerror=null;this.src=\'/property-images/' + propImgFile(route.imageId) + '\'" style="width:100%;display:block" alt="Route">' +
           '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">' +
             '<polyline points="' + rpts + '" fill="none" stroke="#e01818" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>' +
           '</svg>' +

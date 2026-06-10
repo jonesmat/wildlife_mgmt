@@ -1492,7 +1492,7 @@ function locDetailHtml(e) {
   return '<div style="margin-top:10px">' +
     '<div style="font-size:0.72rem;font-weight:600;color:#777;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px">Location</div>' +
     '<div style="position:relative;max-width:320px;border:1px solid #ddd;border-radius:6px;overflow:hidden">' +
-      '<img src="/property-images/' + fn + '" style="width:100%;display:block" alt="Location on property">' +
+      '<img src="/property-images/thumb-' + fn + '" onerror="this.onerror=null;this.src=\'/property-images/' + fn + '\'" style="width:100%;display:block" alt="Location on property">' +
       '<span class="loc-crosshair" style="left:' + (e.loc.x * 100) + '%;top:' + (e.loc.y * 100) + '%">&#10010;</span>' +
     '</div></div>';
 }
