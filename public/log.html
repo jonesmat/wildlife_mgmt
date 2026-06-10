@@ -214,7 +214,7 @@
             <input type="hidden" id="hv-species">
           </div>
           <div class="form-group"><label>Sex</label>
-            <select id="hv-sex"><option value="">--</option><option>Buck</option><option>Doe</option><option>Tom</option><option>Hen</option><option>Male</option><option>Female</option><option>Unknown</option></select>
+            <select id="hv-sex"><option value="">--</option><option>Male</option><option>Female</option><option>Unknown</option></select>
           </div>
           <div class="form-group"><label>Age Class</label>
             <select id="hv-age"><option value="">--</option><option>Fawn</option><option>1.5</option><option>2.5</option><option>3.5</option><option>4.5</option><option>5.5+</option><option>Unknown</option></select>
@@ -715,6 +715,9 @@ function editEntry(id) {
   }
   // Populate species dropdowns
   populateSpeciesField('hv', e['hv-species']);
+  // Map legacy sex values (Buck/Doe/Tom/Hen) onto the simplified options
+  var legacySex = { 'Buck': 'Male', 'Tom': 'Male', 'Doe': 'Female', 'Hen': 'Female' };
+  if (legacySex[e['hv-sex']]) document.getElementById('hv-sex').value = legacySex[e['hv-sex']];
   updateHarvestFields();
   // Reopen B&C panel if this entry was scored
   if (e.type === 'Harvest') {
