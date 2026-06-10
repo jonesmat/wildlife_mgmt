@@ -1021,6 +1021,7 @@ app.get('/plan-print', (req, res) => {
 <html lang="en"><head>
 <meta charset="UTF-8">
 <title>PWD 885 - Wildlife Management Plan</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="/print-shared.css">
 </head><body>
 <div class="print-btn-bar no-print">
@@ -1191,6 +1192,7 @@ app.get('/report-print/:year', (req, res) => {
 <html lang="en"><head>
 <meta charset="UTF-8">
 <title>PWD 888 - ${year} Annual Report</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="/print-shared.css">
 </head><body>
 <div class="print-btn-bar no-print">
