@@ -1,15 +1,19 @@
 // Writes public/version.js with the deployed commit.
 //
-// Cloudflare Pages (GitHub-sync deploys) runs this as the build command —
-// set Build command: `npm run build` and Build output directory: `public`
-// in the Pages project settings. Pages provides CF_PAGES_COMMIT_SHA and
-// CF_PAGES_BRANCH at build time; running locally falls back to git.
+// Cloudflare Workers Builds (GitHub-sync deploys) runs this as the build
+// command — set Build command: `npm run build` in the Worker's Build
+// settings; the deploy command (`npx wrangler deploy`) then uploads the
+// `public` assets directory per wrangler.jsonc. Workers Builds provides
+// WORKERS_CI_COMMIT_SHA and WORKERS_CI_BRANCH at build time (the old
+// CF_PAGES_* vars are kept as a fallback); running locally falls back
+// to git.
 
 const fs = require('fs');
 const { execSync } = require('child_process');
 
 function shortSha() {
-  if (process.env.CF_PAGES_COMMIT_SHA) return process.env.CF_PAGES_COMMIT_SHA.slice(0, 7);
+  const envSha = process.env.WORKERS_CI_COMMIT_SHA || process.env.CF_PAGES_COMMIT_SHA;
+  if (envSha) return envSha.slice(0, 7);
   try {
     return execSync('git rev-parse --short HEAD').toString().trim();
   } catch (e) {
@@ -18,7 +22,7 @@ function shortSha() {
 }
 
 const sha = shortSha();
-const branch = process.env.CF_PAGES_BRANCH || '';
+const branch = process.env.WORKERS_CI_BRANCH || process.env.CF_PAGES_BRANCH || '';
 const date = new Date().toISOString().slice(0, 10);
 const version = sha
   ? sha + (branch && branch !== 'main' ? ' (' + branch + ')' : '') + ' · ' + date
