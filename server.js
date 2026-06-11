@@ -71,6 +71,15 @@ app.get('/trends', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'trends.html'));
 });
 
+// Trust pages (Cloudflare serves these as clean URLs natively)
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+});
+
+app.get('/terms', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'terms.html'));
+});
+
 // Print views are client-rendered from local storage
 app.get('/plan-print', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'plan-print.html'));
