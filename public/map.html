@@ -296,7 +296,7 @@ function render() {
     return '<div class="map-pin pin-' + e.type.split(' ')[0] + sel + '"' +
       ' style="left:' + (e.loc.x * 100) + '%;top:' + (e.loc.y * 100) + '%"' +
       ' title="' + escHtml(entryTitle(e)) + ' — ' + fmtDate(e.datetime) + '"' +
-      ' onclick="selectPin(\'' + e.id + '\')">' +
+      ' onclick="selectPin(\'' + sanFn(e.id) + '\')">' +
       (TYPE_ICONS[e.type] || '📌') +
     '</div>';
   }).join('');

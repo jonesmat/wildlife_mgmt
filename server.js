@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 
 const app = express();
@@ -8,6 +9,15 @@ app.disable('x-powered-by');
 // All app data lives in the browser (IndexedDB via public/store.js and
 // public/sw.js). This server only hosts static files and page routes —
 // it reads and writes nothing on disk.
+
+// Loopback-only single-user server, so the ceiling is generous — this just
+// caps runaway request loops while keeping every route rate-limited.
+app.use(rateLimit({
+  windowMs: 60 * 1000,
+  limit: 600,
+  standardHeaders: true,
+  legacyHeaders: false
+}));
 
 // Same security headers the Cloudflare deployment sets via public/_headers
 // (minus HSTS, which doesn't apply to plain-http localhost). The app stores

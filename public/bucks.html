@@ -106,6 +106,12 @@ function escHtml(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+function escAttr(s) {
+  if (!s) return '';
+  return String(s).replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
 
 function fmtDate(s) {
   if (!s) return '';
@@ -185,9 +191,10 @@ function render() {
     }).join('');
     if (!timeline) timeline = '<div style="color:#999;font-size:0.82rem;font-style:italic">No linked entries yet — link Harvest or Sighting entries to this buck in the Activity Log.</div>';
 
+    var bid = sanFn(b.id);
     var statusControl = (status === 'Harvested')
       ? ''
-      : '<select onchange="setStatus(\'' + b.id + '\', this.value)">' +
+      : '<select onchange="setStatus(\'' + bid + '\', this.value)">' +
           '<option' + (b.status === 'Watching' ? ' selected' : '') + '>Watching</option>' +
           '<option' + (b.status === 'Gone' ? ' selected' : '') + '>Gone</option>' +
         '</select>';
@@ -203,14 +210,14 @@ function render() {
         '</div>' +
         '<div class="buck-actions">' +
           statusControl +
-          '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px" onclick="toggleEdit(\'' + b.id + '\')">Edit</button>' +
-          '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px;color:#8b1a1a" onclick="deleteBuck(\'' + b.id + '\')">Delete</button>' +
+          '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px" onclick="toggleEdit(\'' + bid + '\')">Edit</button>' +
+          '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px;color:#8b1a1a" onclick="deleteBuck(\'' + bid + '\')">Delete</button>' +
         '</div>' +
       '</div>' +
-      '<div class="buck-edit" id="edit-' + b.id + '">' +
-        '<div class="form-group" style="flex:1;min-width:160px"><label>Name</label><input type="text" id="editName-' + b.id + '" value="' + escHtml(b.name).replace(/"/g, '&quot;') + '"></div>' +
-        '<div class="form-group" style="flex:2;min-width:200px"><label>Notes</label><input type="text" id="editNotes-' + b.id + '" value="' + escHtml(b.notes).replace(/"/g, '&quot;') + '"></div>' +
-        '<button class="btn btn-primary" style="font-size:0.82rem;padding:7px 14px" onclick="saveEdit(\'' + b.id + '\')">Save</button>' +
+      '<div class="buck-edit" id="edit-' + bid + '">' +
+        '<div class="form-group" style="flex:1;min-width:160px"><label>Name</label><input type="text" id="editName-' + bid + '" value="' + escAttr(b.name) + '"></div>' +
+        '<div class="form-group" style="flex:2;min-width:200px"><label>Notes</label><input type="text" id="editNotes-' + bid + '" value="' + escAttr(b.notes) + '"></div>' +
+        '<button class="btn btn-primary" style="font-size:0.82rem;padding:7px 14px" onclick="saveEdit(\'' + bid + '\')">Save</button>' +
       '</div>' +
       '<div class="buck-timeline">' + timeline + '</div>' +
     '</div>';

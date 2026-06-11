@@ -646,7 +646,7 @@ function render() {
       '<img ' + propThumbAttr(img.filename) + ' alt="">' +
       '<div class="past-body">' +
         '<div class="past-date">Uploaded ' + fmtDate(img.uploadedAt) + '</div>' +
-        '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px" onclick="activate(\'' + img.id + '\')">Use This Image</button>' +
+        '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px" onclick="activate(\'' + sanFn(img.id) + '\')">Use This Image</button>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -1107,8 +1107,8 @@ function renderRoutes() {
         '<div style="font-weight:600;font-size:0.95rem;color:#1a4a1a">' + escHtml(r.name) + '</div>' +
         '<div style="font-size:0.8rem;color:#777;margin-top:4px">' + r.points.length + ' points &middot; Created ' + fmtDate(r.createdAt) + '</div>' +
         '<div style="display:flex;gap:8px;margin-top:10px">' +
-          '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px" onclick="startEditRoute(\'' + r.id + '\')">Edit</button>' +
-          '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px;color:#8b1a1a" onclick="deleteRoute(\'' + r.id + '\')">Delete</button>' +
+          '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px" onclick="startEditRoute(\'' + sanFn(r.id) + '\')">Edit</button>' +
+          '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px;color:#8b1a1a" onclick="deleteRoute(\'' + sanFn(r.id) + '\')">Delete</button>' +
         '</div>' +
       '</div>' +
     '</div>';
