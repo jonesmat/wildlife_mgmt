@@ -1,8 +1,9 @@
 // Optional Google Drive sync. The standard export archive (same format as
 // the manual backup file) is stored in the user's Drive appDataFolder — a
 // hidden, app-private area that only this app's OAuth client can see. OAuth
-// runs entirely in the browser via Google Identity Services; there is no
-// server and no tokens are stored (Google re-issues them per session).
+// runs entirely in the browser via Google Identity Services; the short-lived
+// access token is cached locally (see TOKEN_KEY) so syncs don't re-open the
+// OAuth popup on every page load.
 //
 // Requires a Google OAuth Client ID (Web application). Either hardcode it in
 // DEFAULT_CLIENT_ID below for your deployment, or paste it in
@@ -47,10 +48,39 @@
   var tokenExpires = 0;
   var tokenClient = null;
 
+  // Tokens from the GIS token client live only in page memory, and
+  // requestAccessToken() ALWAYS opens the OAuth popup — even when Google
+  // needs no input from the user. Without caching, every page load's
+  // auto-sync pops the OAuth window. Persisting the short-lived access
+  // token across page loads means at most ~one popup per hour. Trade-off:
+  // the token sits in localStorage, but it is scoped to this app's hidden
+  // Drive folder + email only and expires within the hour.
+  var TOKEN_KEY = 'gsync-token';
+
+  function loadCachedToken() {
+    try {
+      var t = JSON.parse(localStorage.getItem(TOKEN_KEY));
+      if (t && t.clientId === clientId() && Date.now() < t.expiresAt - 120000) return t;
+    } catch (e) { /* fall through */ }
+    return null;
+  }
+
+  function clearCachedToken() {
+    accessToken = null;
+    tokenExpires = 0;
+    localStorage.removeItem(TOKEN_KEY);
+  }
+
   // interactive=false must never show UI: it only succeeds when Google can
   // mint a token from an existing session + prior grant.
   function getToken(interactive) {
     if (accessToken && Date.now() < tokenExpires - 60000) return Promise.resolve(accessToken);
+    var cached = loadCachedToken();
+    if (cached) {
+      accessToken = cached.token;
+      tokenExpires = cached.expiresAt;
+      return Promise.resolve(accessToken);
+    }
     if (!clientId()) return Promise.reject(new Error('No Google Client ID configured.'));
     return loadGis().then(function() {
       return new Promise(function(resolve, reject) {
@@ -66,6 +96,11 @@
           if (resp.error) { reject(new Error(resp.error_description || resp.error)); return; }
           accessToken = resp.access_token;
           tokenExpires = Date.now() + (parseInt(resp.expires_in, 10) || 3600) * 1000;
+          try {
+            localStorage.setItem(TOKEN_KEY, JSON.stringify({
+              token: accessToken, expiresAt: tokenExpires, clientId: clientId()
+            }));
+          } catch (e) { /* private mode etc. — cache is best-effort */ }
           resolve(accessToken);
         };
         tokenClient.error_callback = function(err) {
@@ -83,7 +118,10 @@
     opts.headers = opts.headers || {};
     opts.headers['Authorization'] = 'Bearer ' + accessToken;
     return fetch('https://www.googleapis.com' + path, opts).then(function(r) {
-      if (r.status === 401) throw new Error('Google session expired — sync again to reconnect.');
+      if (r.status === 401) {
+        clearCachedToken();
+        throw new Error('Google session expired — sync again to reconnect.');
+      }
       return r;
     });
   }
@@ -294,8 +332,7 @@
 
   function disconnect() {
     var done = function() {
-      accessToken = null;
-      tokenExpires = 0;
+      clearCachedToken();
       localStorage.removeItem('gsync-meta');
       localStorage.removeItem('gsync-auto');
     };
@@ -316,7 +353,7 @@
       if (id) localStorage.setItem('gsync-client-id', id);
       else localStorage.removeItem('gsync-client-id');
       tokenClient = null;
-      accessToken = null;
+      clearCachedToken();
     },
     meta: meta,
     syncNow: syncNow,
