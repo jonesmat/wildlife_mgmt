@@ -71,11 +71,17 @@
         <select id="imageSelect" onchange="imageChanged()"></select>
       </span>
       <span>
-        <label><input type="checkbox" id="allYears" checked onchange="render()"> All years</label>
+        <label>Years:</label>
+        <select id="yearFrom" onchange="yearRangeChanged('from')"></select>
+        <label style="font-weight:400">to</label>
+        <select id="yearTo" onchange="yearRangeChanged('to')"></select>
+      </span>
+      <span>
+        <label><input type="checkbox" id="allYears" checked onchange="render()"> All months</label>
       </span>
       <span id="sliderWrap" style="opacity:0.4">
-        <input type="range" id="yearSlider" oninput="sliderMoved()" disabled>
-        <span class="year-label" id="yearLabel">—</span>
+        <input type="range" id="yearSlider" style="width:240px" oninput="sliderMoved()" disabled>
+        <span class="year-label" id="yearLabel" style="min-width:74px">—</span>
       </span>
       <span>
         <label><input type="checkbox" id="showRoutes" checked onchange="render()"> Show routes</label>
@@ -156,6 +162,7 @@ async function init() {
     document.getElementById('imageSelectWrap').style.display = '';
   }
 
+  populateYearSelects();
   setupSlider();
   render();
 }
@@ -166,28 +173,84 @@ function locatedEntries() {
   });
 }
 
+// The slider steps month by month; values are month indexes (year*12 + month-1)
+function monthIdxLabel(idx) {
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return months[idx % 12] + ' ' + Math.floor(idx / 12);
+}
+
+function monthIdxToYM(idx) {
+  return Math.floor(idx / 12) + '-' + String((idx % 12) + 1).padStart(2, '0');
+}
+
+function yearRange() {
+  return {
+    from: +document.getElementById('yearFrom').value,
+    to: +document.getElementById('yearTo').value
+  };
+}
+
+// Year options: every year with a located entry on this image, plus the
+// current year. Defaults to current year → current year.
+function populateYearSelects() {
+  var current = new Date().getFullYear();
+  var years = {};
+  years[current] = true;
+  locatedEntries().forEach(function(e) {
+    var y = parseInt((e.datetime || '').slice(0, 4), 10);
+    if (y > 1900) years[y] = true;
+  });
+  var list = Object.keys(years).map(Number).sort(function(a, b) { return a - b; });
+  ['yearFrom', 'yearTo'].forEach(function(id) {
+    var sel = document.getElementById(id);
+    var prev = sel.value;
+    sel.innerHTML = '';
+    list.forEach(function(y) {
+      var opt = document.createElement('option');
+      opt.value = y;
+      opt.textContent = y;
+      sel.appendChild(opt);
+    });
+    sel.value = (prev && list.indexOf(+prev) !== -1) ? prev : current;
+  });
+}
+
+function yearRangeChanged(which) {
+  // Keep from <= to by dragging the other end along
+  var r = yearRange();
+  if (r.from > r.to) {
+    if (which === 'from') document.getElementById('yearTo').value = r.from;
+    else document.getElementById('yearFrom').value = r.to;
+  }
+  setupSlider();
+  render();
+}
+
 function setupSlider() {
-  var years = locatedEntries().map(function(e) { return parseInt((e.datetime || '').slice(0, 4), 10); })
-    .filter(function(y) { return y > 1900; });
+  // Slider scrubs the months inside the selected year range
+  var r = yearRange();
   var slider = document.getElementById('yearSlider');
-  var min = years.length ? Math.min.apply(null, years) : new Date().getFullYear();
-  var max = years.length ? Math.max.apply(null, years) : new Date().getFullYear();
-  slider.min = min;
-  slider.max = max;
-  slider.value = max;
-  document.getElementById('yearLabel').textContent = slider.value;
+  var prev = +slider.value;
+  slider.min = r.from * 12;
+  slider.max = r.to * 12 + 11;
+  var now = new Date();
+  var nowIdx = now.getFullYear() * 12 + now.getMonth();
+  var def = Math.min(Math.max(nowIdx, +slider.min), +slider.max);
+  slider.value = (prev >= +slider.min && prev <= +slider.max) ? prev : def;
+  document.getElementById('yearLabel').textContent = monthIdxLabel(+slider.value);
 }
 
 function imageChanged() {
   selectedImageId = document.getElementById('imageSelect').value;
   selectedEntryId = null;
   document.getElementById('mapDetail').classList.remove('open');
+  populateYearSelects();
   setupSlider();
   render();
 }
 
 function sliderMoved() {
-  document.getElementById('yearLabel').textContent = document.getElementById('yearSlider').value;
+  document.getElementById('yearLabel').textContent = monthIdxLabel(+document.getElementById('yearSlider').value);
   render();
 }
 
@@ -218,10 +281,13 @@ function render() {
     routeSvg.innerHTML = '';
   }
 
-  // Pins
-  var year = String(slider.value);
+  // Pins, filtered to the year range, then the selected month when scrubbing
+  var r = yearRange();
+  var ym = monthIdxToYM(+slider.value);
   var shown = locatedEntries().filter(function(e) {
-    return allYears || (e.datetime || '').startsWith(year);
+    var y = parseInt((e.datetime || '').slice(0, 4), 10);
+    if (!(y >= r.from && y <= r.to)) return false;
+    return allYears || (e.datetime || '').slice(0, 7) === ym;
   });
   document.getElementById('pinLayer').innerHTML = shown.map(function(e) {
     var sel = (e.id === selectedEntryId) ? ' selected' : '';
@@ -233,9 +299,10 @@ function render() {
     '</div>';
   }).join('');
 
+  var rangeLabel = (r.from === r.to) ? String(r.from) : r.from + '–' + r.to;
   document.getElementById('pinCount').textContent =
     shown.length + ' located ' + (shown.length === 1 ? 'entry' : 'entries') +
-    (allYears ? '' : ' in ' + year);
+    ' in ' + (allYears ? rangeLabel : monthIdxLabel(+slider.value));
 }
 
 function selectPin(id) {
