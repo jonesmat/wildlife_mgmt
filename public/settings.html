@@ -42,6 +42,7 @@
   max-width: calc(100vw - 48px); box-shadow: 0 8px 32px rgba(0,0,0,0.25);
 }
 </style>
+<script src="/google-sync.js"></script>
 <link rel="stylesheet" href="/mobile.css">
 </head>
 <body>
@@ -60,6 +61,7 @@
     <div class="sidebar-item" id="nav-photos" onclick="showPane('photos')">Photos</div>
     <div class="sidebar-item" id="nav-calendar" onclick="showPane('calendar')">Calendar</div>
     <div class="sidebar-item" id="nav-data" onclick="showPane('data')">Data Export &amp; Restore</div>
+    <div class="sidebar-item" id="nav-gsync" onclick="showPane('gsync')">Google Sync</div>
     <div class="sidebar-item" id="nav-appinfo" onclick="showPane('appinfo')">App Info</div>
   </nav>
 
@@ -457,11 +459,12 @@ Deliver a single file named `tpwd_wildlife_management_calendar.json` containing 
       <div class="section-title">Data Export &amp; Restore</div>
 
       <div class="hint-block" style="border-color:#b8d0b8;background:#f0f7ee">
-        🔒 <strong>Your data never leaves this browser.</strong> Everything — the plan, reports,
-        log entries, photos, and maps — is stored locally on this device and is never sent to or
-        stored on any server. That means regular exports are your only backup: if this browser's
-        site data is cleared or the device is lost, the data is gone. It also means another
-        browser or device starts empty until you import a backup there.
+        🔒 <strong>Your data stays in this browser</strong> unless you enable Google Sync.
+        Everything — the plan, reports, log entries, photos, and maps — is stored locally on
+        this device and is never sent to this site's server. Regular exports (or Google Sync)
+        are your only backup: if this browser's site data is cleared or the device is lost, the
+        data is gone. Another browser or device starts empty until you import a backup there or
+        sync it from Google Drive.
       </div>
 
       <div class="sub-section" style="margin-top:20px">
@@ -494,6 +497,56 @@ Deliver a single file named `tpwd_wildlife_management_calendar.json` containing 
           archive backup first.
         </div>
         <button class="btn btn-secondary" style="margin-top:10px;color:#8b1a1a" onclick="openClearModal()">Clear All Data...</button>
+      </div>
+    </div>
+
+    <!-- Google Sync pane -->
+    <div class="section" id="gsync" style="display:none">
+      <div class="section-title">Google Sync</div>
+
+      <div class="hint-block" style="border-color:#b8d0b8;background:#f0f7ee">
+        Optional: keep a copy of your data in <strong>your own Google Drive</strong> and sync it
+        between devices. The backup goes to Drive's hidden app-data area that only this app can
+        see. Turning this on means your data (including the PII in your plan) leaves this browser
+        and is stored in your Google account — leave it off if you prefer strictly local storage.
+      </div>
+
+      <div class="sub-section" id="gsyncSetup" style="margin-top:20px;display:none">
+        <div class="section-subtitle">One-time setup</div>
+        <div class="hint-block">
+          Sync needs a (free) Google OAuth Client ID so Google knows this app is yours.
+          In <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a>:
+          create a project &rarr; enable the <strong>Google Drive API</strong> &rarr; configure the
+          OAuth consent screen (External, just yourself as test user is fine) &rarr; create an
+          <strong>OAuth client ID</strong> of type <strong>Web application</strong> with this
+          site's address as an authorized JavaScript origin. Paste the client ID here.
+        </div>
+        <div class="form-group" style="max-width:440px;margin-top:10px">
+          <label>Google OAuth Client ID</label>
+          <input type="text" id="gsyncClientId" placeholder="1234567890-xxxx.apps.googleusercontent.com">
+        </div>
+        <button class="btn btn-primary" onclick="gsyncSaveClientId()">Save Client ID</button>
+      </div>
+
+      <div class="sub-section" id="gsyncMain" style="margin-top:20px;display:none">
+        <div class="section-subtitle">Sync</div>
+        <div id="gsyncAccount" style="font-size:0.9rem;color:#555;margin-bottom:10px"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-primary" id="gsyncNowBtn" onclick="gsyncNow()">Sync Now</button>
+          <label class="checkbox-item" style="font-size:0.88rem">
+            <input type="checkbox" id="gsyncAuto" onchange="gsync.setAuto(this.checked)">
+            Sync automatically when the app opens
+          </label>
+        </div>
+        <div id="gsyncStatus" style="font-size:0.85rem;color:#777;margin-top:10px"></div>
+        <div style="margin-top:18px">
+          <button class="btn btn-secondary" style="color:#8b1a1a" onclick="gsyncDisconnect()">Disconnect &amp; forget sync state</button>
+          <div class="hint" style="margin-top:6px">
+            Disconnecting stops syncing from this browser and revokes its access. The copy already
+            in your Google Drive is not deleted &mdash; manage it under Google Drive &rarr;
+            Settings &rarr; Manage apps.
+          </div>
+        </div>
       </div>
     </div>
 
@@ -686,7 +739,7 @@ function escHtml(s) {
 
 // ── Pane switching ──
 function showPane(p) {
-  ['property', 'routes', 'photos', 'calendar', 'data', 'appinfo'].forEach(function(id) {
+  ['property', 'routes', 'photos', 'calendar', 'data', 'gsync', 'appinfo'].forEach(function(id) {
     document.getElementById(id).style.display = (id === p) ? '' : 'none';
     document.getElementById('nav-' + id).classList.toggle('active', id === p);
   });
@@ -1171,6 +1224,58 @@ async function deleteRoute(id) {
 
 // Arrived from a Census entry's "+ Create route" link?
 var createRouteReturn = new URLSearchParams(location.search).get('createRoute') === '1';
+
+// ── Google Sync pane ──
+
+function renderGsyncPane() {
+  var configured = gsync.isConfigured();
+  document.getElementById('gsyncSetup').style.display = configured ? 'none' : '';
+  document.getElementById('gsyncMain').style.display = configured ? '' : 'none';
+  if (!configured) return;
+  var m = gsync.meta();
+  document.getElementById('gsyncAccount').textContent = m.email
+    ? 'Syncing with Google Drive as ' + m.email
+    : 'Not connected yet \u2014 Sync Now will ask you to sign in with Google.';
+  document.getElementById('gsyncAuto').checked = gsync.autoEnabled();
+  var s = document.getElementById('gsyncStatus');
+  s.textContent = m.lastSyncAt
+    ? (m.lastStatus || 'Synced') + ' \u2014 last sync ' + new Date(m.lastSyncAt).toLocaleString()
+    : '';
+}
+
+function gsyncSaveClientId() {
+  var id = document.getElementById('gsyncClientId').value.trim();
+  if (!id) { appDialog('Paste the OAuth Client ID from Google Cloud Console first.'); return; }
+  gsync.setClientId(id);
+  renderGsyncPane();
+}
+
+async function gsyncNow() {
+  var btn = document.getElementById('gsyncNowBtn');
+  var s = document.getElementById('gsyncStatus');
+  btn.disabled = true;
+  s.textContent = 'Syncing\u2026';
+  try {
+    var status = await gsync.syncNow(true);
+    renderGsyncPane();
+    s.textContent = status + ' \u2014 ' + new Date().toLocaleTimeString();
+    if (/Downloaded/.test(status)) setTimeout(function() { location.reload(); }, 800);
+  } catch (e) {
+    s.textContent = 'Sync failed: ' + (e && e.message ? e.message : e);
+  }
+  btn.disabled = false;
+}
+
+async function gsyncDisconnect() {
+  var ok = await appConfirm(
+    'Stop syncing from this browser and revoke its Google access?\n\nYour local data and the copy in Google Drive are both kept.',
+    'Disconnect Google Sync', 'Disconnect');
+  if (!ok) return;
+  await gsync.disconnect();
+  renderGsyncPane();
+}
+
+renderGsyncPane();
 
 document.getElementById('appVersion').textContent = window.APP_VERSION || 'dev';
 loadPhotoSetting();

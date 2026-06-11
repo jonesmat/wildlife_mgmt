@@ -244,6 +244,8 @@
   }
 
   function saveData(d) {
+    // Change stamp used by google-sync.js to detect local edits between syncs.
+    d.lastModifiedAt = new Date().toISOString();
     return kvSet('data', d);
   }
 

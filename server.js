@@ -15,15 +15,18 @@ app.disable('x-powered-by');
 app.use((req, res, next) => {
   res.set({
     'Content-Security-Policy':
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; " +
+      "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; " +
       "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
-      "connect-src 'self'; object-src 'none'; base-uri 'self'; " +
+      "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; " +
+      "frame-src https://accounts.google.com; object-src 'none'; base-uri 'self'; " +
       "form-action 'self'; frame-ancestors 'none'",
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'no-referrer',
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-    'Cross-Origin-Opener-Policy': 'same-origin'
+    // allow-popups (not plain same-origin): the Google OAuth popup used by
+    // the optional Drive sync must keep its opener link to hand back tokens.
+    'Cross-Origin-Opener-Policy': 'same-origin-allow-popups'
   });
   next();
 });
