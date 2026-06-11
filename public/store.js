@@ -251,7 +251,10 @@
 
   function mimeFromName(name) {
     var ext = String(name).split('.').pop().toLowerCase();
-    var map = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml' };
+    // Raster formats only — no svg. SVG can carry scripts, and these files
+    // round-trip through user-importable backups, so a crafted backup must
+    // never produce a record the service worker serves as image/svg+xml.
+    var map = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp' };
     return map[ext] || 'image/jpeg';
   }
 
@@ -624,6 +627,14 @@
   }
 
   // ── fetch patch ──
+
+  // Photo/property-image filenames round-trip through user-importable backup
+  // files, so pages must treat them as untrusted before splicing them into
+  // HTML attributes (src/onerror/href). Shared here since every page loads
+  // store.js first.
+  window.sanFn = function(name) {
+    return String(name == null ? '' : name).replace(/[^A-Za-z0-9._-]/g, '');
+  };
 
   var realFetch = window.fetch.bind(window);
   window.fetch = function(input, init) {

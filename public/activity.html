@@ -1737,7 +1737,7 @@ function entryDateChanged() {
 // ── Location picker ──
 function propImgFile(id) {
   for (var i = 0; i < propImages.length; i++) {
-    if (propImages[i].id === id) return propImages[i].filename;
+    if (propImages[i].id === id) return sanFn(propImages[i].filename);
   }
   return null;
 }
@@ -2076,6 +2076,7 @@ async function downscaleForUpload(dataUrl) {
 // src + fallback attrs for a photo thumbnail; older photos have no thumb,
 // so fall back to the full image if the thumb 404s
 function thumbSrcAttr(filename) {
+  filename = sanFn(filename);
   return 'src="/photos/thumb-' + filename + '" onerror="this.onerror=null;this.src=\'/photos/' + filename + '\'"';
 }
 

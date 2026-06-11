@@ -669,6 +669,7 @@ function uploadImage(input) {
 
 // thumb src with fallback for property images uploaded before thumbnails existed
 function propThumbAttr(filename) {
+  filename = sanFn(filename);
   return 'src="/property-images/thumb-' + filename + '" onerror="this.onerror=null;this.src=\'/property-images/' + filename + '\'"';
 }
 

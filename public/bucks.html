@@ -154,7 +154,7 @@ function render() {
     // Latest photo from any linked entry
     var photoFile = null;
     for (var i = linked.length - 1; i >= 0 && !photoFile; i--) {
-      if (linked[i].photos && linked[i].photos.length) photoFile = linked[i].photos[0];
+      if (linked[i].photos && linked[i].photos.length) photoFile = sanFn(linked[i].photos[0]);
     }
     var photo = photoFile
       ? '<img class="buck-photo" src="/photos/thumb-' + photoFile + '" onerror="this.onerror=null;this.src=\'/photos/' + photoFile + '\'" alt="">'
@@ -169,8 +169,9 @@ function render() {
     var stats = linked.length + ' encounter' + (linked.length === 1 ? '' : 's') + (span ? ' · ' + span : '');
 
     var timeline = linked.map(function(e) {
-      var thumb = (e.photos && e.photos.length)
-        ? '<img class="bt-thumb" src="/photos/thumb-' + e.photos[0] + '" onerror="this.onerror=null;this.src=\'/photos/' + e.photos[0] + '\'" alt="">'
+      var ph0 = (e.photos && e.photos.length) ? sanFn(e.photos[0]) : '';
+      var thumb = ph0
+        ? '<img class="bt-thumb" src="/photos/thumb-' + ph0 + '" onerror="this.onerror=null;this.src=\'/photos/' + ph0 + '\'" alt="">'
         : '';
       return '<div class="bt-item">' +
         '<span class="bt-icon">' + (TYPE_ICONS[e.type] || '📌') + '</span>' +

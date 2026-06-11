@@ -1,0 +1,18 @@
+# Security headers for Cloudflare static-asset hosting (honored by both
+# Workers static assets and Pages).
+#
+# CSP notes: the app uses inline <script> blocks and inline event handlers
+# throughout, so script-src needs 'unsafe-inline'; photo previews use
+# data:/blob: URLs, so img-src allows them. Everything else is same-origin
+# only — there are no external scripts, styles, fonts, or API calls, so any
+# attempt to load or send data off-origin is blocked. That matters because
+# all PII lives in the browser (IndexedDB): connect-src/form-action 'self'
+# cut off the easy exfiltration paths even if markup injection slips in.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Cross-Origin-Opener-Policy: same-origin

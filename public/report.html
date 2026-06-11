@@ -97,7 +97,7 @@
     <!-- Activity Log Entries -->
     <div class="section" id="logEntries">
       <div class="section-title">Activity Log Entries</div>
-      <div class="hint-block">All log entries recorded during <span id="logYearLabel"></span>. Edit entries in the <a href="/activity" target="_blank">Activity Log</a>. Use the checkboxes to include or exclude entries from the printed report.</div>
+      <div class="hint-block">All log entries recorded during <span id="logYearLabel"></span>. Edit entries in the <a href="/activity" target="_blank" rel="noopener">Activity Log</a>. Use the checkboxes to include or exclude entries from the printed report.</div>
       <div id="logGlobalControls" style="display:none;margin-bottom:10px;display:flex;gap:8px;align-items:center">
         <button class="btn btn-white" style="font-size:0.8rem;padding:4px 10px" onclick="setAllEntries(true)">Include All</button>
         <button class="btn btn-white" style="font-size:0.8rem;padding:4px 10px" onclick="setAllEntries(false)">Exclude All</button>
@@ -141,7 +141,7 @@ function routeById(id) {
 
 function propImgFile(id) {
   for (var i = 0; i < propImages.length; i++) {
-    if (propImages[i].id === id) return propImages[i].filename;
+    if (propImages[i].id === id) return sanFn(propImages[i].filename);
   }
   return null;
 }
@@ -393,7 +393,7 @@ async function loadLogEntries() {
 
   var body = document.getElementById('logEntriesBody');
   if (!entries.length) {
-    body.innerHTML = '<div style="color:#999;font-style:italic">No log entries for ' + year + '. <a href="/activity" target="_blank">Add entries in the Activity Log.</a></div>';
+    body.innerHTML = '<div style="color:#999;font-style:italic">No log entries for ' + year + '. <a href="/activity" target="_blank" rel="noopener">Add entries in the Activity Log.</a></div>';
     return;
   }
 
@@ -436,7 +436,8 @@ function renderLogEntries() {
       if (e.photos && e.photos.length) {
         photosHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' +
           e.photos.map(function(f) {
-            return '<a href="/photos/' + f + '" target="_blank"><img src="/photos/thumb-' + f + '" onerror="this.onerror=null;this.src=\'/photos/' + f + '\'" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #ddd"></a>';
+            f = sanFn(f);
+            return '<a href="/photos/' + f + '" target="_blank" rel="noopener"><img src="/photos/thumb-' + f + '" onerror="this.onerror=null;this.src=\'/photos/' + f + '\'" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #ddd"></a>';
           }).join('') + '</div>';
       }
       var locHtml = '';

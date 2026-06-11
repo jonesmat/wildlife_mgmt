@@ -314,7 +314,8 @@ function selectPin(id) {
   for (var i = 0; i < entries.length; i++) if (entries[i].id === id) e = entries[i];
   if (!e) return;
   var photos = (e.photos || []).map(function(f) {
-    return '<a href="/photos/' + f + '" target="_blank">' +
+    f = sanFn(f);
+    return '<a href="/photos/' + f + '" target="_blank" rel="noopener">' +
       '<img src="/photos/thumb-' + f + '" onerror="this.onerror=null;this.src=\'/photos/' + f + '\'" alt=""></a>';
   }).join('');
   panel.innerHTML =
