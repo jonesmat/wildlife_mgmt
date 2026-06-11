@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 
 const app = express();
@@ -9,21 +10,33 @@ app.disable('x-powered-by');
 // public/sw.js). This server only hosts static files and page routes —
 // it reads and writes nothing on disk.
 
+// Loopback-only single-user server, so the ceiling is generous — this just
+// caps runaway request loops while keeping every route rate-limited.
+app.use(rateLimit({
+  windowMs: 60 * 1000,
+  limit: 600,
+  standardHeaders: true,
+  legacyHeaders: false
+}));
+
 // Same security headers the Cloudflare deployment sets via public/_headers
 // (minus HSTS, which doesn't apply to plain-http localhost). The app stores
 // PII in the browser, so the CSP locks all network activity to same-origin.
 app.use((req, res, next) => {
   res.set({
     'Content-Security-Policy':
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; " +
+      "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; " +
       "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
-      "connect-src 'self'; object-src 'none'; base-uri 'self'; " +
+      "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; " +
+      "frame-src https://accounts.google.com; object-src 'none'; base-uri 'self'; " +
       "form-action 'self'; frame-ancestors 'none'",
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'no-referrer',
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-    'Cross-Origin-Opener-Policy': 'same-origin'
+    // allow-popups (not plain same-origin): the Google OAuth popup used by
+    // the optional Drive sync must keep its opener link to hand back tokens.
+    'Cross-Origin-Opener-Policy': 'same-origin-allow-popups'
   });
   next();
 });
@@ -66,6 +79,15 @@ app.get('/map', (req, res) => {
 
 app.get('/trends', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'trends.html'));
+});
+
+// Trust pages (Cloudflare serves these as clean URLs natively)
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+});
+
+app.get('/terms', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'terms.html'));
 });
 
 // Print views are client-rendered from local storage

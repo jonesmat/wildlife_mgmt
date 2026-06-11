@@ -203,6 +203,7 @@
 .lightbox img { max-width:90vw; max-height:90vh; border-radius:4px; }
 .lightbox-close { position:fixed; top:16px; right:20px; color:white; font-size:2rem; cursor:pointer; z-index:1000; }
 </style>
+<script src="/google-sync.js"></script>
 <link rel="stylesheet" href="/mobile.css">
 </head>
 <body>
@@ -989,9 +990,10 @@ function renderCard(e) {
     thumbs.push('<img class="entry-thumb" ' + thumbSrcAttr(f) + ' alt="">');
   });
   var thumbHtml = thumbs.length ? '<div class="entry-thumb-row">' + thumbs.join('') + '</div>' : '';
-  return '<div class="entry-card" id="card-' + e.id + '">' +
-    '<div class="entry-head" onclick="toggleCard(\'' + e.id + '\')">' +
-      '<span class="entry-type-badge badge-' + e.type.split(' ')[0] + '">' + e.type + '</span>' +
+  var eid = sanFn(e.id);
+  return '<div class="entry-card" id="card-' + eid + '">' +
+    '<div class="entry-head" onclick="toggleCard(\'' + eid + '\')">' +
+      '<span class="entry-type-badge badge-' + sanFn(e.type.split(' ')[0]) + '">' + escHtml(e.type) + '</span>' +
       '<div class="entry-meta">' +
         '<div class="entry-title">' + escHtml(title) + '</div>' +
         '<div class="entry-datetime">' + dt +
@@ -1064,14 +1066,14 @@ function renderDetail(e) {
   if (e.photos && e.photos.length) {
     photosHtml = '<div class="entry-photos-section"><div class="photo-grid">' +
       e.photos.map(function(f) {
-        return '<div class="photo-item"><img ' + thumbSrcAttr(f) + ' onclick="openLightbox(\'/photos/' + f + '\')" title="Click to enlarge"></div>';
+        return '<div class="photo-item"><img ' + thumbSrcAttr(f) + ' onclick="openLightbox(\'/photos/' + sanFn(f) + '\')" title="Click to enlarge"></div>';
       }).join('') +
     '</div></div>';
   }
 
   return '<div style="margin-top:10px">' + rows + locDetailHtml(e) + photosHtml + '</div>' +
     '<div class="entry-actions">' +
-      '<button class="btn btn-secondary btn-sm" onclick="editEntry(\'' + e.id + '\');event.stopPropagation()">Edit</button>' +
+      '<button class="btn btn-secondary btn-sm" onclick="editEntry(\'' + sanFn(e.id) + '\');event.stopPropagation()">Edit</button>' +
     '</div>';
 }
 
@@ -2099,7 +2101,7 @@ function renderFormPhotos() {
     // Server photos render their thumbnail; fresh local previews use the dataURL
     var imgAttrs = p.uploaded ? thumbSrcAttr(p.filename) : 'src="' + src + '"';
     return '<div class="photo-item">' +
-      '<img ' + imgAttrs + ' onclick="openLightbox(\'' + src + '\')">' +
+      '<img ' + imgAttrs + ' onclick="openFormLightbox(' + i + ')">' +
       '<button class="photo-remove" onclick="removeFormPhoto(' + i + ')" title="Remove">&#10005;</button>' +
     '</div>';
   }).join('');
@@ -2119,6 +2121,10 @@ function removeFormPhoto(i) {
 }
 
 // ── Lightbox ──
+function openFormLightbox(i) {
+  var p = pendingPhotos[i];
+  if (p && p.localUrl) openLightbox(p.localUrl);
+}
 function openLightbox(src) {
   document.getElementById('lightboxImg').src = src;
   document.getElementById('lightbox').classList.add('open');

@@ -8,6 +8,7 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script src="/store.js"></script>
 <script src="/dialog.js"></script>
+<script src="/google-sync.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; background: #f0f2f5; color: #222; }
@@ -243,7 +244,10 @@
   <div style="text-align:center;font-size:0.76rem;color:#999;padding:8px 0 20px;line-height:1.6">
     An unofficial, open-source tool for Texas landowners. Not affiliated with or endorsed by the
     Texas Parks and Wildlife Department.<br>
-    All data is stored locally in your browser — nothing is uploaded to any server.
+    All data is stored locally in your browser — nothing is uploaded to any server unless you
+    enable Google Drive sync.<br>
+    <a href="/privacy" style="color:#888">Privacy Policy</a> &middot;
+    <a href="/terms" style="color:#888">Terms of Service</a>
   </div>
 </div>
 
@@ -570,7 +574,11 @@
   }
 
   // ── Dismiss & snooze ──
-  function escAttr(s) { return escHtml(s).replace(/"/g, '&quot;'); }
+  function escAttr(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
 
   function calKey(group, ev) {
     return group + '|' + ev.name + '|' + (ev.start_date || '');

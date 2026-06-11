@@ -53,6 +53,7 @@
 .md-photos img { width: 90px; height: 90px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
 .map-empty { color: #999; font-style: italic; text-align: center; padding: 50px 20px; }
 </style>
+<script src="/google-sync.js"></script>
 <link rel="stylesheet" href="/mobile.css">
 </head>
 <body>
@@ -295,7 +296,7 @@ function render() {
     return '<div class="map-pin pin-' + e.type.split(' ')[0] + sel + '"' +
       ' style="left:' + (e.loc.x * 100) + '%;top:' + (e.loc.y * 100) + '%"' +
       ' title="' + escHtml(entryTitle(e)) + ' — ' + fmtDate(e.datetime) + '"' +
-      ' onclick="selectPin(\'' + e.id + '\')">' +
+      ' onclick="selectPin(\'' + sanFn(e.id) + '\')">' +
       (TYPE_ICONS[e.type] || '📌') +
     '</div>';
   }).join('');

@@ -85,12 +85,43 @@ The recipient only needs to unzip and run the start script.
 
 ## Your Data
 
-All data is stored in the **`data/`** folder — back it up to keep your records.
+All data — the plan, annual reports, log entries, photos, and maps — is stored
+**inside your browser** (IndexedDB). Nothing is written to disk or sent to any
+server. That means:
 
-| Path | Contents |
-|------|----------|
-| `data/property.json` | Plan, annual reports, and log entries |
-| `data/photos/` | Uploaded photos |
+- **Back up regularly** with *Settings → Data Management*, or turn on
+  Google Drive sync (below). If the browser's site data is cleared or the
+  device is lost, un-backed-up data is gone.
+- Each browser/device starts empty until you import a backup or sync it.
+
+---
+
+## Google Drive Sync (optional)
+
+Sync keeps a copy of your data in **your own Google Drive** (in the hidden
+app-data area only this app can access) and shares it between devices.
+Enabling it means your data leaves the browser and is stored in your Google
+account — skip this if you prefer strictly local storage.
+
+One-time setup (free) — sync needs a Google OAuth Client ID that identifies
+*your* copy of the app to Google:
+
+1. Go to **https://console.cloud.google.com/** and create a project.
+2. **APIs & Services → Library** — enable the **Google Drive API**.
+3. **APIs & Services → OAuth consent screen** — configure it (External;
+   adding just yourself as a test user is fine for personal use).
+4. **APIs & Services → Credentials → Create credentials → OAuth client ID** —
+   type **Web application**, and add your site's address (and
+   `http://localhost:3000` for local use) under **Authorized JavaScript
+   origins**.
+5. Copy the client ID into **Settings → Data Management → Google Sync** (or hardcode
+   it as `DEFAULT_CLIENT_ID` in `public/google-sync.js` for your deployment).
+
+Then use **Sync Now** on each device you want connected. The optional
+auto-sync checkbox syncs silently whenever the app opens, and again a few
+seconds after any change you make — a small pill in the bottom-left corner
+shows when a sync is running. If both a device and Drive have changes since
+their last sync, the app asks which copy to keep.
 
 ---
 
