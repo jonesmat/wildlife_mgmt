@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Annual Reports</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script src="/store.js"></script>
+<script src="/dialog.js"></script>
+<link rel="stylesheet" href="/form-shared.css">
+<style>
+.year-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border: 1px solid #ddd; border-radius: 8px;
+  margin-bottom: 8px; background: white; flex-wrap: wrap; gap: 8px;
+}
+.year-label { font-weight: 600; color: #1a4a1a; }
+.last-edited { font-size: 0.76rem; color: #999; margin-top: 2px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.new-year-row { display: flex; gap: 12px; align-items: center; margin-bottom: 18px; }
+.new-year-row input { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; width: 110px; }
+.btn-sm { padding: 7px 14px; font-size: 0.82rem; }
+.btn-danger { background: #fde8e8; color: #8b1a1a; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+.btn-danger:hover { background: #f5c8c8; }
+.modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 100; align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: white; border-radius: 10px; padding: 28px; width: 420px;
+  max-width: calc(100vw - 48px); box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+}
+.modal h3 { color: #8b1a1a; font-size: 1.1rem; margin-bottom: 10px; }
+.modal p { color: #555; font-size: 0.9rem; margin-bottom: 16px; }
+.modal input[type="text"] { width: 100%; margin-bottom: 16px; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; }
+.modal .row { justify-content: flex-end; }
+.btn-danger-solid { background: #b32424; color: white; border: none; border-radius: 6px; padding: 8px 16px; font-weight: 600; cursor: pointer; }
+.btn-danger-solid:hover { background: #8b1a1a; }
+.btn-danger-solid:disabled { background: #e0b8b8; cursor: not-allowed; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🗓️ Annual Reports (PWD 888)</h1>
+  <div class="header-actions">
+    <a href="/" class="btn btn-white">Home</a>
+  </div>
+</header>
+
+<div class="layout">
+  <main class="main" style="max-width:760px">
+    <div class="hint-block" style="margin-bottom:16px">
+      Create a report for a given year, or open an existing one. New reports pre-fill from your
+      Wildlife Management Plan — you only update what actually happened, and "Update from
+      Activity Log" inside the report does much of that for you.
+    </div>
+
+    <div class="new-year-row">
+      <input type="number" id="newYear" placeholder="Year" min="2000" max="2099" value="">
+      <button class="btn btn-primary" onclick="createReport()">Create New Report</button>
+    </div>
+
+    <div id="yearsList">
+      <div style="color:#999;font-size:0.9rem">Loading...</div>
+    </div>
+  </main>
+</div>
+
+<!-- Delete report confirmation modal -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal">
+    <h3>Delete <span id="deleteModalYear"></span> Annual Report?</h3>
+    <p>This permanently removes the report and everything entered on it. Activity Log entries are <strong>not</strong> affected. Type <strong>delete</strong> to confirm.</p>
+    <input type="text" id="deleteConfirmInput" placeholder="Type delete to confirm" autocomplete="off" oninput="deleteConfirmChanged()">
+    <div class="row">
+      <button class="btn btn-secondary btn-sm" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn-danger-solid" id="deleteConfirmBtn" disabled onclick="confirmDeleteReport()">Delete Report</button>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('newYear').value = new Date().getFullYear();
+
+function fmtEdited(iso) {
+  if (!iso) return '';
+  try {
+    return 'Last edited ' + new Date(iso).toLocaleString('en-US', {
+      year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+    });
+  } catch (e) { return ''; }
+}
+
+async function loadYears() {
+  const res = await (await fetch('/api/years')).json();
+  const years = res.years || [];
+  const list = document.getElementById('yearsList');
+  if (!years.length) {
+    list.innerHTML = '<div style="color:#999;font-size:0.9rem">No annual reports yet. Create one above.</div>';
+    return;
+  }
+  list.innerHTML = years.map(item => `
+    <div class="year-item">
+      <span>
+        <span class="year-label">${item.year} Annual Report</span>
+        <div class="last-edited">${fmtEdited(item.updatedAt)}</div>
+      </span>
+      <div class="row">
+        <a href="/report/${item.year}" class="btn btn-primary btn-sm">Edit</a>
+        <button class="btn btn-secondary btn-sm" onclick="window.open('/report-print/${item.year}', '_blank')">Generate PDF</button>
+        <button class="btn-danger btn-sm" onclick="openDeleteModal('${item.year}')">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function createReport() {
+  const year = document.getElementById('newYear').value;
+  if (!year) return appDialog('Enter a year');
+  // Seed the report from the plan's activities and qualifying practices
+  const data = await (await fetch('/api/data')).json();
+  const reportData = JSON.parse(JSON.stringify(data.activities));
+  reportData.qualifyingActivities = JSON.parse(JSON.stringify(data.plan.qualifyingActivities));
+  reportData.association = JSON.parse(JSON.stringify(data.plan.association));
+  await fetch(`/api/reports/${year}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(reportData)
+  });
+  window.location.href = `/report/${year}`;
+}
+
+// ── Delete report (type-to-confirm) ──
+var deleteTargetYear = null;
+
+function openDeleteModal(year) {
+  deleteTargetYear = year;
+  document.getElementById('deleteModalYear').textContent = year;
+  document.getElementById('deleteConfirmInput').value = '';
+  document.getElementById('deleteConfirmBtn').disabled = true;
+  document.getElementById('deleteModal').classList.add('open');
+  document.getElementById('deleteConfirmInput').focus();
+}
+
+function closeDeleteModal() {
+  deleteTargetYear = null;
+  document.getElementById('deleteModal').classList.remove('open');
+}
+
+function deleteConfirmChanged() {
+  var typed = document.getElementById('deleteConfirmInput').value.trim().toLowerCase();
+  document.getElementById('deleteConfirmBtn').disabled = (typed !== 'delete');
+}
+
+async function confirmDeleteReport() {
+  if (!deleteTargetYear) return;
+  var resp = await fetch('/api/reports/' + deleteTargetYear, { method: 'DELETE' });
+  if (!resp.ok) appDialog('Failed to delete report (HTTP ' + resp.status + ')');
+  closeDeleteModal();
+  loadYears();
+}
+
+document.getElementById('deleteModal').addEventListener('click', function(ev) {
+  if (ev.target === this) closeDeleteModal();
+});
+document.addEventListener('keydown', function(ev) {
+  if (ev.key === 'Escape') closeDeleteModal();
+  if (ev.key === 'Enter' && document.getElementById('deleteModal').classList.contains('open') &&
+      !document.getElementById('deleteConfirmBtn').disabled) confirmDeleteReport();
+});
+
+loadYears();
+</script>
+</body>
+</html>

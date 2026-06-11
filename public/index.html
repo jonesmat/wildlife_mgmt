@@ -16,13 +16,37 @@
   }
   header h1 { font-size: 1.4rem; }
   header .subtitle { font-size: 0.85rem; opacity: 0.8; }
-  .container { max-width: 900px; margin: 40px auto; padding: 0 24px; }
+  .container { max-width: 900px; margin: 28px auto; padding: 0 24px; }
   .card {
-    background: white; border-radius: 8px; padding: 32px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 24px;
+    background: white; border-radius: 10px; padding: 20px 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 16px;
   }
-  .card h2 { font-size: 1.2rem; color: #1a4a1a; margin-bottom: 8px; }
+  .card h2 { font-size: 1.02rem; color: #1a4a1a; margin-bottom: 6px; }
   .card p { color: #555; font-size: 0.95rem; margin-bottom: 20px; }
+  /* ── Navigation tiles ── */
+  .tiles {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px; margin-bottom: 16px;
+  }
+  .tile {
+    background: white; border-radius: 10px; padding: 14px 16px; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); position: relative;
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .tile:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.13); }
+  .tile .t-icon { font-size: 1.35rem; line-height: 1; }
+  .tile .t-title { font-weight: 700; color: #1a4a1a; font-size: 0.9rem; margin-top: 7px; }
+  .tile .t-sub { font-size: 0.72rem; color: #999; margin-top: 2px; min-height: 1em; }
+  .tile .t-action {
+    position: absolute; top: 10px; right: 12px; font-size: 0.95rem; opacity: 0.4;
+    background: none; border: none; cursor: pointer; padding: 2px;
+  }
+  .tile .t-action:hover { opacity: 1; }
+  /* ── Collapsible board header ── */
+  .board-head { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+  .board-chev { margin-left: auto; color: #c9b97e; font-size: 0.85rem; transition: transform 0.2s; }
+  .board-head.open .board-chev { transform: rotate(90deg); }
+  .toggle-link { font-size: 0.78rem; color: #1a4a1a; cursor: pointer; text-decoration: underline; }
   .btn {
     display: inline-block; padding: 12px 24px; border-radius: 6px;
     font-size: 0.95rem; font-weight: 600; cursor: pointer;
@@ -171,60 +195,49 @@
   <!-- Qualifying practices progress (1-D-1 requires 3 of 7) -->
   <div class="card practice-card" id="practiceCard" style="display:none"></div>
 
-  <!-- Trophy board: best B&C scores from the Activity Log -->
+  <!-- Primary navigation -->
+  <div class="tiles">
+    <div class="tile" onclick="location.href='/log'">
+      <div class="t-icon">📓</div>
+      <div class="t-title">Activity Log</div>
+      <div class="t-sub" id="tileLogSub">&nbsp;</div>
+    </div>
+    <div class="tile" onclick="location.href='/plan'">
+      <button class="t-action" title="Generate Plan PDF" onclick="event.stopPropagation();generatePDF('/plan-print')">🖨️</button>
+      <div class="t-icon">📋</div>
+      <div class="t-title">Management Plan</div>
+      <div class="t-sub" id="planUpdated">PWD 885</div>
+    </div>
+    <div class="tile" onclick="location.href='/reports'">
+      <div class="t-icon">🗓️</div>
+      <div class="t-title">Annual Reports</div>
+      <div class="t-sub" id="tileReportsSub">PWD 888</div>
+    </div>
+    <div class="tile" onclick="location.href='/bucks'">
+      <div class="t-icon">🦌</div>
+      <div class="t-title">Buck Watch</div>
+      <div class="t-sub">Track bucks over seasons</div>
+    </div>
+    <div class="tile" onclick="location.href='/map'">
+      <div class="t-icon">🗺️</div>
+      <div class="t-title">Property Map</div>
+      <div class="t-sub">Activity by location</div>
+    </div>
+    <div class="tile" onclick="location.href='/trends'">
+      <div class="t-icon">📈</div>
+      <div class="t-title">Census Trends</div>
+      <div class="t-sub">Counts &amp; moon phases</div>
+    </div>
+  </div>
+
+  <!-- Celebrations: year facts + remarkable bucks (collapsed by default) -->
   <div class="trophy-board" id="trophyBoard" style="display:none"></div>
 
   <div class="card">
-    <h2>Wildlife Management Plan (PWD 885)</h2>
-    <p>Enter your property information, management goals, and planned activities. This is your base plan — data entered here carries over to annual reports automatically.</p>
-    <div class="row">
-      <a href="/plan" class="btn btn-primary">Edit Plan</a>
-      <button class="btn btn-secondary" onclick="generatePDF('/plan-print')">Generate Plan PDF</button>
-    </div>
-    <div class="last-edited" id="planUpdated" style="margin-top:10px"></div>
-  </div>
-
-  <div class="card">
-    <h2>Activity Log</h2>
-    <p>Record harvest events, wildlife sightings, management activities, census surveys, and more throughout the year. Attach photos. Log entries are automatically included in the annual report for that year.</p>
-    <div class="row">
-      <a href="/log" class="btn btn-primary">Open Log</a>
-      <a href="/bucks" class="btn btn-secondary">🦌 Buck Watch</a>
-      <a href="/map" class="btn btn-secondary">🗺️ Property Map</a>
-      <a href="/trends" class="btn btn-secondary">📈 Census Trends</a>
-    </div>
-  </div>
-
-  <div class="card">
     <h2>📅 Season Calendar</h2>
-    <p>The Texas wildlife management year at a glance. Exact dates vary by county and year — confirm seasons with TPWD and deadlines with your appraisal district.</p>
-    <div id="seasonCalendar"></div>
+    <div id="seasonCalendar" style="margin-top:8px"></div>
   </div>
 
-  <div class="card">
-    <h2>Annual Reports (PWD 888)</h2>
-    <p>Create a new annual report for a given year, or open an existing one. The report pre-fills from your plan — you only need to update what actually happened.</p>
-    <div class="new-year-row">
-      <input type="number" id="newYear" placeholder="Year" min="2000" max="2099" value="">
-      <button class="btn btn-primary" onclick="createReport()">Create New Report</button>
-    </div>
-    <div class="years-list" id="yearsList">
-      <div style="color:#999;font-size:0.9rem;margin-top:12px;">Loading...</div>
-    </div>
-  </div>
-</div>
-
-<!-- Delete report confirmation modal -->
-<div class="modal-overlay" id="deleteModal">
-  <div class="modal">
-    <h3>Delete <span id="deleteModalYear"></span> Annual Report?</h3>
-    <p>This permanently removes the report and everything entered on it. Activity Log entries are <strong>not</strong> affected. Type <strong>delete</strong> to confirm.</p>
-    <input type="text" id="deleteConfirmInput" placeholder="Type delete to confirm" autocomplete="off" oninput="deleteConfirmChanged()">
-    <div class="row">
-      <button class="btn btn-secondary btn-sm" onclick="closeDeleteModal()">Cancel</button>
-      <button class="btn btn-danger-solid btn-sm" id="deleteConfirmBtn" disabled onclick="confirmDeleteReport()">Delete Report</button>
-    </div>
-  </div>
 </div>
 
 <!-- Snooze calendar event modal -->
@@ -253,100 +266,26 @@
 </div>
 
 <script>
-  document.getElementById('newYear').value = new Date().getFullYear();
-
   function fmtEdited(iso) {
     if (!iso) return '';
     try {
-      return 'Last edited ' + new Date(iso).toLocaleString('en-US', {
-        year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+      return 'Edited ' + new Date(iso).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric'
       });
     } catch (e) { return ''; }
   }
 
   async function loadYears() {
     const res = await (await fetch('/api/years')).json();
-    document.getElementById('planUpdated').textContent = fmtEdited(res.planUpdatedAt);
+    document.getElementById('planUpdated').textContent = fmtEdited(res.planUpdatedAt) || 'PWD 885';
     const years = res.years || [];
-    const list = document.getElementById('yearsList');
-    if (!years.length) {
-      list.innerHTML = '<div style="color:#999;font-size:0.9rem;margin-top:12px;">No annual reports yet. Create one above.</div>';
-      return;
-    }
-    list.innerHTML = years.map(item => `
-      <div class="year-item">
-        <span>
-          <span class="year-label">${item.year} Annual Report</span>
-          <div class="last-edited">${fmtEdited(item.updatedAt)}</div>
-        </span>
-        <div class="row">
-          <a href="/report/${item.year}" class="btn btn-outline btn-sm">Edit</a>
-          <button class="btn btn-secondary btn-sm" onclick="generatePDF('/report-print/${item.year}')">Generate PDF</button>
-          <button class="btn btn-danger btn-sm" onclick="openDeleteModal('${item.year}')">Delete</button>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  async function createReport() {
-    const year = document.getElementById('newYear').value;
-    if (!year) return appDialog('Enter a year');
-    // Load base activities from plan to seed the report
-    const data = await (await fetch('/api/data')).json();
-    const reportData = JSON.parse(JSON.stringify(data.activities));
-    reportData.qualifyingActivities = JSON.parse(JSON.stringify(data.plan.qualifyingActivities));
-    reportData.association = JSON.parse(JSON.stringify(data.plan.association));
-    await fetch(`/api/reports/${year}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(reportData)
-    });
-    window.location.href = `/report/${year}`;
+    document.getElementById('tileReportsSub').textContent =
+      years.length ? years.length + ' report' + (years.length === 1 ? '' : 's') : 'PWD 888';
   }
 
   function generatePDF(url) {
     window.open(url, '_blank');
   }
-
-  // ── Delete report (type-to-confirm) ──
-  var deleteTargetYear = null;
-
-  function openDeleteModal(year) {
-    deleteTargetYear = year;
-    document.getElementById('deleteModalYear').textContent = year;
-    document.getElementById('deleteConfirmInput').value = '';
-    document.getElementById('deleteConfirmBtn').disabled = true;
-    document.getElementById('deleteModal').classList.add('open');
-    document.getElementById('deleteConfirmInput').focus();
-  }
-
-  function closeDeleteModal() {
-    deleteTargetYear = null;
-    document.getElementById('deleteModal').classList.remove('open');
-  }
-
-  function deleteConfirmChanged() {
-    var typed = document.getElementById('deleteConfirmInput').value.trim().toLowerCase();
-    document.getElementById('deleteConfirmBtn').disabled = (typed !== 'delete');
-  }
-
-  async function confirmDeleteReport() {
-    if (!deleteTargetYear) return;
-    var resp = await fetch('/api/reports/' + deleteTargetYear, { method: 'DELETE' });
-    if (!resp.ok) appDialog('Failed to delete report (HTTP ' + resp.status + ')');
-    closeDeleteModal();
-    loadYears();
-  }
-
-  // Close modal on overlay click or Escape
-  document.getElementById('deleteModal').addEventListener('click', function(ev) {
-    if (ev.target === this) closeDeleteModal();
-  });
-  document.addEventListener('keydown', function(ev) {
-    if (ev.key === 'Escape') closeDeleteModal();
-    if (ev.key === 'Enter' && document.getElementById('deleteModal').classList.contains('open') &&
-        !document.getElementById('deleteConfirmBtn').disabled) confirmDeleteReport();
-  });
 
   // ── Trophy board ──
   function escHtml(s) {
@@ -385,24 +324,24 @@
     var n = Object.keys(covered).length;
     var qualified = n >= 3;
 
-    // SVG ring: 7 segments worth of progress
-    var r = 34, c = 2 * Math.PI * r;
+    // Compact SVG ring: 7 segments worth of progress
+    var r = 27, c = 2 * Math.PI * r;
     var frac = n / 7;
     var ring =
-      '<svg class="practice-ring" width="92" height="92" viewBox="0 0 92 92">' +
-        '<circle cx="46" cy="46" r="' + r + '" fill="none" stroke="#e8ece5" stroke-width="9"/>' +
-        '<circle cx="46" cy="46" r="' + r + '" fill="none" stroke="' + (qualified ? '#1a4a1a' : '#c9a227') + '" stroke-width="9" stroke-linecap="round"' +
-          ' stroke-dasharray="' + (c * frac) + ' ' + c + '" transform="rotate(-90 46 46)"/>' +
-        '<text x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#1a4a1a">' + n + '/7</text>' +
-        '<text x="46" y="60" text-anchor="middle" font-size="9" fill="#888">PRACTICES</text>' +
+      '<svg class="practice-ring" width="72" height="72" viewBox="0 0 72 72">' +
+        '<circle cx="36" cy="36" r="' + r + '" fill="none" stroke="#e8ece5" stroke-width="7"/>' +
+        '<circle cx="36" cy="36" r="' + r + '" fill="none" stroke="' + (qualified ? '#1a4a1a' : '#c9a227') + '" stroke-width="7" stroke-linecap="round"' +
+          ' stroke-dasharray="' + (c * frac) + ' ' + c + '" transform="rotate(-90 36 36)"/>' +
+        '<text x="36" y="41" text-anchor="middle" font-size="16" font-weight="700" fill="#1a4a1a">' + n + '/7</text>' +
       '</svg>';
 
     var headline = qualified
       ? 'Qualified for ' + year + '! 🎉'
       : (3 - n) + ' more practice' + (3 - n === 1 ? '' : 's') + ' to qualify for ' + year;
-    var sub = qualified
-      ? n + ' of 7 qualifying practices documented in the Activity Log — the 1-D-1 minimum of three is covered.'
-      : 'A wildlife management annual report needs at least 3 of the 7 qualifying practices. Log activities, purchases, censuses, or predator work to fill the ring.';
+    var sub = (qualified
+      ? n + ' of 7 qualifying practices documented this year.'
+      : n + ' of 7 documented — the report needs three.') +
+      ' <span class="toggle-link" onclick="togglePractices()">practices</span>';
 
     var chips = PRACTICES.map(function(p) {
       return '<span class="practice-chip' + (covered[p] ? ' done' : '') + '">' +
@@ -414,9 +353,14 @@
     card.innerHTML = ring +
       '<div class="practice-info">' +
         '<div class="practice-headline">' + headline + '</div>' +
-        '<div class="practice-sub">' + sub + '</div>' +
-        '<div class="practice-chiprow">' + chips + '</div>' +
+        '<div class="practice-sub" style="margin-bottom:0">' + sub + '</div>' +
+        '<div class="practice-chiprow" id="practiceChips" style="display:none;margin-top:10px">' + chips + '</div>' +
       '</div>';
+  }
+
+  function togglePractices() {
+    var el = document.getElementById('practiceChips');
+    el.style.display = (el.style.display === 'none') ? 'flex' : 'none';
   }
 
   // Celebratory facts about this year's work on the ranch
@@ -453,6 +397,8 @@
     var entries;
     try { entries = await (await fetch('/api/log')).json(); }
     catch (e) { return; }
+    document.getElementById('tileLogSub').textContent =
+      entries.length ? entries.length + ' entr' + (entries.length === 1 ? 'y' : 'ies') : 'Start logging';
     renderPracticeRing(entries);
     var factsHtml = yearFactChips(entries);
     var scored = entries.filter(function(e) {
@@ -463,8 +409,7 @@
     scored.sort(function(a, b) { return (b.datetime || '') < (a.datetime || '') ? -1 : 1; });
     var shown = scored.slice(0, 6);
 
-    board.style.display = '';
-    board.innerHTML = factsHtml +
+    var body = factsHtml +
       (!shown.length ? '' :
       '<div class="trophy-title">🦌 Remarkable Whitetails</div>' +
       '<div class="trophy-subtitle">Celebrating the deer this land has raised</div>' +
@@ -486,6 +431,29 @@
           '</div></div>';
       }).join('') +
       '</div>');
+
+    // Pyramid: a one-line header by default; expand for facts and gallery
+    var summary = [];
+    if (factsHtml) summary.push("this year's stewardship");
+    if (shown.length) summary.push(shown.length + ' remarkable buck' + (shown.length === 1 ? '' : 's'));
+    board.style.display = '';
+    board.innerHTML =
+      '<div class="board-head" id="boardHead" onclick="toggleRanchBoard()">' +
+        '<span style="font-size:1.15rem">🌿</span>' +
+        '<div>' +
+          '<div class="trophy-title">Ranch Highlights</div>' +
+          '<div class="trophy-subtitle" style="margin:2px 0 0">' + summary.join(' · ') + '</div>' +
+        '</div>' +
+        '<span class="board-chev">▶</span>' +
+      '</div>' +
+      '<div id="trophyBody" style="display:none;margin-top:18px">' + body + '</div>';
+  }
+
+  function toggleRanchBoard() {
+    var bodyEl = document.getElementById('trophyBody');
+    var open = bodyEl.style.display === 'none';
+    bodyEl.style.display = open ? '' : 'none';
+    document.getElementById('boardHead').classList.toggle('open', open);
   }
 
   // ── Season calendar ──

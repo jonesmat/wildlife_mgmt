@@ -23,6 +23,10 @@ app.get('/report/:year', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'report.html'));
 });
 
+app.get('/reports', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'reports.html'));
+});
+
 app.get('/settings', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'settings.html'));
 });
