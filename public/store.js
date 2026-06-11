@@ -527,6 +527,7 @@
             return json({ error: 'Not a valid wildlife calendar file — every group needs a name and an events array.' }, 400);
           }
         }
+        cal._importedAt = now; // staleness warnings key off this
         data.calendar = cal;
         await saveData(data);
         return json({ ok: true });

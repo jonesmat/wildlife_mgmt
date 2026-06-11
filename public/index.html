@@ -89,6 +89,30 @@
     background: #e8f0e8; color: #1a4a1a; white-space: nowrap;
   }
   .cal-due.urgent { background: #fde8e8; color: #8b1a1a; }
+  .cal-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 3px; }
+  .cal-tag {
+    font-size: 0.66rem; font-weight: 600; padding: 1px 8px; border-radius: 8px;
+    background: #eef2ea; color: #5a6a52;
+  }
+  .cal-tag.eco { background: #eef0f6; color: #4a5a7a; }
+  .cal-link { font-size: 0.74rem; color: #1a4a1a; margin-left: 8px; white-space: nowrap; font-weight: 600; }
+  .cal-warning {
+    font-size: 0.8rem; color: #8b1a1a; background: #fdf0ef; border: 1px solid #e8c2bd;
+    border-radius: 6px; padding: 7px 11px; margin-bottom: 10px;
+  }
+  .cal-act {
+    border: none; background: none; cursor: pointer; font-size: 0.82rem;
+    opacity: 0.35; padding: 2px 4px; flex-shrink: 0;
+  }
+  .cal-act:hover { opacity: 1; }
+  .cal-row.dismissing {
+    opacity: 0.55; background: #fdf5e8; border: 1px dashed #d8b56a;
+    transition: opacity 0.4s;
+  }
+  .cal-section-head {
+    font-size: 0.78rem; font-weight: 700; color: #777; text-transform: uppercase;
+    letter-spacing: 0.05em; margin: 16px 0 6px;
+  }
 
   /* ── Qualifying practices progress ── */
   .practice-card { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
@@ -199,6 +223,31 @@
     <div class="row">
       <button class="btn btn-secondary btn-sm" onclick="closeDeleteModal()">Cancel</button>
       <button class="btn btn-danger-solid btn-sm" id="deleteConfirmBtn" disabled onclick="confirmDeleteReport()">Delete Report</button>
+    </div>
+  </div>
+</div>
+
+<!-- Snooze calendar event modal -->
+<div class="modal-overlay" id="snoozeModal">
+  <div class="modal">
+    <h3 style="color:#1a4a1a">💤 Snooze event</h3>
+    <p id="snoozeEventName" style="font-weight:600;color:#333"></p>
+    <div style="font-size:0.78rem;font-weight:700;color:#777;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px">Snooze for</div>
+    <div class="row" style="justify-content:flex-start;margin-bottom:14px">
+      <button class="btn btn-secondary btn-sm" onclick="snoozeChoice('1d', false)">1 day</button>
+      <button class="btn btn-secondary btn-sm" onclick="snoozeChoice('1w', false)">1 week</button>
+      <button class="btn btn-secondary btn-sm" onclick="snoozeChoice('1m', false)">1 month</button>
+    </div>
+    <div id="snoozeBeforeRow">
+      <div style="font-size:0.78rem;font-weight:700;color:#777;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px">Show again</div>
+      <div class="row" style="justify-content:flex-start;margin-bottom:14px">
+        <button class="btn btn-secondary btn-sm" onclick="snoozeChoice('1d', true)">1 day before</button>
+        <button class="btn btn-secondary btn-sm" onclick="snoozeChoice('1w', true)">1 week before</button>
+        <button class="btn btn-secondary btn-sm" onclick="snoozeChoice('1m', true)">1 month before</button>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn btn-secondary btn-sm" onclick="closeSnoozeModal()">Cancel</button>
     </div>
   </div>
 </div>
@@ -447,9 +496,9 @@
     groups: [
       { group: 'General & Administrative', category: 'general', events: [
         { name: 'Wildlife Management Annual Report (PWD 888) due', start_date: '2027-02-28', recurrence: 'annual', type: 'deadline', emoji: '📅', details: 'Due to many County Appraisal Districts by the last day of February — confirm with your CAD.' },
-        { name: 'MLDP harvest & habitat reporting deadline', start_date: '2027-04-01', recurrence: 'annual', type: 'deadline', emoji: '📅', details: 'Report harvest and practices in the TPWD LMA system to keep MLDP enrollment.' },
-        { name: '1-d-1 Wildlife Management Plan filing deadline', start_date: '2027-04-30', recurrence: 'annual', type: 'deadline', emoji: '📅', details: 'File PWD 885 with your County Appraisal District.' },
-        { name: 'New hunting licenses go on sale', start_date: '2026-08-15', recurrence: 'annual', type: 'license', emoji: '🪪' }
+        { name: 'MLDP harvest & habitat reporting deadline', start_date: '2027-04-01', recurrence: 'annual', type: 'deadline', emoji: '📅', details: 'Report harvest and practices in the TPWD LMA system to keep MLDP enrollment.', more_info_url: 'https://tpwd.texas.gov/business/permits/land/wildlife_management/mldp/' },
+        { name: '1-d-1 Wildlife Management Plan filing deadline', start_date: '2027-04-30', recurrence: 'annual', type: 'deadline', emoji: '📅', details: 'File PWD 885 with your County Appraisal District.', more_info_url: 'https://tpwd.texas.gov/landwater/land/private/agricultural_land/' },
+        { name: 'New hunting licenses go on sale', start_date: '2026-08-15', recurrence: 'annual', type: 'license', emoji: '🪪', more_info_url: 'https://tpwd.texas.gov/regulations/outdoor-annual/licenses/' }
       ]},
       { group: 'Seasons & Biology (approximate dates)', category: 'species', events: [
         { name: 'Deer census window', start_date: '2026-08-15', end_date: '2026-10-15', recurrence: 'annual', type: 'survey', emoji: '🔎', details: 'TPWD recommends three spotlight counts on a fixed route.' },
@@ -467,6 +516,12 @@
   var calExpanded = false;
   var loadedCalendar = null;     // imported calendar, or null
   var calendarIsDefault = true;
+  var calFilters = {};           // { hiddenEcoregions, hiddenSpecies, hiddenTypes } from Settings
+  var calState = {};             // event key → { dismissed: true } | { snoozeUntil: 'YYYY-MM-DD' }
+  var dismissingKeys = {};       // event key → timeout id during the 5s restore grace period
+  var showDismissed = false;
+  var showSnoozed = false;
+  var snoozeTarget = null;       // { key, name, startTime } while the snooze dialog is open
 
   function toggleCalendar() {
     calExpanded = !calExpanded;
@@ -503,66 +558,254 @@
     var days = Math.round((start - today) / 86400000);
     return {
       dateless: false, active: active, past: past, days: days,
+      sortTime: start.getTime(),
       dateLabel: calFmtMD(start) + (ev.end_date ? ' – ' + calFmtMD(end) : '')
     };
   }
 
-  function calRow(item, extraClass) {
-    var ev = item.ev, st = item.st;
-    var chip = '';
-    if (st.active) {
-      chip = '<span class="cal-due">open now</span>';
-    } else if (!st.past && !st.dateless && st.days <= 75) {
-      chip = '<span class="cal-due' + (st.days <= 14 ? ' urgent' : '') + '">' +
-        (st.days === 0 ? 'today!' : 'in ' + st.days + ' day' + (st.days === 1 ? '' : 's')) + '</span>';
+  // Display filters set in Settings → Calendar. An event stays visible if its
+  // type and species aren't hidden, and (for region-limited events) at least
+  // one of its ecoregions is still shown. ["all"] events ignore the
+  // ecoregion filter.
+  function calEventVisible(item) {
+    var f = calFilters || {};
+    if ((f.hiddenTypes || []).indexOf(item.ev.type) !== -1) return false;
+    if (item.species && (f.hiddenSpecies || []).indexOf(item.species) !== -1) return false;
+    var eco = item.ev.ecoregion || ['all'];
+    if (eco.indexOf('all') === -1) {
+      var hid = f.hiddenEcoregions || [];
+      if (!eco.some(function(r) { return hid.indexOf(r) === -1; })) return false;
     }
-    return '<div class="cal-row' + (st.past ? ' past' : '') + (extraClass || '') + '">' +
+    return true;
+  }
+
+  function calPretty(v) {
+    return String(v).replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+  }
+
+  function calStaleWarning(cal) {
+    if (calendarIsDefault) return '';
+    var imported = cal._importedAt || (cal.meta && cal.meta.generated);
+    if (!imported) return '';
+    var age = Date.now() - new Date(imported).getTime();
+    if (age < 274 * 86400000) return ''; // ~9 months
+    return '<div class="cal-warning">⚠️ This calendar was imported over 9 months ago — new season dates are likely missing. ' +
+      'Generate a fresh calendar and import it in <a href="/settings" style="color:#8b1a1a">Settings → Calendar</a>.</div>';
+  }
+
+  // ── Dismiss & snooze ──
+  function escAttr(s) { return escHtml(s).replace(/"/g, '&quot;'); }
+
+  function calKey(group, ev) {
+    return group + '|' + ev.name + '|' + (ev.start_date || '');
+  }
+
+  function calTodayMid() {
+    var d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  function toISODate(d) {
+    var p = function(n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+
+  function saveCalState() {
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ calendarState: calState })
+    });
+  }
+
+  function dismissEvent(key) {
+    calState[key] = { dismissed: true };
+    saveCalState();
+    // Keep the row visible (faded) for 5 seconds so it can be restored
+    if (dismissingKeys[key]) clearTimeout(dismissingKeys[key]);
+    dismissingKeys[key] = setTimeout(function() {
+      delete dismissingKeys[key];
+      renderSeasonCalendar();
+    }, 5000);
+    renderSeasonCalendar();
+  }
+
+  function restoreEvent(key) {
+    if (dismissingKeys[key]) {
+      clearTimeout(dismissingKeys[key]);
+      delete dismissingKeys[key];
+    }
+    delete calState[key];
+    saveCalState();
+    renderSeasonCalendar();
+  }
+
+  function cancelSnooze(key) {
+    delete calState[key];
+    saveCalState();
+    renderSeasonCalendar();
+  }
+
+  function openSnoozeModal(key, name, startTime) {
+    snoozeTarget = { key: key, name: name, startTime: startTime };
+    document.getElementById('snoozeEventName').textContent = name;
+    // "N before" options need a dated event
+    document.getElementById('snoozeBeforeRow').style.display = startTime ? '' : 'none';
+    document.getElementById('snoozeModal').classList.add('open');
+  }
+
+  function closeSnoozeModal() {
+    snoozeTarget = null;
+    document.getElementById('snoozeModal').classList.remove('open');
+  }
+
+  function addDuration(d, code, sign) {
+    d = new Date(d.getTime());
+    if (code === '1d') d.setDate(d.getDate() + sign);
+    else if (code === '1w') d.setDate(d.getDate() + 7 * sign);
+    else d.setMonth(d.getMonth() + sign);
+    return d;
+  }
+
+  function snoozeChoice(code, before) {
+    if (!snoozeTarget) return;
+    var until = before
+      ? addDuration(new Date(snoozeTarget.startTime), code, -1) // until N before the event
+      : addDuration(calTodayMid(), code, 1);                    // until N from now
+    calState[snoozeTarget.key] = { snoozeUntil: toISODate(until) };
+    saveCalState();
+    closeSnoozeModal();
+    renderSeasonCalendar();
+  }
+
+  // mode: 'normal' | 'dismissing' | 'dismissed' | 'snoozed'
+  function calRow(item, extraClass, mode) {
+    mode = mode || 'normal';
+    var ev = item.ev, st = item.st;
+    var keyAttr = ' data-cal-key="' + escAttr(item.key) + '"';
+
+    var right = '';
+    if (mode === 'normal') {
+      if (st.active) {
+        right = '<span class="cal-due">open now</span>';
+      } else if (!st.past && !st.dateless && st.days <= 75) {
+        right = '<span class="cal-due' + (st.days <= 14 ? ' urgent' : '') + '">' +
+          (st.days === 0 ? 'today!' : 'in ' + st.days + ' day' + (st.days === 1 ? '' : 's')) + '</span>';
+      }
+      right += '<button class="cal-act" title="Snooze" data-cal-action="snooze"' + keyAttr +
+        ' data-cal-name="' + escAttr(ev.name) + '"' +
+        (st.dateless ? '' : ' data-cal-start="' + st.sortTime + '"') + '>💤</button>' +
+        '<button class="cal-act" title="Dismiss" data-cal-action="dismiss"' + keyAttr + '>✕</button>';
+    } else if (mode === 'dismissing' || mode === 'dismissed') {
+      right = '<button class="btn btn-secondary btn-sm" style="padding:5px 12px;font-size:0.78rem" data-cal-action="restore"' + keyAttr + '>Restore</button>';
+      if (mode === 'dismissing') extraClass = (extraClass || '') + ' dismissing';
+      else extraClass = (extraClass || '') + ' past';
+    } else if (mode === 'snoozed') {
+      var untilLabel = calFmtMD(calParseDate(item.snoozeUntil));
+      right = '<span class="cal-due">snoozed until ' + untilLabel + '</span>' +
+        '<button class="btn btn-secondary btn-sm" style="padding:5px 12px;font-size:0.78rem" data-cal-action="cancelSnooze"' + keyAttr + '>Cancel snooze</button>';
+    }
+
+    var link = ev.more_info_url
+      ? '<a class="cal-link" href="' + escAttr(ev.more_info_url) + '" target="_blank" rel="noopener">more info ↗</a>'
+      : '';
+    // Grouping data shown on the event itself instead of section headers
+    var tags = '<span class="cal-tag">' + escHtml(item.group) + '</span>' +
+      (ev.ecoregion || []).filter(function(r) { return r !== 'all'; }).map(function(r) {
+        return '<span class="cal-tag eco">' + escHtml(calPretty(r)) + '</span>';
+      }).join('');
+    return '<div class="cal-row' + (mode === 'normal' && st.past ? ' past' : '') + (extraClass || '') + '">' +
       '<span class="cal-icon">' + (ev.emoji || '📅') + '</span>' +
       '<span class="cal-date">' + st.dateLabel + '</span>' +
       '<span class="cal-info">' +
-        '<div class="cal-title">' + escHtml(ev.name) + '</div>' +
+        '<div class="cal-title">' + escHtml(ev.name) + link + '</div>' +
         (ev.details ? '<div class="cal-desc">' + escHtml(ev.details) + '</div>' : '') +
+        '<div class="cal-tags">' + tags + '</div>' +
       '</span>' +
-      chip +
+      right +
     '</div>';
   }
+
+  function toggleDismissed() { showDismissed = !showDismissed; renderSeasonCalendar(); }
+  function toggleSnoozed() { showSnoozed = !showSnoozed; renderSeasonCalendar(); }
 
   function renderSeasonCalendar() {
     var cal = loadedCalendar || DEFAULT_CALENDAR;
     var items = [];
     (cal.groups || []).forEach(function(g) {
       (g.events || []).forEach(function(ev) {
-        items.push({ group: g.group, ev: ev, st: calItemState(ev) });
+        items.push({ group: g.group, species: g.species, ev: ev, st: calItemState(ev), key: calKey(g.group, ev) });
       });
     });
+    var visible = items.filter(calEventVisible);
+    var hiddenCount = items.length - visible.length;
 
-    var note = calendarIsDefault
+    // Partition by dismiss/snooze state; rows in the 5s grace window stay
+    // in the main list with the dismissing style and a Restore button
+    var todayISO = toISODate(calTodayMid());
+    var mainItems = [], dismissedItems = [], snoozedItems = [];
+    visible.forEach(function(it) {
+      var s = calState[it.key] || {};
+      if (s.dismissed) {
+        if (dismissingKeys[it.key]) { it.mode = 'dismissing'; mainItems.push(it); }
+        else dismissedItems.push(it);
+      } else if (s.snoozeUntil && s.snoozeUntil > todayISO) {
+        it.snoozeUntil = s.snoozeUntil;
+        snoozedItems.push(it);
+      } else {
+        mainItems.push(it);
+      }
+    });
+
+    var note = calStaleWarning(cal);
+    note += calendarIsDefault
       ? '<div style="font-size:0.78rem;color:#8b5a1a;background:#fdf5e8;border:1px solid #ecd9b0;border-radius:6px;padding:6px 10px;margin-bottom:10px">Built-in starter dates (approximate). Import a generated TPWD calendar in <a href="/settings" style="color:#8b5a1a">Settings → Calendar</a> for exact season dates.</div>'
       : '<div style="font-size:0.78rem;color:#777;margin-bottom:10px">Season ' + escHtml(cal.meta.season_year || '') +
-        (cal.meta.generated ? ' · generated ' + escHtml(cal.meta.generated) : '') + ' · imported calendar</div>';
+        (cal.meta.generated ? ' · generated ' + escHtml(cal.meta.generated) : '') + ' · imported calendar' +
+        (hiddenCount ? ' · ' + hiddenCount + ' hidden by filters' : '') + '</div>';
 
-    var el = document.getElementById('seasonCalendar');
+    var listHtml;
     if (!calExpanded) {
-      var upcoming = items.filter(function(i) { return !i.st.dateless && !i.st.past; })
+      var upcoming = mainItems.filter(function(i) { return !i.st.dateless && !i.st.past; })
         .sort(function(a, b) {
           return (a.st.active ? -1 : a.st.days) - (b.st.active ? -1 : b.st.days);
         }).slice(0, 3);
-      el.innerHTML = note + upcoming.map(function(it, i) {
-        return calRow(it, (i === 0 || it.st.active) ? ' next' : '');
-      }).join('') +
-      '<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="toggleCalendar()">Show full calendar (' + items.length + ' events)</button></div>';
+      listHtml = upcoming.map(function(it, i) {
+        return calRow(it, (i === 0 || it.st.active) ? ' next' : '', it.mode);
+      }).join('');
     } else {
-      var html = note;
-      (cal.groups || []).forEach(function(g) {
-        html += '<div style="font-size:0.78rem;font-weight:700;color:#1a4a1a;text-transform:uppercase;letter-spacing:0.05em;margin:16px 0 4px">' + escHtml(g.group) + '</div>';
-        (g.events || []).forEach(function(ev) {
-          var st = calItemState(ev);
-          html += calRow({ ev: ev, st: st }, st.active ? ' next' : '');
-        });
+      // One flat chronological list — no group sections; dateless items last
+      var sorted = mainItems.slice().sort(function(a, b) {
+        var ka = a.st.dateless ? Infinity : a.st.sortTime;
+        var kb = b.st.dateless ? Infinity : b.st.sortTime;
+        return ka - kb;
       });
-      el.innerHTML = html +
-        '<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="toggleCalendar()">Show next 3 only</button></div>';
+      listHtml = sorted.map(function(it) {
+        return calRow(it, it.st.active ? ' next' : '', it.mode);
+      }).join('');
     }
+
+    var footer = '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="btn btn-secondary btn-sm" onclick="toggleCalendar()">' +
+        (calExpanded ? 'Show next 3 only' : 'Show full calendar (' + mainItems.length + ' events)') + '</button>' +
+      (dismissedItems.length
+        ? '<button class="btn btn-secondary btn-sm" onclick="toggleDismissed()">' + (showDismissed ? 'Hide' : 'Show') + ' dismissed (' + dismissedItems.length + ')</button>' : '') +
+      (snoozedItems.length
+        ? '<button class="btn btn-secondary btn-sm" onclick="toggleSnoozed()">' + (showSnoozed ? 'Hide' : 'Show') + ' snoozed (' + snoozedItems.length + ')</button>' : '') +
+    '</div>';
+
+    var extras = '';
+    if (showDismissed && dismissedItems.length) {
+      extras += '<div class="cal-section-head">Dismissed events</div>' +
+        dismissedItems.map(function(it) { return calRow(it, '', 'dismissed'); }).join('');
+    }
+    if (showSnoozed && snoozedItems.length) {
+      extras += '<div class="cal-section-head">Snoozed events</div>' +
+        snoozedItems.map(function(it) { return calRow(it, '', 'snoozed'); }).join('');
+    }
+
+    document.getElementById('seasonCalendar').innerHTML = note + listHtml + footer + extras;
   }
 
   async function loadCalendar() {
@@ -570,8 +813,36 @@
       loadedCalendar = await (await fetch('/api/calendar')).json();
     } catch (e) { loadedCalendar = null; }
     calendarIsDefault = !loadedCalendar;
+    try {
+      var settings = await (await fetch('/api/settings')).json();
+      calFilters = settings.calendarFilters || {};
+      calState = settings.calendarState || {};
+    } catch (e) { calFilters = {}; calState = {}; }
     renderSeasonCalendar();
   }
+
+  // Row action buttons are rendered as data attributes (event names can
+  // contain quotes), handled here by delegation
+  document.getElementById('seasonCalendar').addEventListener('click', function(ev) {
+    var btn = ev.target.closest('[data-cal-action]');
+    if (!btn) return;
+    var key = btn.getAttribute('data-cal-key');
+    var action = btn.getAttribute('data-cal-action');
+    if (action === 'dismiss') dismissEvent(key);
+    else if (action === 'restore') restoreEvent(key);
+    else if (action === 'cancelSnooze') cancelSnooze(key);
+    else if (action === 'snooze') {
+      openSnoozeModal(key, btn.getAttribute('data-cal-name'),
+        parseInt(btn.getAttribute('data-cal-start'), 10) || null);
+    }
+  });
+
+  document.getElementById('snoozeModal').addEventListener('click', function(ev) {
+    if (ev.target === this) closeSnoozeModal();
+  });
+  document.addEventListener('keydown', function(ev) {
+    if (ev.key === 'Escape') closeSnoozeModal();
+  });
 
   loadYears();
   loadTrophies();

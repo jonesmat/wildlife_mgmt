@@ -183,6 +183,16 @@
         </div>
       </div>
 
+      <div class="sub-section" id="calFiltersSection" style="display:none;margin-top:26px">
+        <div class="section-subtitle">Display Filters</div>
+        <div class="hint-block">
+          Hide calendar events that don't apply to your ranch — uncheck ecoregions you're not in,
+          species you don't manage, or event types you don't care about. Unchecked values are
+          hidden from the home page Season Calendar. Statewide events (ecoregion "all") always show.
+        </div>
+        <div id="calFilterBody" style="margin-top:10px"></div>
+      </div>
+
       <div class="sub-section" style="margin-top:26px">
         <div class="section-subtitle">AI Instructions — Generate a New Calendar</div>
         <div class="hint-block">
@@ -257,7 +267,8 @@ Biology/habitat windows (fawning, rut, nesting, burns, plantings, surveys, stres
     "season_year": "YYYY-YYYY",
     "generated": "YYYY-MM-DD",
     "sources": ["url", "..."],
-    "disclaimer": "string"
+    "disclaimer": "string",
+    "ecoregions": ["ALWAYS the complete ECOREGION enum excluding \"all\", in enum order — include every ecoregion even if no event in this file references it (the app builds its region filter UI from this list)"]
   },
   "groups": [
     {
@@ -274,7 +285,8 @@ Biology/habitat windows (fawning, rut, nesting, burns, plantings, surveys, stres
           "icon": "string (from ICON enum; REQUIRED on every event; assigned by the deterministic algorithm in 'Art assignment')",
           "emoji": "string (single emoji; REQUIRED; must be the exact emoji mapped to the icon in the ICON→EMOJI table)",
           "ecoregion": ["array of strings from ECOREGION enum; REQUIRED; use [\"all\"] unless the event is geographically limited per the Ecoregion assignment rules"],
-          "details": "string (optional but strongly encouraged)"
+          "details": "string (optional but strongly encouraged)",
+          "more_info_url": "https URL (optional but strongly encouraged; an authoritative public page — prefer tpwd.texas.gov — where the user can read more about the event)"
         }
       ]
     }
@@ -309,6 +321,8 @@ Mapping: groups 2–8 in order. Pronghorn, javelina, squirrel, pheasant, chachal
 `all` | `pineywoods` | `gulf_prairies_marshes` | `post_oak_savannah` | `blackland_prairies` | `cross_timbers` | `south_texas_plains` | `edwards_plateau` | `rolling_plains` | `high_plains` | `trans_pecos`
 
 The `ecoregion` field is always an **array**. Statewide or region-independent events get exactly `["all"]`. Geographically limited events get the applicable ecoregion value(s) and never include `"all"` alongside specific values.
+
+`meta.ecoregions` must ALWAYS list the complete enum (all 10 values, excluding `all`), in enum order, even when no event in the file references a given ecoregion — the consuming app builds its region filter UI from this list, not from the events.
 
 **Ecoregion assignment rules (apply in order):**
 
@@ -394,6 +408,7 @@ Every event carries two static art fields: `icon` (a stable identifier the appli
 - Every event MUST include `icon` and `emoji`, assigned strictly by the Art assignment algorithm and ICON→EMOJI table. Never improvise art.
 - Every event MUST include `ecoregion` as an array — `["all"]` by default, specific values only per the Ecoregion assignment rules. Never mix `"all"` with specific values.
 - `meta.generated` = today's date. `meta.sources` = the actual URLs you fetched.
+- Include `more_info_url` on every event where an authoritative public page exists: season events → the TPWD season dates page or the species page in the Outdoor Annual; MLDP events → the TPWD MLDP program page; license events → the TPWD license page; drawn hunts → the TPWD drawn hunts page; habitat/biology events → a relevant TPWD or extension resource if one was encountered during research. Use only real URLs you actually visited or verified — NEVER fabricate or guess a link. Omit the field when no authoritative page applies.
 - Output must be valid JSON (no comments, no trailing commas). Validate before delivering.
 
 ## Step 5 — Required event coverage (reference list)
@@ -422,9 +437,10 @@ If TPWD adds, removes, or restructures a season (e.g., a county closure, elimina
 5. `end_date` ≥ `start_date` everywhere; dates use the correct calendar years (fall dates = season start year; spring dates = following year).
 6. Leap-year check on the Feb "last day" deadlines.
 7. Every event has both `icon` and `emoji`; each `emoji` matches its `icon` per the ICON→EMOJI table; re-run the Art assignment algorithm on a sample of 5 events across different types and confirm the output matches.
-8. Every event has an `ecoregion` array containing only ECOREGION enum values; `"all"` is never combined with specific values; every entry in the fixed mapping table matches exactly; no hunting zone (North/South/Central) was misread as an ecoregion.
+8. Every event has an `ecoregion` array containing only ECOREGION enum values; `"all"` is never combined with specific values; every entry in the fixed mapping table matches exactly; no hunting zone (North/South/Central) was misread as an ecoregion. `meta.ecoregions` contains all 10 enum values (excluding `all`) in enum order.
 9. The four seasonal events carry verified (not assumed) equinox/solstice dates for the target years and follow the exact "Start of ..." name patterns.
 10. `meta.sources` lists real fetched URLs; `meta.disclaimer` notes county/zone variation and instructs verification against the Outdoor Annual and the user's CAD.
+11. Every `more_info_url` is a real https URL captured during research (no invented links) pointing to an authoritative domain — prefer tpwd.texas.gov. Spot-check at least 3 by confirming they appeared in your fetched/search results.
 
 ## Output
 
@@ -666,6 +682,10 @@ async function savePhotoSetting() {
 }
 
 // ── Calendar data ──
+function calPretty(v) {
+  return String(v).replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+}
+
 async function loadCalendarPane() {
   var cal = null;
   try { cal = await (await fetch('/api/calendar')).json(); } catch (e) { /* show default state */ }
@@ -674,17 +694,88 @@ async function loadCalendarPane() {
   if (cal && cal.meta) {
     var events = 0;
     (cal.groups || []).forEach(function(g) { events += (g.events || []).length; });
+    var imported = cal._importedAt || cal.meta.generated;
+    var ageDays = imported ? Math.floor((Date.now() - new Date(imported).getTime()) / 86400000) : null;
+    var stale = (ageDays !== null && ageDays > 274)
+      ? '<div style="font-size:0.82rem;color:#8b1a1a;background:#fdf0ef;border:1px solid #e8c2bd;border-radius:6px;padding:7px 11px;margin-top:8px">⚠️ Imported over 9 months ago — new season dates are likely missing. Generate a fresh calendar with the AI instructions below and re-import.</div>'
+      : '';
     el.innerHTML =
       '<strong>' + escHtml(cal.meta.title || 'Imported calendar') + '</strong><br>' +
       'Season ' + escHtml(cal.meta.season_year || '?') +
-      (cal.meta.generated ? ' &middot; generated ' + escHtml(cal.meta.generated) : '') + '<br>' +
+      (cal.meta.generated ? ' &middot; generated ' + escHtml(cal.meta.generated) : '') +
+      (imported ? ' &middot; imported ' + escHtml(String(imported).slice(0, 10)) + (ageDays !== null ? ' (' + ageDays + ' days ago)' : '') : '') + '<br>' +
       (cal.groups || []).length + ' groups &middot; ' + events + ' events' +
-      (cal.meta.disclaimer ? '<div style="font-size:0.78rem;color:#888;margin-top:6px">' + escHtml(cal.meta.disclaimer) + '</div>' : '');
+      (cal.meta.disclaimer ? '<div style="font-size:0.78rem;color:#888;margin-top:6px">' + escHtml(cal.meta.disclaimer) + '</div>' : '') +
+      stale;
     removeBtn.style.display = '';
   } else {
     el.innerHTML = 'No calendar imported — the home page is using the <strong>built-in starter calendar</strong> with approximate dates.';
     removeBtn.style.display = 'none';
   }
+  await renderCalFilters(cal);
+}
+
+async function renderCalFilters(cal) {
+  var section = document.getElementById('calFiltersSection');
+  if (!cal || !cal.groups) { section.style.display = 'none'; return; }
+
+  var filters = {};
+  try {
+    var settings = await (await fetch('/api/settings')).json();
+    filters = settings.calendarFilters || {};
+  } catch (e) { /* default: nothing hidden */ }
+
+  // Collect the distinct values actually present in the imported calendar
+  var ecoSet = {}, speciesSet = {}, typeSet = {};
+  cal.groups.forEach(function(g) {
+    if (g.species) speciesSet[g.species] = true;
+    (g.events || []).forEach(function(ev) {
+      if (ev.type) typeSet[ev.type] = true;
+      (ev.ecoregion || []).forEach(function(r) { if (r !== 'all') ecoSet[r] = true; });
+    });
+  });
+
+  function block(title, kind, values, hidden) {
+    if (!values.length) return '';
+    return '<div style="margin-bottom:12px">' +
+      '<div style="font-size:0.8rem;font-weight:700;color:#333;margin-bottom:5px">' + title + '</div>' +
+      '<div style="display:flex;gap:6px 14px;flex-wrap:wrap">' +
+      values.map(function(v) {
+        var checked = (hidden || []).indexOf(v) === -1;
+        return '<label style="font-size:0.84rem;display:flex;align-items:center;gap:5px;cursor:pointer">' +
+          '<input type="checkbox" class="cal-filter-cb" data-kind="' + kind + '" data-value="' + escHtml(v) + '"' +
+          (checked ? ' checked' : '') + ' onchange="calFilterChanged()"> ' + escHtml(calPretty(v)) + '</label>';
+      }).join('') +
+      '</div></div>';
+  }
+
+  // Prefer the calendar's declared full ecoregion list (meta.ecoregions) so
+  // every region is offered even when no current event references it
+  var ecoList = (cal.meta && Array.isArray(cal.meta.ecoregions) && cal.meta.ecoregions.length)
+    ? cal.meta.ecoregions.filter(function(r) { return r !== 'all'; })
+    : Object.keys(ecoSet).sort();
+
+  document.getElementById('calFilterBody').innerHTML =
+    block('Ecoregions', 'eco', ecoList, filters.hiddenEcoregions) +
+    block('Species', 'species', Object.keys(speciesSet).sort(), filters.hiddenSpecies) +
+    block('Event Types', 'type', Object.keys(typeSet).sort(), filters.hiddenTypes);
+  section.style.display = '';
+}
+
+async function calFilterChanged() {
+  var filters = { hiddenEcoregions: [], hiddenSpecies: [], hiddenTypes: [] };
+  document.querySelectorAll('.cal-filter-cb').forEach(function(cb) {
+    if (cb.checked) return;
+    var v = cb.getAttribute('data-value');
+    if (cb.getAttribute('data-kind') === 'eco') filters.hiddenEcoregions.push(v);
+    else if (cb.getAttribute('data-kind') === 'species') filters.hiddenSpecies.push(v);
+    else filters.hiddenTypes.push(v);
+  });
+  await fetch('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ calendarFilters: filters })
+  });
 }
 
 function calFilePicked(input) {
