@@ -7,6 +7,7 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script src="/store.js"></script>
 <script src="/dialog.js"></script>
+<script src="/version.js"></script>
 <link rel="stylesheet" href="/form-shared.css">
 <style>
 .current-image-wrap {
@@ -58,6 +59,7 @@
     <div class="sidebar-item" id="nav-photos" onclick="showPane('photos')">Photos</div>
     <div class="sidebar-item" id="nav-calendar" onclick="showPane('calendar')">Calendar</div>
     <div class="sidebar-item" id="nav-data" onclick="showPane('data')">Data Export &amp; Restore</div>
+    <div class="sidebar-item" id="nav-appinfo" onclick="showPane('appinfo')">App Info</div>
   </nav>
 
   <main class="main">
@@ -453,7 +455,15 @@ Deliver a single file named `tpwd_wildlife_management_calendar.json` containing 
     <div class="section" id="data" style="display:none">
       <div class="section-title">Data Export &amp; Restore</div>
 
-      <div class="sub-section">
+      <div class="hint-block" style="border-color:#b8d0b8;background:#f0f7ee">
+        🔒 <strong>Your data never leaves this browser.</strong> Everything — the plan, reports,
+        log entries, photos, and maps — is stored locally on this device and is never sent to or
+        stored on any server. That means regular exports are your only backup: if this browser's
+        site data is cleared or the device is lost, the data is gone. It also means another
+        browser or device starts empty until you import a backup there.
+      </div>
+
+      <div class="sub-section" style="margin-top:20px">
         <div class="section-subtitle">Export</div>
         <div class="hint-block">
           Saves everything — plan, reports, activity log, photos, property images, and routes —
@@ -483,6 +493,23 @@ Deliver a single file named `tpwd_wildlife_management_calendar.json` containing 
           archive backup first.
         </div>
         <button class="btn btn-secondary" style="margin-top:10px;color:#8b1a1a" onclick="openClearModal()">Clear All Data...</button>
+      </div>
+    </div>
+
+    <!-- App Info pane -->
+    <div class="section" id="appinfo" style="display:none">
+      <div class="section-title">App Info</div>
+
+      <div style="background:#f5f8f5;border:1px solid #ccc;border-radius:6px;padding:14px 16px;font-size:0.9rem;line-height:2">
+        <div><strong>App:</strong> TPWD 1-D-1 Wildlife Management Tool</div>
+        <div><strong>Version:</strong> <span id="appVersion">—</span></div>
+        <div><strong>Forms:</strong> PWD 885-W7000 (Wildlife Management Plan) &middot; PWD 888-W7000 (Annual Report)</div>
+      </div>
+
+      <div class="hint-block" style="margin-top:14px">
+        All app data is stored locally in this browser (IndexedDB) — nothing is ever uploaded to
+        or stored on a server. Use Data Export &amp; Restore to back up and move your data between
+        devices.
       </div>
     </div>
   </main>
@@ -656,7 +683,7 @@ function escHtml(s) {
 
 // ── Pane switching ──
 function showPane(p) {
-  ['property', 'routes', 'photos', 'calendar', 'data'].forEach(function(id) {
+  ['property', 'routes', 'photos', 'calendar', 'data', 'appinfo'].forEach(function(id) {
     document.getElementById(id).style.display = (id === p) ? '' : 'none';
     document.getElementById('nav-' + id).classList.toggle('active', id === p);
   });
@@ -1142,6 +1169,7 @@ async function deleteRoute(id) {
 // Arrived from a Census entry's "+ Create route" link?
 var createRouteReturn = new URLSearchParams(location.search).get('createRoute') === '1';
 
+document.getElementById('appVersion').textContent = window.APP_VERSION || 'dev';
 loadPhotoSetting();
 loadCalendarPane();
 load().then(loadRoutes).then(function() {
