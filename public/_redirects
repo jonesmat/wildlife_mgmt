@@ -1,0 +1,12 @@
+# Cloudflare Pages rewrites for the app's pretty routes (200 = rewrite, not redirect).
+# Mirrors the page routes in server.js so static hosting behaves identically.
+/log            /log.html           200
+/plan           /plan.html          200
+/reports        /reports.html       200
+/settings       /settings.html      200
+/bucks          /bucks.html         200
+/map            /map.html           200
+/trends         /trends.html        200
+/plan-print     /plan-print.html    200
+/report/*       /report.html        200
+/report-print/* /report-print.html  200
