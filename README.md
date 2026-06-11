@@ -89,7 +89,7 @@ All data — the plan, annual reports, log entries, photos, and maps — is stor
 **inside your browser** (IndexedDB). Nothing is written to disk or sent to any
 server. That means:
 
-- **Back up regularly** with *Settings → Data Export & Restore*, or turn on
+- **Back up regularly** with *Settings → Data Management*, or turn on
   Google Drive sync (below). If the browser's site data is cleared or the
   device is lost, un-backed-up data is gone.
 - Each browser/device starts empty until you import a backup or sync it.
@@ -114,12 +114,14 @@ One-time setup (free) — sync needs a Google OAuth Client ID that identifies
    type **Web application**, and add your site's address (and
    `http://localhost:3000` for local use) under **Authorized JavaScript
    origins**.
-5. Copy the client ID into **Settings → Google Sync** in the app (or hardcode
+5. Copy the client ID into **Settings → Data Management → Google Sync** (or hardcode
    it as `DEFAULT_CLIENT_ID` in `public/google-sync.js` for your deployment).
 
 Then use **Sync Now** on each device you want connected. The optional
-auto-sync checkbox syncs silently whenever the app opens. If both a device
-and Drive have changes since their last sync, the app asks which copy to keep.
+auto-sync checkbox syncs silently whenever the app opens, and again a few
+seconds after any change you make — a small pill in the bottom-left corner
+shows when a sync is running. If both a device and Drive have changes since
+their last sync, the app asks which copy to keep.
 
 ---
 

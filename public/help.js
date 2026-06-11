@@ -128,16 +128,16 @@
       title: 'Settings',
       html:
         '<p><strong>What this page is for:</strong> App-wide configuration — property details, census ' +
-        'routes, property photos, the season calendar, data export &amp; restore, optional Google ' +
-        'Drive sync, and app info.</p>' +
+        'routes, property photos, the season calendar, data management (export, restore, and ' +
+        'optional Google Drive sync), and app info.</p>' +
         '<p><strong>How it affects other pages:</strong> The property image powers the Property Map ' +
         'and location pins; routes power census logging and the Trends charts; calendar settings ' +
         'control the home page calendar.</p>' +
         '<p><strong>Tips:</strong></p><ul>' +
         '<li><strong>Most important thing in the app:</strong> all data lives in this browser — ' +
-        'nothing is uploaded unless you turn on Google Sync. Use <strong>Data Export &amp; ' +
-        'Restore</strong> to download a backup regularly, or enable <strong>Google Sync</strong> ' +
-        'to keep a copy in your own Google Drive automatically.</li>' +
+        'nothing is uploaded unless you turn on Google Sync. Use <strong>Data Management</strong> ' +
+        'to download a backup regularly, or enable <strong>Google Sync</strong> there to keep a ' +
+        'copy in your own Google Drive automatically.</li>' +
         '<li>Moving to a new computer? Export here and Restore on the new device — or connect ' +
         'both to Google Sync and they share the same data.</li>' +
         '<li>Set up your property image and census routes before logging census activities — entries ' +

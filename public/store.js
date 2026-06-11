@@ -246,7 +246,11 @@
   function saveData(d) {
     // Change stamp used by google-sync.js to detect local edits between syncs.
     d.lastModifiedAt = new Date().toISOString();
-    return kvSet('data', d);
+    return kvSet('data', d).then(function(r) {
+      // Lets google-sync.js debounce an auto-sync after edits settle.
+      try { window.dispatchEvent(new CustomEvent('wm-data-changed')); } catch (e) {}
+      return r;
+    });
   }
 
   // ── Helpers ──

@@ -6,7 +6,7 @@
 //
 // Requires a Google OAuth Client ID (Web application). Either hardcode it in
 // DEFAULT_CLIENT_ID below for your deployment, or paste it in
-// Settings → Google Sync (stored per-browser in localStorage).
+// Settings → Data Management → Google Sync (stored per-browser in localStorage).
 (function() {
   'use strict';
 
@@ -128,6 +128,49 @@
       .catch(function() { return ''; });
   }
 
+  // ── Sync activity indicator (bottom-left pill, all pages) ──
+
+  var indicatorEl = null;
+  var indicatorTimer = null;
+  function indicator(state, text) {
+    if (!document.body) return;
+    if (!indicatorEl) {
+      var style = document.createElement('style');
+      style.textContent =
+        '.gsync-pill{position:fixed;left:14px;bottom:14px;z-index:96;display:none;' +
+          'align-items:center;gap:8px;background:#1a4a1a;color:white;border-radius:18px;' +
+          'padding:7px 14px;font-family:Arial,sans-serif;font-size:0.8rem;font-weight:600;' +
+          'box-shadow:0 3px 10px rgba(0,0,0,0.3);cursor:default}' +
+        '.gsync-pill.show{display:flex}' +
+        '.gsync-pill.error{background:#8b1a1a;cursor:pointer}' +
+        '.gsync-spinner{width:13px;height:13px;border:2px solid rgba(255,255,255,0.35);' +
+          'border-top-color:white;border-radius:50%;animation:gsyncSpin 0.8s linear infinite;flex-shrink:0}' +
+        '@keyframes gsyncSpin{to{transform:rotate(360deg)}}' +
+        '@media print{.gsync-pill{display:none !important}}';
+      document.head.appendChild(style);
+      indicatorEl = document.createElement('div');
+      indicatorEl.className = 'gsync-pill';
+      indicatorEl.setAttribute('role', 'status');
+      indicatorEl.addEventListener('click', function() {
+        if (indicatorEl.classList.contains('error')) location.href = '/settings';
+      });
+      document.body.appendChild(indicatorEl);
+    }
+    clearTimeout(indicatorTimer);
+    if (!state) { indicatorEl.classList.remove('show'); return; }
+    indicatorEl.classList.toggle('error', state === 'error');
+    indicatorEl.innerHTML = (state === 'syncing' ? '<span class="gsync-spinner"></span>' : '') + esc(text);
+    indicatorEl.title = state === 'error' ? text + ' — tap to open Settings' : text;
+    indicatorEl.classList.add('show');
+    if (state !== 'syncing') {
+      indicatorTimer = setTimeout(function() { indicatorEl.classList.remove('show'); },
+        state === 'error' ? 8000 : 2500);
+    }
+  }
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
   // ── Sync logic ──
 
   function localArchive() {
@@ -155,10 +198,34 @@
       .then(function(d) { return d.lastModifiedAt || ''; });
   }
 
+  var syncing = false;
+
+  // Public entry: wraps the sync with the activity indicator. Silent-mode
+  // failures (e.g. Google can't mint a token without user interaction) hide
+  // the indicator instead of flashing an error on every page load.
+  function syncNow(interactive) {
+    if (syncing) return Promise.resolve('Sync already in progress.');
+    syncing = true;
+    return getToken(interactive).then(function() {
+      indicator('syncing', 'Syncing\u2026');
+      return performSync(interactive);
+    }).then(function(status) {
+      syncing = false;
+      if (/conflict/i.test(status)) indicator('error', 'Sync conflict');
+      else indicator('ok', '\u2713 ' + (/up to date/i.test(status) ? 'Up to date' : 'Synced'));
+      return status;
+    }, function(err) {
+      syncing = false;
+      if (interactive) indicator('error', 'Sync failed');
+      else indicator(null);
+      throw err;
+    });
+  }
+
   // Resolves to a short status string. interactive=true may show Google
   // popups and conflict dialogs; false (auto-sync) never shows UI and defers
   // conflicts to the Settings page.
-  function syncNow(interactive) {
+  function performSync(interactive) {
     var m = meta();
     var localStamp, archive, remote;
     return getToken(interactive).then(function() {
@@ -254,6 +321,7 @@
     meta: meta,
     syncNow: syncNow,
     disconnect: disconnect,
+    _indicator: indicator,
     autoEnabled: function() { return localStorage.getItem('gsync-auto') === '1'; },
     setAuto: function(on) {
       if (on) localStorage.setItem('gsync-auto', '1');
@@ -261,10 +329,27 @@
     }
   };
 
-  // Auto-sync: runs once per page load on pages that include this script,
-  // silently (no popups). Skips quietly if Google can't mint a token without
-  // user interaction; the Settings page surfaces any conflict.
-  if (window.gsync.autoEnabled() && clientId() && meta().lastSyncAt) {
+  function autoSyncReady() {
+    return window.gsync.autoEnabled() && clientId() && meta().lastSyncAt;
+  }
+
+  // Debounced auto-sync: every data write (saveData in store.js) emits
+  // 'wm-data-changed'; sync fires 5 seconds after the last change settles.
+  // Writes performed by the sync itself (download + import) are ignored.
+  var DEBOUNCE_MS = 5000;
+  var debounceTimer = null;
+  window.addEventListener('wm-data-changed', function() {
+    if (syncing || !autoSyncReady()) return;
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function() {
+      syncNow(false).catch(function() { /* silent by design */ });
+    }, DEBOUNCE_MS);
+  });
+
+  // Auto-sync on open: pulls remote changes when the app starts, silently
+  // (no popups). Skips quietly if Google can't mint a token without user
+  // interaction; the Settings page surfaces any conflict.
+  if (autoSyncReady()) {
     setTimeout(function() {
       syncNow(false).catch(function() { /* silent by design */ });
     }, 1500);

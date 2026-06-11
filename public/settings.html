@@ -60,8 +60,7 @@
     <div class="sidebar-item" id="nav-routes" onclick="showPane('routes')">Routes</div>
     <div class="sidebar-item" id="nav-photos" onclick="showPane('photos')">Photos</div>
     <div class="sidebar-item" id="nav-calendar" onclick="showPane('calendar')">Calendar</div>
-    <div class="sidebar-item" id="nav-data" onclick="showPane('data')">Data Export &amp; Restore</div>
-    <div class="sidebar-item" id="nav-gsync" onclick="showPane('gsync')">Google Sync</div>
+    <div class="sidebar-item" id="nav-data" onclick="showPane('data')">Data Management</div>
     <div class="sidebar-item" id="nav-appinfo" onclick="showPane('appinfo')">App Info</div>
   </nav>
 
@@ -456,7 +455,7 @@ Deliver a single file named `tpwd_wildlife_management_calendar.json` containing 
 
     <!-- Data pane -->
     <div class="section" id="data" style="display:none">
-      <div class="section-title">Data Export &amp; Restore</div>
+      <div class="section-title">Data Management</div>
 
       <div class="hint-block" style="border-color:#b8d0b8;background:#f0f7ee">
         🔒 <strong>Your data stays in this browser</strong> unless you enable Google Sync.
@@ -489,21 +488,6 @@ Deliver a single file named `tpwd_wildlife_management_calendar.json` containing 
         <span id="importStatus" style="margin-left:10px;font-size:0.85rem;color:#777"></span>
       </div>
 
-      <div class="sub-section" style="margin-top:26px">
-        <div class="section-subtitle" style="color:#8b1a1a">Clear All Data</div>
-        <div class="hint-block" style="border-color:#d9a0a0;background:#fdf3f3">
-          Permanently deletes the plan, all reports, the entire activity log, every photo,
-          property image, and route. <strong>This cannot be recovered.</strong> Export an
-          archive backup first.
-        </div>
-        <button class="btn btn-secondary" style="margin-top:10px;color:#8b1a1a" onclick="openClearModal()">Clear All Data...</button>
-      </div>
-    </div>
-
-    <!-- Google Sync pane -->
-    <div class="section" id="gsync" style="display:none">
-      <div class="section-title">Google Sync</div>
-
       <div class="hint-block" style="border-color:#b8d0b8;background:#f0f7ee">
         Optional: keep a copy of your data in <strong>your own Google Drive</strong> and sync it
         between devices. The backup goes to Drive's hidden app-data area that only this app can
@@ -512,7 +496,7 @@ Deliver a single file named `tpwd_wildlife_management_calendar.json` containing 
       </div>
 
       <div class="sub-section" id="gsyncSetup" style="margin-top:20px;display:none">
-        <div class="section-subtitle">One-time setup</div>
+        <div class="section-subtitle">Google Sync &mdash; one-time setup</div>
         <div class="hint-block">
           Sync needs a (free) Google OAuth Client ID so Google knows this app is yours.
           In <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a>:
@@ -529,13 +513,13 @@ Deliver a single file named `tpwd_wildlife_management_calendar.json` containing 
       </div>
 
       <div class="sub-section" id="gsyncMain" style="margin-top:20px;display:none">
-        <div class="section-subtitle">Sync</div>
+        <div class="section-subtitle">Google Sync</div>
         <div id="gsyncAccount" style="font-size:0.9rem;color:#555;margin-bottom:10px"></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-primary" id="gsyncNowBtn" onclick="gsyncNow()">Sync Now</button>
           <label class="checkbox-item" style="font-size:0.88rem">
             <input type="checkbox" id="gsyncAuto" onchange="gsync.setAuto(this.checked)">
-            Sync automatically when the app opens
+            Sync automatically (when the app opens, and a few seconds after changes)
           </label>
         </div>
         <div id="gsyncStatus" style="font-size:0.85rem;color:#777;margin-top:10px"></div>
@@ -547,6 +531,16 @@ Deliver a single file named `tpwd_wildlife_management_calendar.json` containing 
             Settings &rarr; Manage apps.
           </div>
         </div>
+      </div>
+
+      <div class="sub-section" style="margin-top:26px">
+        <div class="section-subtitle" style="color:#8b1a1a">Clear All Data</div>
+        <div class="hint-block" style="border-color:#d9a0a0;background:#fdf3f3">
+          Permanently deletes the plan, all reports, the entire activity log, every photo,
+          property image, and route. <strong>This cannot be recovered.</strong> Export an
+          archive backup first.
+        </div>
+        <button class="btn btn-secondary" style="margin-top:10px;color:#8b1a1a" onclick="openClearModal()">Clear All Data...</button>
       </div>
     </div>
 
@@ -739,7 +733,7 @@ function escHtml(s) {
 
 // ── Pane switching ──
 function showPane(p) {
-  ['property', 'routes', 'photos', 'calendar', 'data', 'gsync', 'appinfo'].forEach(function(id) {
+  ['property', 'routes', 'photos', 'calendar', 'data', 'appinfo'].forEach(function(id) {
     document.getElementById(id).style.display = (id === p) ? '' : 'none';
     document.getElementById('nav-' + id).classList.toggle('active', id === p);
   });
