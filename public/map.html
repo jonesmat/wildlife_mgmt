@@ -58,7 +58,7 @@
 <header>
   <h1>🗺️ Property Map</h1>
   <div class="header-actions">
-    <a href="/log" class="btn btn-white">Activity Log</a>
+    <a href="/activity" class="btn btn-white">Activity Log</a>
     <a href="/" class="btn btn-white">Home</a>
   </div>
 </header>
@@ -321,7 +321,7 @@ function selectPin(id) {
     '<div class="md-title">' + (TYPE_ICONS[e.type] || '') + ' ' + escHtml(entryTitle(e)) + '</div>' +
     '<div class="md-meta">' + escHtml(e.type) + ' · ' + fmtDate(e.datetime) + '</div>' +
     (photos ? '<div class="md-photos">' + photos + '</div>' : '') +
-    '<div style="margin-top:10px"><a class="btn btn-secondary" style="font-size:0.8rem;padding:6px 14px;text-decoration:none" href="/log#entry-' + e.id + '">Open in Activity Log</a></div>';
+    '<div style="margin-top:10px"><a class="btn btn-secondary" style="font-size:0.8rem;padding:6px 14px;text-decoration:none" href="/activity#entry-' + e.id + '">Open in Activity Log</a></div>';
   panel.classList.add('open');
 }
 

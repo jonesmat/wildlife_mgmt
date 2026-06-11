@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TPWD Wildlife Management Tool</title>
+<title>Ranch Wildlife Management Tool (Unofficial)</title>
+<meta name="description" content="Unofficial, open-source tool for Texas landowners managing a ranch under the 1-D-1 wildlife tax valuation. Helps prepare PWD 885 plans and PWD 888 annual reports. Not affiliated with the Texas Parks and Wildlife Department. All data stays in your browser.">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script src="/store.js"></script>
 <script src="/dialog.js"></script>
@@ -185,9 +186,9 @@
 <body>
 <header>
   <div>
-    <div style="font-size:0.7rem;opacity:0.7;text-transform:uppercase;letter-spacing:1px;">Texas Parks & Wildlife</div>
-    <h1>1-D-1 Wildlife Management Tool</h1>
-    <div class="subtitle">Generate PWD 885 Plans and PWD 888 Annual Reports</div>
+    <div style="font-size:0.7rem;opacity:0.7;text-transform:uppercase;letter-spacing:1px;">Unofficial ranch tool for TPWD 1-D-1 programs</div>
+    <h1>Ranch Wildlife Management Tool</h1>
+    <div class="subtitle">Prepare PWD 885 Plans and PWD 888 Annual Reports</div>
   </div>
   <a href="/settings" style="margin-left:auto;color:white;text-decoration:none;font-size:0.9rem;font-weight:600;padding:8px 16px;border:1px solid rgba(255,255,255,0.4);border-radius:6px">⚙️ Settings</a>
 </header>
@@ -197,7 +198,7 @@
 
   <!-- Primary navigation -->
   <div class="tiles">
-    <div class="tile" onclick="location.href='/log'">
+    <div class="tile" onclick="location.href='/activity'">
       <div class="t-icon">📓</div>
       <div class="t-title">Activity Log</div>
       <div class="t-sub" id="tileLogSub">&nbsp;</div>
@@ -238,6 +239,11 @@
     <div id="seasonCalendar" style="margin-top:8px"></div>
   </div>
 
+  <div style="text-align:center;font-size:0.76rem;color:#999;padding:8px 0 20px;line-height:1.6">
+    An unofficial, open-source tool for Texas landowners. Not affiliated with or endorsed by the
+    Texas Parks and Wildlife Department.<br>
+    All data is stored locally in your browser — nothing is uploaded to any server.
+  </div>
 </div>
 
 <!-- Snooze calendar event modal -->
@@ -423,7 +429,7 @@
         var name = (e['hv-points'] ? e['hv-points'] + '-Point ' : '') + 'Whitetail';
         var detail = fmtEighths(net) + ' B&amp;C ' + mode + '<br>' + (e.datetime || '').slice(0, 4) +
           (e['hv-hunter'] ? ' &middot; Taken by ' + escHtml(e['hv-hunter']) : '');
-        return '<div class="trophy-card" onclick="location.href=\'/log#entry-' + e.id + '\'">' +
+        return '<div class="trophy-card" onclick="location.href=\'/activity#entry-' + e.id + '\'">' +
           photo +
           '<div class="trophy-body">' +
             '<div class="trophy-name">' + escHtml(name) + '</div>' +

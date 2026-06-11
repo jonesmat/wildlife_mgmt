@@ -57,7 +57,7 @@
 <header>
   <h1>🦌 Buck Watch</h1>
   <div class="header-actions">
-    <a href="/log" class="btn btn-white">Activity Log</a>
+    <a href="/activity" class="btn btn-white">Activity Log</a>
     <a href="/" class="btn btn-white">Home</a>
   </div>
 </header>
@@ -177,7 +177,7 @@ function render() {
         '<span class="bt-date">' + fmtDate(e.datetime) + '</span>' +
         '<span class="bt-title">' + escHtml(entryLine(e)) + '</span>' +
         thumb +
-        '<a class="bt-link" href="/log#entry-' + e.id + '">view</a>' +
+        '<a class="bt-link" href="/activity#entry-' + e.id + '">view</a>' +
       '</div>';
     }).join('');
     if (!timeline) timeline = '<div style="color:#999;font-size:0.82rem;font-style:italic">No linked entries yet — link Harvest or Sighting entries to this buck in the Activity Log.</div>';

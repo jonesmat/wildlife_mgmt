@@ -29,7 +29,7 @@
 <header>
   <h1>📈 Census Trends</h1>
   <div class="header-actions">
-    <a href="/log" class="btn btn-white">Activity Log</a>
+    <a href="/activity" class="btn btn-white">Activity Log</a>
     <a href="/" class="btn btn-white">Home</a>
   </div>
 </header>
@@ -296,12 +296,12 @@ function renderChart(seriesArr) {
       var title = '<title>' + s.name + (p.surveyType ? ' · ' + p.surveyType : '') + ' — ' + p.date.slice(0, 10) + ': ' + p.count + '</title>';
       if (icon) {
         // Survey-type icon in a series-colored ring
-        svg += '<a href="/log#entry-' + p.id + '">' +
+        svg += '<a href="/activity#entry-' + p.id + '">' +
           '<circle cx="' + X(p.x) + '" cy="' + Y(p.count) + '" r="9" fill="white" stroke="' + s.color + '" stroke-width="2"/>' +
           '<text x="' + X(p.x) + '" y="' + (Y(p.count) + 3.5) + '" text-anchor="middle" font-size="10">' + icon + title + '</text>' +
         '</a>';
       } else {
-        svg += '<a href="/log#entry-' + p.id + '"><circle cx="' + X(p.x) + '" cy="' + Y(p.count) + '" r="4.5" fill="white" stroke="' + s.color + '" stroke-width="2">' +
+        svg += '<a href="/activity#entry-' + p.id + '"><circle cx="' + X(p.x) + '" cy="' + Y(p.count) + '" r="4.5" fill="white" stroke="' + s.color + '" stroke-width="2">' +
           title + '</circle></a>';
       }
     });

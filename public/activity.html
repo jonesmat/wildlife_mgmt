@@ -783,7 +783,7 @@ async function init() {
   });
   allEntries = await (await fetch('/api/log')).json();
   applyFilter();
-  // Deep link from Trophy Board on the home page: /log#entry-<id>
+  // Deep link from Trophy Board on the home page: /activity#entry-<id>
   if (location.hash.indexOf('#entry-') === 0) jumpToEntry(location.hash.slice(7));
   // Returning from Settings after creating a route mid-Census-entry
   var params = new URLSearchParams(location.search);

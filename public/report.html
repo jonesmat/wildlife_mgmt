@@ -97,7 +97,7 @@
     <!-- Activity Log Entries -->
     <div class="section" id="logEntries">
       <div class="section-title">Activity Log Entries</div>
-      <div class="hint-block">All log entries recorded during <span id="logYearLabel"></span>. Edit entries in the <a href="/log" target="_blank">Activity Log</a>. Use the checkboxes to include or exclude entries from the printed report.</div>
+      <div class="hint-block">All log entries recorded during <span id="logYearLabel"></span>. Edit entries in the <a href="/activity" target="_blank">Activity Log</a>. Use the checkboxes to include or exclude entries from the printed report.</div>
       <div id="logGlobalControls" style="display:none;margin-bottom:10px;display:flex;gap:8px;align-items:center">
         <button class="btn btn-white" style="font-size:0.8rem;padding:4px 10px" onclick="setAllEntries(true)">Include All</button>
         <button class="btn btn-white" style="font-size:0.8rem;padding:4px 10px" onclick="setAllEntries(false)">Exclude All</button>
@@ -393,7 +393,7 @@ async function loadLogEntries() {
 
   var body = document.getElementById('logEntriesBody');
   if (!entries.length) {
-    body.innerHTML = '<div style="color:#999;font-style:italic">No log entries for ' + year + '. <a href="/log" target="_blank">Add entries in the Activity Log.</a></div>';
+    body.innerHTML = '<div style="color:#999;font-style:italic">No log entries for ' + year + '. <a href="/activity" target="_blank">Add entries in the Activity Log.</a></div>';
     return;
   }
 

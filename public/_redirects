@@ -6,3 +6,4 @@
 # the extensionless paths.
 /report/*       /report        200
 /report-print/* /report-print  200
+/log            /activity      301

@@ -11,8 +11,13 @@ const PORT = 3000;
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Page routes
+app.get('/activity', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'activity.html'));
+});
+
+// Old path; renamed because Safe Browsing flagged the login-lookalike /log
 app.get('/log', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'log.html'));
+  res.redirect(301, '/activity');
 });
 
 app.get('/plan', (req, res) => {
