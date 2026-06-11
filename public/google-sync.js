@@ -384,11 +384,17 @@
   });
 
   // Auto-sync on open: pulls remote changes when the app starts, silently
-  // (no popups). Skips quietly if Google can't mint a token without user
-  // interaction; the Settings page surfaces any conflict.
+  // (no popups). Every in-app navigation is a fresh page load, so without a
+  // staleness threshold this would sync on every page change — only sync if
+  // the last one is older than ON_OPEN_MIN_AGE_MS. (Local edits are still
+  // pushed promptly by the debounced change sync above.)
+  var ON_OPEN_MIN_AGE_MS = 5 * 60 * 1000;
   if (autoSyncReady()) {
-    setTimeout(function() {
-      syncNow(false).catch(function() { /* silent by design */ });
-    }, 1500);
+    var last = Date.parse(meta().lastSyncAt) || 0;
+    if (Date.now() - last > ON_OPEN_MIN_AGE_MS) {
+      setTimeout(function() {
+        syncNow(false).catch(function() { /* silent by design */ });
+      }, 1500);
+    }
   }
 })();
