@@ -10,7 +10,7 @@
 (function() {
   'use strict';
 
-  var DEFAULT_CLIENT_ID = '';
+  var DEFAULT_CLIENT_ID = '462623472338-k5r76knldtvror94mvcfv417j2q6d9o0.apps.googleusercontent.com';
   var SCOPE = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.email';
   var SYNC_FILENAME = 'wildlife-mgmt-sync.json';
   var GSI_SRC = 'https://accounts.google.com/gsi/client';
