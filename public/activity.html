@@ -203,6 +203,7 @@
 .lightbox img { max-width:90vw; max-height:90vh; border-radius:4px; }
 .lightbox-close { position:fixed; top:16px; right:20px; color:white; font-size:2rem; cursor:pointer; z-index:1000; }
 </style>
+<link rel="stylesheet" href="/mobile.css">
 </head>
 <body>
 <header>
@@ -214,7 +215,7 @@
 </header>
 
 <div class="layout">
-  <nav class="sidebar" id="sidebar">
+  <nav class="sidebar sidebar-filters" id="sidebar">
     <div class="sidebar-section">Filter</div>
     <div style="padding: 8px 12px;">
       <div class="form-group" style="margin-bottom:10px">
@@ -1737,7 +1738,7 @@ function entryDateChanged() {
 // ── Location picker ──
 function propImgFile(id) {
   for (var i = 0; i < propImages.length; i++) {
-    if (propImages[i].id === id) return propImages[i].filename;
+    if (propImages[i].id === id) return sanFn(propImages[i].filename);
   }
   return null;
 }
@@ -2076,6 +2077,7 @@ async function downscaleForUpload(dataUrl) {
 // src + fallback attrs for a photo thumbnail; older photos have no thumb,
 // so fall back to the full image if the thumb 404s
 function thumbSrcAttr(filename) {
+  filename = sanFn(filename);
   return 'src="/photos/thumb-' + filename + '" onerror="this.onerror=null;this.src=\'/photos/' + filename + '\'"';
 }
 

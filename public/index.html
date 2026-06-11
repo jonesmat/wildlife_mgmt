@@ -182,6 +182,7 @@
   .trophy-name { font-size: 0.92rem; font-weight: 700; color: #f3e9c8; }
   .trophy-detail { font-size: 0.74rem; color: #c5bda6; margin-top: 3px; line-height: 1.5; }
 </style>
+<link rel="stylesheet" href="/mobile.css">
 </head>
 <body>
 <header>
@@ -422,8 +423,9 @@
       '<div class="trophy-gallery">' +
       shown.map(function(e) {
         var net = parseFloat(e['hv-bc-net']);
-        var photo = (e.photos && e.photos.length)
-          ? '<img class="trophy-photo" src="/photos/thumb-' + e.photos[0] + '" onerror="this.onerror=null;this.src=\'/photos/' + e.photos[0] + '\'" alt="">'
+        var ph0 = (e.photos && e.photos.length) ? sanFn(e.photos[0]) : '';
+        var photo = ph0
+          ? '<img class="trophy-photo" src="/photos/thumb-' + ph0 + '" onerror="this.onerror=null;this.src=\'/photos/' + ph0 + '\'" alt="">'
           : '<div class="trophy-photo-empty">🦌</div>';
         var mode = (e['hv-bc-mode'] === 'Non-Typical') ? 'Non-Typical' : 'Typical';
         var name = (e['hv-points'] ? e['hv-points'] + '-Point ' : '') + 'Whitetail';
@@ -681,7 +683,9 @@
         '<button class="btn btn-secondary btn-sm" style="padding:5px 12px;font-size:0.78rem" data-cal-action="cancelSnooze"' + keyAttr + '>Cancel snooze</button>';
     }
 
-    var link = ev.more_info_url
+    // Imported calendar JSON is untrusted: only link out to http(s) URLs so a
+    // crafted file can't smuggle a javascript: href past escAttr().
+    var link = ev.more_info_url && /^https?:\/\//i.test(String(ev.more_info_url))
       ? '<a class="cal-link" href="' + escAttr(ev.more_info_url) + '" target="_blank" rel="noopener">more info ↗</a>'
       : '';
     // Grouping data shown on the event itself instead of section headers

@@ -1,0 +1,61 @@
+/* Mobile styles shared by all app pages (not the print views).
+   Loaded LAST in each page's <head>, after form-shared.css and the page's
+   own <style> block, so equal-specificity rules here win on small screens. */
+
+@media (max-width: 720px) {
+  /* ── Page chrome ─────────────────────────────────────────────── */
+  /* Header scrolls away on phones (vertical space is scarce); the
+     sidebar-turned-section-bar below takes over as the sticky element. */
+  header { position: static; flex-wrap: wrap; row-gap: 6px; padding: 10px 14px; }
+  header h1 { font-size: 1.05rem; }
+  .header-actions { flex-wrap: wrap; }
+
+  /* Sidebar becomes a sticky, horizontally scrollable section bar. */
+  .layout { display: block; min-height: 0; }
+  .sidebar {
+    position: sticky; top: 0; z-index: 95; width: 100%; height: auto;
+    display: flex; overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    border-right: none; border-bottom: 1px solid #ddd;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  }
+  .sidebar-section { display: none; }
+  .sidebar-item {
+    flex-shrink: 0; white-space: nowrap; padding: 12px 13px; margin-top: 0;
+    border-left: none; border-bottom: 3px solid transparent;
+  }
+  .sidebar-item.active { border-left-color: transparent; border-bottom-color: #1a4a1a; }
+  .main { padding: 16px 12px; }
+  .section { scroll-margin-top: 54px; }
+
+  /* ── Form ergonomics ─────────────────────────────────────────── */
+  /* 16px inputs stop iOS Safari from zooming the page on focus. */
+  input, select, textarea { font-size: 16px !important; }
+  .row { gap: 10px; }
+  .checkbox-grid { gap: 8px 16px; }
+  .indent { margin-left: 12px; }
+  .indent2 { margin-left: 24px; }
+
+  /* Wide tables scroll sideways instead of crushing their columns. */
+  .harvest-table, .bc-table { display: block; overflow-x: auto; }
+
+  /* ── Page-specific bits (selectors only exist on their page) ── */
+  /* Activity Log: its "sidebar" is a filter panel, not section nav —
+     stack it full-width above the entry list instead of making it a bar. */
+  .sidebar.sidebar-filters {
+    display: block; position: static; overflow: visible;
+    white-space: normal; box-shadow: none;
+  }
+
+  /* Home: calendar rows wrap instead of overflowing. */
+  .container { margin: 16px auto; padding: 0 12px; }
+  .cal-row { flex-wrap: wrap; row-gap: 2px; }
+  .cal-date { width: auto; min-width: 96px; }
+  /* If the title would be squeezed under 170px, wrap it to its own row. */
+  .cal-info { flex: 1 1 170px; }
+  .tiles { gap: 8px; }
+
+  /* Map: the year slider's inline width is too wide for phones. */
+  .map-controls input[type="range"] { width: 140px !important; }
+  .map-controls { row-gap: 8px; }
+}

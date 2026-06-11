@@ -179,7 +179,8 @@
     '.help-popup-close{background:#1a4a1a;color:white;border:none;border-radius:6px;' +
       'padding:9px 26px;font-size:0.9rem;font-weight:600;cursor:pointer}' +
     '.help-popup-close:hover{background:#256325}' +
-    '@media print{.help-fab,.help-overlay{display:none !important}}';
+    '@media print{.help-fab,.help-overlay{display:none !important}}' +
+    '@media (max-width:720px){.help-fab{right:12px;bottom:12px;width:40px;height:40px;font-size:1.1rem}}';
   document.head.appendChild(style);
 
   function openPopup() {

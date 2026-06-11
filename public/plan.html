@@ -7,6 +7,7 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script src="/store.js"></script>
 <link rel="stylesheet" href="/form-shared.css">
+<link rel="stylesheet" href="/mobile.css">
 </head>
 <body>
 <header>
@@ -83,7 +84,7 @@
       </div>
       <div class="form-group">
         <label>Habitat Types and Amounts of Acres</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-top:8px;">
           <div class="checkbox-item"><input type="checkbox" data-path="plan.property.habitatTypes.cropland" id="hCropland"><label for="hCropland">Cropland</label><input type="number" data-path="plan.property.habitatTypes.croplandAcres" placeholder="acres" style="width:80px;margin-left:8px;padding:3px 6px;border:1px solid #ccc;border-radius:3px"></div>
           <div class="checkbox-item"><input type="checkbox" data-path="plan.property.habitatTypes.bottomlandRiparian" id="hBottomland"><label for="hBottomland">Bottomland/Riparian (Native)</label><input type="number" data-path="plan.property.habitatTypes.bottomlandRiparianAcres" placeholder="acres" style="width:80px;margin-left:8px;padding:3px 6px;border:1px solid #ccc;border-radius:3px"></div>
           <div class="checkbox-item"><input type="checkbox" data-path="plan.property.habitatTypes.wetlands" id="hWetlands"><label for="hWetlands">Wetlands</label><input type="number" data-path="plan.property.habitatTypes.wetlandsAcres" placeholder="acres" style="width:80px;margin-left:8px;padding:3px 6px;border:1px solid #ccc;border-radius:3px"></div>

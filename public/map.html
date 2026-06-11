@@ -53,6 +53,7 @@
 .md-photos img { width: 90px; height: 90px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
 .map-empty { color: #999; font-style: italic; text-align: center; padding: 50px 20px; }
 </style>
+<link rel="stylesheet" href="/mobile.css">
 </head>
 <body>
 <header>
@@ -314,7 +315,8 @@ function selectPin(id) {
   for (var i = 0; i < entries.length; i++) if (entries[i].id === id) e = entries[i];
   if (!e) return;
   var photos = (e.photos || []).map(function(f) {
-    return '<a href="/photos/' + f + '" target="_blank">' +
+    f = sanFn(f);
+    return '<a href="/photos/' + f + '" target="_blank" rel="noopener">' +
       '<img src="/photos/thumb-' + f + '" onerror="this.onerror=null;this.src=\'/photos/' + f + '\'" alt=""></a>';
   }).join('');
   panel.innerHTML =

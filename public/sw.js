@@ -29,6 +29,8 @@ function getFile(path) {
   });
 }
 
+var SAFE_IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/bmp'];
+
 function b64ToBytes(b64) {
   var bin = atob(b64);
   var bytes = new Uint8Array(bin.length);
@@ -45,9 +47,19 @@ self.addEventListener('fetch', function(ev) {
   ev.respondWith(
     getFile(decodeURIComponent(url.pathname)).then(function(rec) {
       if (!rec) return new Response('Not found', { status: 404 });
+      // Only ever serve these records as raster images. The stored mime is
+      // data (it round-trips through backup files), so an imported backup
+      // must not be able to plant text/html or image/svg+xml here and have
+      // it execute as a same-origin document.
+      var mime = SAFE_IMAGE_MIMES.indexOf(rec.mime) !== -1 ? rec.mime : 'image/jpeg';
       return new Response(b64ToBytes(rec.b64), {
         status: 200,
-        headers: { 'Content-Type': rec.mime || 'image/jpeg' }
+        headers: {
+          'Content-Type': mime,
+          'X-Content-Type-Options': 'nosniff',
+          'Content-Security-Policy': "default-src 'none'; sandbox",
+          'Cross-Origin-Resource-Policy': 'same-origin'
+        }
       });
     }).catch(function() {
       return new Response('Storage error', { status: 500 });
