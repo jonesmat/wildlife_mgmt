@@ -42,6 +42,7 @@
 .pin-Predator    { border-color: #8b1a6a; background: #fde8f5; }
 .pin-Maintenance { border-color: #1a3a8b; background: #e8eefd; }
 .pin-Purchase    { border-color: #176a55; background: #e4f3ef; }
+.asset-pin       { border-color: #b58a2a; background: #fdf5e8; border-style: dashed; }
 
 .map-detail {
   display: none; background: white; border: 1px solid #ddd; border-radius: 8px;
@@ -89,6 +90,9 @@
       <span>
         <label><input type="checkbox" id="showRoutes" checked onchange="render()"> Show routes</label>
       </span>
+      <span>
+        <label><input type="checkbox" id="showAssets" checked onchange="render()"> Show assets</label>
+      </span>
       <span id="pinCount" style="color:#777;margin-left:auto"></span>
     </div>
 
@@ -104,8 +108,18 @@
 </div>
 
 <script>
-var propImages = [], currentPropId = null, routes = [], entries = [];
-var selectedImageId = null, selectedEntryId = null;
+var propImages = [], currentPropId = null, routes = [], entries = [], assets = [];
+var selectedImageId = null, selectedEntryId = null, selectedAssetId = null;
+
+// Same category icons as the Asset Registry page
+var ASSET_ICONS = {
+  'Feeder': '🌽', 'Water Trough / Guzzler': '💧', 'Blind / Stand': '🪜',
+  'Game Camera': '📷', 'Nest Box': '🐦', 'Well / Windmill': '🌀',
+  'Pond / Tank': '🏞️', 'Gate / Fence': '🚧', 'Other Structure': '🏠',
+  'UTV / ATV': '🛻', 'Tractor': '🚜', 'Shredder / Mower': '🌾', 'Plow / Disk': '⚙️',
+  'Sprayer': '🧴', 'Trailer': '🚚', 'Chainsaw': '🪚', 'Generator / Pump': '🔌',
+  'Other Equipment': '🔧'
+};
 
 var TYPE_ICONS = {
   'General': '📝', 'Harvest': '🎯', 'Sighting': '👀',
@@ -147,6 +161,7 @@ async function init() {
     currentPropId = pi.currentId;
     routes = await (await fetch('/api/routes')).json();
     entries = await (await fetch('/api/log')).json();
+    assets = await (await fetch('/api/assets')).json();
   } catch (e) { /* leave empty */ }
 
   if (!propImages.length) {
@@ -296,7 +311,7 @@ function render() {
     if (!(y >= r.from && y <= r.to)) return false;
     return allYears || (e.datetime || '').slice(0, 7) === ym;
   });
-  document.getElementById('pinLayer').innerHTML = shown.map(function(e) {
+  var pinHtml = shown.map(function(e) {
     var sel = (e.id === selectedEntryId) ? ' selected' : '';
     return '<div class="map-pin pin-' + e.type.split(' ')[0] + sel + '"' +
       ' style="left:' + (e.loc.x * 100) + '%;top:' + (e.loc.y * 100) + '%"' +
@@ -306,14 +321,56 @@ function render() {
     '</div>';
   }).join('');
 
+  // Asset pins: fixed infrastructure isn't tied to a year, so it ignores the
+  // time filters entirely
+  if (document.getElementById('showAssets').checked) {
+    pinHtml += assets.filter(function(a) {
+      return a.loc && a.loc.img === selectedImageId && a.status !== 'Retired';
+    }).map(function(a) {
+      var sel = (a.id === selectedAssetId) ? ' selected' : '';
+      return '<div class="map-pin asset-pin' + sel + '"' +
+        ' style="left:' + (a.loc.x * 100) + '%;top:' + (a.loc.y * 100) + '%"' +
+        ' title="' + escHtml(a.name) + ' (' + escHtml(a.category) + ')"' +
+        ' onclick="selectAssetPin(\'' + sanFn(a.id) + '\')">' +
+        (ASSET_ICONS[a.category] || '🔧') +
+      '</div>';
+    }).join('');
+  }
+  document.getElementById('pinLayer').innerHTML = pinHtml;
+
   var rangeLabel = (r.from === r.to) ? String(r.from) : r.from + '–' + r.to;
   document.getElementById('pinCount').textContent =
     shown.length + ' located ' + (shown.length === 1 ? 'entry' : 'entries') +
     ' in ' + (allYears ? rangeLabel : monthIdxLabel(+slider.value));
 }
 
+function selectAssetPin(id) {
+  selectedAssetId = (selectedAssetId === id) ? null : id;
+  selectedEntryId = null;
+  render();
+  var panel = document.getElementById('mapDetail');
+  if (!selectedAssetId) { panel.classList.remove('open'); return; }
+  var a = null;
+  for (var i = 0; i < assets.length; i++) if (assets[i].id === id) a = assets[i];
+  if (!a) return;
+  // Most recent linked maintenance entry, if any
+  var last = null;
+  entries.forEach(function(e) {
+    if (e['ma-assetId'] === a.id && (!last || (e.datetime || '') > (last.datetime || ''))) last = e;
+  });
+  panel.innerHTML =
+    '<div class="md-title">' + (ASSET_ICONS[a.category] || '🔧') + ' ' + escHtml(a.name) + '</div>' +
+    '<div class="md-meta">' + escHtml(a.category) +
+      (a.location ? ' · ' + escHtml(a.location) : '') +
+      (last ? ' · last service ' + fmtDate(last.datetime) : ' · no service logged') + '</div>' +
+    (a.notes ? '<div style="font-size:0.85rem;color:#555;margin-top:6px;font-style:italic">' + escHtml(a.notes) + '</div>' : '') +
+    '<div style="margin-top:10px"><a class="btn btn-secondary" style="font-size:0.8rem;padding:6px 14px;text-decoration:none" href="/assets#asset-' + sanFn(a.id) + '">Open in Asset Registry</a></div>';
+  panel.classList.add('open');
+}
+
 function selectPin(id) {
   selectedEntryId = (selectedEntryId === id) ? null : id;
+  selectedAssetId = null;
   render();
   var panel = document.getElementById('mapDetail');
   if (!selectedEntryId) { panel.classList.remove('open'); return; }

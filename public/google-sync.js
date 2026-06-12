@@ -422,6 +422,8 @@
     compare(L.log, R.log, 'activity log entry', 'activity log entries', entryLabel);
     compare(L.bucks, R.bucks, 'buck', 'bucks', nameLabel);
     compare(L.routes, R.routes, 'census route', 'census routes', nameLabel);
+    compare(L.assets, R.assets, 'asset', 'assets', nameLabel);
+    compare(L.reminders, R.reminders, 'reminder', 'reminders', function(x) { return '“' + ((x && x.text) || 'reminder') + '”'; });
     compare(L.propertyImages, R.propertyImages, 'property image', 'property images', null);
 
     var lr = L.reports || {}, rr = R.reports || {};
@@ -445,8 +447,8 @@
   // different fields of the same record, additions on both sides) merge
   // cleanly; only a field changed differently on both sides — or an edit
   // colliding with a delete — is a conflict.
-  var DATA_COLLECTIONS = ['log', 'bucks', 'routes', 'propertyImages'];
-  var DATA_SPECIAL = { log: 1, bucks: 1, routes: 1, propertyImages: 1, reports: 1, reportsMeta: 1, lastModifiedAt: 1, planUpdatedAt: 1 };
+  var DATA_COLLECTIONS = ['log', 'bucks', 'routes', 'propertyImages', 'assets', 'reminders'];
+  var DATA_SPECIAL = { log: 1, bucks: 1, routes: 1, propertyImages: 1, assets: 1, reminders: 1, reports: 1, reportsMeta: 1, lastModifiedAt: 1, planUpdatedAt: 1 };
 
   function mergeArchives(base, localA, remoteA) {
     var j = JSON.stringify;
@@ -489,7 +491,7 @@
     }
 
     function recLabel(rec, kind) {
-      var name = (rec && (rec.name || rec.type)) || 'record';
+      var name = (rec && (rec.name || rec.text || rec.type)) || 'record';
       return kind + ' \u201c' + name + '\u201d';
     }
 
@@ -500,7 +502,7 @@
     }
 
     DATA_COLLECTIONS.forEach(function(name) {
-      var kind = { log: 'log entry', bucks: 'buck', routes: 'route', propertyImages: 'property image' }[name];
+      var kind = { log: 'log entry', bucks: 'buck', routes: 'route', propertyImages: 'property image', assets: 'asset', reminders: 'reminder' }[name];
       var bm = byId(B[name]), lm = byId(L[name]), rm = byId(R[name]);
       var seen = {};
       var out = [];
