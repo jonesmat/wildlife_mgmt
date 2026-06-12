@@ -34,6 +34,9 @@
     background: white; border-radius: 10px; padding: 14px 16px; cursor: pointer;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08); position: relative;
     transition: transform 0.12s, box-shadow 0.12s;
+    /* clickable div, not a link: stop mobile taps selecting the label text */
+    user-select: none; -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
   }
   .tile:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.13); }
   .tile .t-icon { font-size: 1.35rem; line-height: 1; }

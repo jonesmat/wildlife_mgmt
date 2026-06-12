@@ -61,7 +61,8 @@
 }
 .entry-head {
   display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px;
-  cursor: pointer; user-select: none;
+  cursor: pointer; user-select: none; -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
 .entry-head:hover { background: #fafafa; }
 .entry-type-badge {
