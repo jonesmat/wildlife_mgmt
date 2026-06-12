@@ -149,6 +149,10 @@ app.get('/terms', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'terms.html'));
 });
 
+app.get('/yearbook/:year?', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'yearbook.html'));
+});
+
 // Print views are client-rendered from local storage
 app.get('/plan-print', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'plan-print.html'));
