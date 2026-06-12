@@ -2,11 +2,20 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "wildlife-mgmt",
   "compatibility_date": "2026-06-11",
+  // worker.mjs serves the /oauth/* token endpoints for Google Drive sync;
+  // everything else is static assets from public/ (served before the Worker
+  // runs). Requires the GOOGLE_CLIENT_SECRET Worker secret:
+  //   npx wrangler secret put GOOGLE_CLIENT_SECRET
+  "main": "worker.mjs",
   "observability": {
     "enabled": true
   },
   "assets": {
-    "directory": "public"
+    "directory": "public",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "GOOGLE_CLIENT_ID": "462623472338-k5r76knldtvror94mvcfv417j2q6d9o0.apps.googleusercontent.com"
   },
   "compatibility_flags": [
     "nodejs_compat"

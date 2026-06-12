@@ -117,7 +117,30 @@ One-time setup (free) — sync needs a Google OAuth Client ID that identifies
 5. Copy the client ID into **Settings → Data Management → Google Sync** (or hardcode
    it as `DEFAULT_CLIENT_ID` in `public/google-sync.js` for your deployment).
 
-Then use **Sync Now** on each device you want connected. The optional
+### Popup-free sign-in (recommended): add the client secret
+
+Without this, Google's browser-only tokens expire hourly and the app must
+periodically ask you to tap a "sign in" pill. With it, each device signs in
+**once** and then syncs silently forever (the app's Worker exchanges and
+refreshes tokens server-side; it never sees your data):
+
+1. In Google Cloud Console → **Credentials** → open the OAuth client you
+   created above and copy its **Client secret** (add one if blank).
+2. Give it to the Cloudflare Worker — either run
+   `npx wrangler secret put GOOGLE_CLIENT_SECRET` and paste it, or in the
+   dashboard: **Workers & Pages → wildlife-mgmt → Settings → Variables and
+   Secrets → Add** (type **Secret**, name `GOOGLE_CLIENT_SECRET`).
+3. Deploy. On each device, open **Settings → Data Management → Google Sync**,
+   click **Disconnect** (if previously connected), then **Sync Now** and
+   approve the consent popup one final time.
+
+For the local server, the same works with
+`GOOGLE_CLIENT_SECRET=... node server.js` (without it, local falls back to
+the hourly tap-to-sign-in mode).
+
+### Day-to-day behavior
+
+Use **Sync Now** on each device you want connected. The optional
 auto-sync checkbox syncs silently whenever the app opens, and again a few
 seconds after any change you make — a small pill in the bottom-left corner
 shows when a sync is running. If both a device and Drive have changes since

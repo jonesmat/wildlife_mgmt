@@ -51,7 +51,9 @@
     Google Drive</strong>, in a hidden app-data area that only this app can access, so you can
     sync between your devices. When sync is on:</p>
     <ul>
-      <li>Your data travels directly from your browser to Google — it never passes through us.</li>
+      <li>Your data travels directly from your browser to Google — it never passes through us.
+      (A small server-side component exchanges Google <em>sign-in tokens</em> on your behalf so
+      you don't have to sign in repeatedly; it never sees, stores, or logs your data.)</li>
       <li>The app requests two Google permissions: access to its own app-data folder in your
       Drive, and your email address (shown in Settings so you know which account is connected).</li>
       <li>Google's handling of your account is governed by

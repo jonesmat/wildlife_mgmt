@@ -43,6 +43,49 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// OAuth token endpoints for Google Drive sync — mirrors worker.mjs so sync
+// works the same against the local server. Enabled only when the secret is
+// provided:  GOOGLE_CLIENT_SECRET=... node server.js
+const GOOGLE_CLIENT_ID = '462623472338-k5r76knldtvror94mvcfv417j2q6d9o0.apps.googleusercontent.com';
+
+async function handleOauth(req, res, op) {
+  if (!process.env.GOOGLE_CLIENT_SECRET) {
+    return res.status(501).json({ error: 'Sync backend not configured: set the GOOGLE_CLIENT_SECRET environment variable.' });
+  }
+  const body = req.body || {};
+  const params = new URLSearchParams();
+  params.set('client_id', GOOGLE_CLIENT_ID);
+  params.set('client_secret', process.env.GOOGLE_CLIENT_SECRET);
+  if (op === 'exchange') {
+    if (!body.code) return res.status(400).json({ error: 'code required' });
+    params.set('grant_type', 'authorization_code');
+    params.set('code', body.code);
+    params.set('redirect_uri', 'postmessage');
+  } else {
+    if (!body.refresh_token) return res.status(400).json({ error: 'refresh_token required' });
+    params.set('grant_type', 'refresh_token');
+    params.set('refresh_token', body.refresh_token);
+  }
+  try {
+    const r = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+    const tok = await r.json().catch(() => ({}));
+    if (!r.ok || !tok.access_token) {
+      const status = r.status === 400 || r.status === 401 ? 401 : 502;
+      return res.status(status).json({ error: tok.error_description || tok.error || 'Google token request failed' });
+    }
+    res.json({ access_token: tok.access_token, expires_in: tok.expires_in, refresh_token: tok.refresh_token });
+  } catch (e) {
+    res.status(502).json({ error: 'Could not reach Google: ' + e.message });
+  }
+}
+
+app.post('/oauth/exchange', express.json(), (req, res) => handleOauth(req, res, 'exchange'));
+app.post('/oauth/refresh', express.json(), (req, res) => handleOauth(req, res, 'refresh'));
+
 // Page routes
 app.get('/activity', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'activity.html'));
