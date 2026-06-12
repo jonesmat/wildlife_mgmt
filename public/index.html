@@ -503,9 +503,12 @@
   function yearFactChips(entries) {
     var year = String(new Date().getFullYear());
     var acres = 0, predators = 0, census = 0, sightings = 0, activities = 0, invested = 0, photos = 0, rain = 0;
+    var speciesSeen = {};
     entries.forEach(function(e) {
       if (!e.datetime || !e.datetime.startsWith(year)) return;
       photos += (e.photos || []).length;
+      var sp = e['si-species'] || e['hv-species'] || e['ce-species'];
+      if (sp && sp !== 'Other') speciesSeen[String(sp).trim().toLowerCase()] = 1;
       if (e.type === 'Rainfall') rain += parseFloat(e['rf-inches']) || 0;
       if (window.PRACTICE_FIELDS[e.type] || e.type === 'Activity') {
         activities++;
@@ -524,6 +527,8 @@
     if (census) facts.push('📊 <strong>' + census + '</strong> census ' + (census === 1 ? 'survey' : 'surveys') + ' run');
     if (predators) facts.push('🪤 <strong>' + predators + '</strong> predators removed');
     if (sightings) facts.push('👀 <strong>' + sightings + '</strong> wildlife sightings logged');
+    var nSpecies = Object.keys(speciesSeen).length;
+    if (nSpecies > 1) facts.push('🐾 <strong>' + nSpecies + ' species</strong> documented this year');
     if (invested) facts.push('💰 <strong>$' + Math.round(invested).toLocaleString() + '</strong> invested in the habitat');
     if (rain) facts.push('🌧️ <strong>' + (Math.round(rain * 10) / 10) + ' inches</strong> of rain in the gauge');
     if (photos) facts.push('📷 <strong>' + photos + '</strong> photos captured');

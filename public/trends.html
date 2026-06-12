@@ -47,6 +47,7 @@
     <div class="trend-card" id="moonCard" style="display:none"></div>
     <div class="trend-card" id="rainCard" style="display:none"></div>
     <div class="trend-card" id="spendCard" style="display:none"></div>
+    <div class="trend-card" id="speciesCard" style="display:none"></div>
 
     <div id="trendsBody">
       <div style="color:#999;font-size:0.9rem">Loading...</div>
@@ -310,6 +311,60 @@ function renderRainCard(byYear) {
     (!rainHistory ? '<div style="font-size:0.78rem;color:#888;margin-top:8px">Import regional history in <a href="/settings#rainfall" style="color:#1a4a1a">Settings → Rainfall</a> to see how your years compare to the long-term record.</div>' : '');
 }
 
+// ── Species life list ──
+// Every species ever documented on the property, from sightings, harvests,
+// and census target species — a running record of what the land supports.
+function entrySpecies(e) {
+  if (e.type === 'Sighting') return e['si-species'];
+  if (e.type === 'Harvest') return e['hv-species'];
+  if (e.type === 'Census') return e['ce-species'];
+  return null;
+}
+
+function renderSpeciesCard() {
+  var map = {};   // lowercased name -> { name, count, first, last }
+  entries.forEach(function(e) {
+    var s = entrySpecies(e);
+    if (!s) return;
+    s = String(s).trim();
+    if (!s || s === 'Other') return;
+    var y = (e.datetime || '').slice(0, 4);
+    var k = s.toLowerCase();
+    var rec = map[k] = map[k] || { name: s, count: 0, first: y, last: y };
+    rec.count++;
+    if (y && (!rec.first || y < rec.first)) rec.first = y;
+    if (y && y > rec.last) rec.last = y;
+  });
+  var keys = Object.keys(map).sort();
+  if (!keys.length) return;
+
+  var card = document.getElementById('speciesCard');
+  card.style.display = '';
+
+  var thisYear = String(new Date().getFullYear());
+  var newThisYear = keys.filter(function(k) { return map[k].first === thisYear; }).length;
+
+  var chips = keys.map(function(k) {
+    var r = map[k];
+    return '<span class="trend-stat" style="background:none;border:1px solid #d8e0d4"' +
+      ' title="' + r.count + ' record' + (r.count === 1 ? '' : 's') +
+      (r.first ? ' · first logged ' + r.first : '') +
+      (r.last && r.last !== r.first ? ' · last ' + r.last : '') + '">' +
+      escHtml(r.name) +
+      (r.first === thisYear ? ' <span style="color:#8b5a1a;font-size:0.68rem">NEW</span>' : '') +
+      ' <span style="color:#999;font-weight:400">· ' + r.count + '</span></span>';
+  }).join('');
+
+  card.innerHTML =
+    '<div class="trend-title">🐾 Species Life List</div>' +
+    '<div class="trend-sub">Every species documented in your sightings, harvests, and censuses — the record of what this land supports</div>' +
+    '<div class="trend-stats" style="margin-top:2px">' +
+      '<span class="trend-stat up" style="font-size:0.85rem">' + keys.length + ' species documented</span>' +
+      (newThisYear ? '<span class="trend-stat">' + newThisYear + ' new in ' + thisYear + '</span>' : '') +
+    '</div>' +
+    '<div class="trend-stats" style="margin-top:10px">' + chips + '</div>';
+}
+
 async function init() {
   try {
     entries = await (await fetch('/api/log')).json();
@@ -323,6 +378,7 @@ async function init() {
   renderMoonCard();
   renderRainCard(rainYears);
   renderSpendCard();
+  renderSpeciesCard();
 
   // Group census entries by route (saved route id, legacy text, or unrouted),
   // then split each route into a series per target species
