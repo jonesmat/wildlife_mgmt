@@ -293,7 +293,7 @@
 
       <!-- General -->
       <div id="fields-General">
-        <div class="entry-tip">💡 <strong>Tip:</strong> Use General for anything that doesn't fit another type — site visits, observations, planning notes. Give it a short descriptive name and enough detail in the notes that it makes sense on the annual report months later.</div>
+        <div class="entry-tip">💡 <strong>Tip:</strong> Use General for site visits, planning, and consultations that don't fit another type. <strong>Write down who you talked to and what they recommended</strong> — a documented visit from a TPWD biologist, NRCS, or consultant carries real weight at review time. Capture enough detail that the note still makes sense to you, or an appraiser, a year from now.</div>
         <div class="form-row">
           <div class="form-group"><label>Name / Title</label><input type="text" id="f-name" placeholder="e.g. Site visit"></div>
         </div>
@@ -302,7 +302,7 @@
 
       <!-- Harvest -->
       <div id="fields-Harvest" style="display:none">
-        <div class="entry-tip">💡 <strong>Tip:</strong> Log harvests the <strong>same day</strong> — MLDP requires the daily harvest log to be filled in before the deer leaves the property. Record the tag number and hunter, and estimate age and field-dressed weight; that data feeds your population trend records. For whitetail bucks, add antler measurements (or a full B&amp;C score) and a photo.</div>
+        <div class="entry-tip">💡 <strong>Tip:</strong> Log harvests the <strong>same day</strong> — MLDP requires the daily log filled in before the animal leaves the property. Beyond compliance, this is your richest herd data: <strong>field-dressed weights and ages tell you if you're at carrying capacity</strong>. Light does or few fawns mean you're overstocked — plan a heavier doe harvest next season. Pull a jawbone to age it, and for bucks add antler measurements (or a full B&amp;C score) and a photo.</div>
         <div class="form-row">
           <div class="form-group">
             <label>Species</label>
@@ -460,7 +460,7 @@
 
       <!-- Sighting -->
       <div id="fields-Sighting" style="display:none">
-        <div class="entry-tip">💡 <strong>Tip:</strong> Record the count and a sex/age breakdown ("2 bucks, 3 does, 1 fawn") — consistent sightings become incidental census data. Set the map location and attach game-camera photos when you have them; they're strong supporting documentation.</div>
+        <div class="entry-tip">💡 <strong>Tip:</strong> Always note a sex/age breakdown ("2 bucks, 3 does, 1 fawn"), not just a head count. <strong>Buck-to-doe and fawn-to-doe ratios tell you whether the herd is balanced</strong> — too many does means harvest more of them; few fawns points to predators or worn-out range. Late-summer trail-camera sets over feeders give the best read. Set the map location and attach camera photos as supporting documentation.</div>
         <div class="form-row">
           <div class="form-group">
             <label>Species</label>
@@ -511,7 +511,7 @@
 
       <!-- Activity -->
       <div id="fields-Practice" style="display:none">
-        <div class="entry-tip">💡 <strong>Tip:</strong> The event type you picked <em>is</em> the 1-D-1 qualifying practice — "Update from Activity Log" on the annual report checks the matching Part II box for you. Record acres treated and take before/after photos; appraisal districts want evidence the practice actually happened.</div>
+        <div class="entry-tip" id="practiceTip"></div>
         <div class="form-row">
           <div class="form-group"><label>Activity / Practice Name</label><input type="text" id="ac-name" placeholder="Prescribed Burning"></div>
           <div class="form-group"><label>Acres Treated</label><input type="number" id="ac-acres"></div>
@@ -521,7 +521,7 @@
 
       <!-- Census -->
       <div id="fields-Census" style="display:none">
-        <div class="entry-tip">💡 <strong>Tip:</strong> Run the <strong>same route under the same conditions</strong> each time — TPWD recommends at least three spotlight counts on a fixed route in late summer/fall. Record route, conditions, and totals consistently so year-over-year trends are comparable.</div>
+        <div class="entry-tip">💡 <strong>Tip:</strong> Run the <strong>same route, same conditions, same time of year</strong> (late summer/fall) so trends are comparable — TPWD suggests at least three spotlight runs a week or so apart to smooth out bad nights. The point isn't the paperwork: <strong>this is the number that sets your harvest</strong>. More deer than the range can carry means a heavier doe harvest this year. Keep written records — the appraisal district can ask to see them.</div>
         <div class="form-row">
           <div class="form-group"><label>Survey Type</label>
             <select id="ce-surveyType">
@@ -575,7 +575,7 @@
 
       <!-- Predator Control -->
       <div id="fields-Predator Control" style="display:none">
-        <div class="entry-tip">💡 <strong>Tip:</strong> Log every removal with species, method, and count — these document the predator-control qualifying practice on your annual report. Brown-headed cowbird trapping requires a free TPWD trapping certification; note trap locations on the map.</div>
+        <div class="entry-tip">💡 <strong>Tip:</strong> <strong>Timing beats volume</strong> — control around fawn drop and nesting (roughly April–June) protects the most young. Focus on the worst offenders (coyotes, feral hogs, nest-raiding raccoons/skunks) rather than blanket trapping. Cowbird trapping needs a free TPWD certification. Log species, method, and count, and mark trap/snare locations on the map so you can work them efficiently next time.</div>
         <div class="form-row">
           <div class="form-group">
             <label>Species Targeted</label>
@@ -611,7 +611,7 @@
 
       <!-- Maintenance -->
       <div id="fields-Maintenance" style="display:none">
-        <div class="entry-tip">💡 <strong>Tip:</strong> Upkeep of wildlife infrastructure — feeders, water troughs, nest boxes, fences — counts as ongoing practice implementation. Name the specific item and what was done; a quick photo of the completed work makes good documentation.</div>
+        <div class="entry-tip">💡 <strong>Tip:</strong> Routine upkeep of feeders, troughs, blinds, nest boxes, and fences is ongoing practice implementation — don't leave it unlogged. <strong>Service infrastructure ahead of peak need:</strong> water before summer, feeders before the fall rut, nest boxes cleaned out before spring. Name the specific item, say what you did, and snap a photo of the finished work.</div>
         <div class="form-row">
           <div class="form-group"><label>Item / Facility</label><input type="text" id="ma-item" placeholder="Water trough, fence, feeder..."></div>
           <div class="form-group"><label>Action Taken</label><input type="text" id="ma-action" placeholder="Repaired, replaced, installed..."></div>
@@ -621,7 +621,7 @@
 
       <!-- Purchase -->
       <div id="fields-Purchase" style="display:none">
-        <div class="entry-tip">💡 <strong>Tip:</strong> Photograph the receipt and attach it — receipts are the supporting documentation appraisal districts ask for. Tie the purchase to the management practice it supports so it strengthens the matching Part II checkbox on your annual report.</div>
+        <div class="entry-tip">💡 <strong>Tip:</strong> <strong>Photograph and attach every receipt</strong> — feed, seed, fencing, fuel, equipment, contract labor. They're the paper trail appraisal districts ask for, and they put real dollars behind your practices. Tie each purchase to the practice it supports so it backs the matching Part II box, and they'll add up to your investment-in-the-land total at year's end.</div>
         <div class="form-row">
           <div class="form-group"><label>Item Purchased</label><input type="text" id="pu-item" placeholder="Protein feed, feeder, seed mix..."></div>
           <div class="form-group"><label>Category</label>
@@ -1502,6 +1502,16 @@ var QUAL_PRACTICES = {
 // They share the "Practice" form (ac-name / ac-acres / ac-notes).
 var PRACTICE_TYPES = ['Habitat Control','Erosion Control','Supplemental Water','Supplemental Food','Supplemental Shelter'];
 
+// Practical, practice-specific advice shown above the shared Practice form.
+var TIP = '💡 <strong>Tip:</strong> ';
+var PRACTICE_TIPS = {
+  'Habitat Control': TIP + 'Habitat is the foundation — <strong>no amount of feed makes up for worn-out range</strong>. Keep brush in a mosaic (roughly half cover, half open) and treat in strips rather than clearing whole pastures. Time brush work and prescribed burns for late winter so native forbs respond in spring. Record acres treated and take before/after photos.',
+  'Erosion Control': TIP + 'Hit bare ground and active gullies <strong>before they widen</strong> — head-cuts march uphill fast in a Texas downpour. Reseed disturbed soil with native grasses, set small rock checks in draws, and rest healing ground from grazing. Record acres stabilized and photograph the work; appraisers want to see it actually happened.',
+  'Supplemental Water': TIP + 'Space water so animals are <strong>never more than about a mile from a drink</strong> — quail and fawns need it closer. Fit every trough with an escape ramp (rocks or wire) so birds and small game don\'t drown. In drought, check and top off on a set schedule and log each visit — reliable water is what holds wildlife on your place.',
+  'Supplemental Food': TIP + 'Feed <strong>supplements</strong> good habitat, it doesn\'t replace it. Protein (16%+) pays off most April–September for antler growth and fawn survival; keep feeders clean and spread out to limit disease. A cool-season legume/forb food plot often beats bagged feed per dollar. Record what you put out, where, and how much.',
+  'Supplemental Shelter': TIP + 'Build cover where it\'s missing — <strong>half-cut brush, brush piles, and left-standing fencerows</strong> give escape and thermal cover plus nesting sites. For quail, aim for scattered shrub clumps a covey can reach in a quick dash. Nest boxes only help where natural cavities are scarce. Note acres or the number of structures.'
+};
+
 function practicesCovered(list) {
   var covered = {};
   list.forEach(function(e) {
@@ -1888,6 +1898,8 @@ function switchType() {
     var el = document.getElementById('fields-' + d);
     if (el) el.style.display = (d === shown) ? '' : 'none';
   });
+  // Swap in practical advice for whichever practice type is selected
+  if (shown === 'Practice') document.getElementById('practiceTip').innerHTML = PRACTICE_TIPS[t] || '';
   // Census uses Route/Stand ID instead of a map location
   document.getElementById('locSection').style.display = (t === 'Census') ? 'none' : '';
   // Moon phase applies to wildlife-activity events
