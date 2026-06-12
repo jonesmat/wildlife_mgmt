@@ -222,6 +222,39 @@
     };
   }
 
+  // The five qualifying practices that used to live as categories of a single
+  // "Activity" event type are now first-class event types of their own.
+  var PROMOTED_PRACTICES = {
+    'Habitat Control': 1, 'Erosion Control': 1,
+    'Supplemental Water': 1, 'Supplemental Food': 1, 'Supplemental Shelter': 1
+  };
+
+  // Turn a legacy "Activity" entry into its dedicated event type. Promoted
+  // practices simply adopt the category as their type (fields are unchanged).
+  // The two categories that always had richer dedicated forms (Predator
+  // Control, Census) fold into those types, preserving the notes.
+  function migrateActivityEntry(e) {
+    var cat = e['ac-category'];
+    var note = [e['ac-name'], e['ac-acres'] ? e['ac-acres'] + ' acres' : '', e['ac-notes']]
+      .filter(Boolean).join(' — ');
+    if (PROMOTED_PRACTICES[cat]) {
+      e.type = cat;
+    } else if (cat === 'Predator Control') {
+      e.type = 'Predator Control';
+      if (note) e['pc-notes'] = [note, e['pc-notes']].filter(Boolean).join('\n');
+    } else if (cat === 'Census') {
+      e.type = 'Census';
+      if (note) e['ce-notes'] = [note, e['ce-notes']].filter(Boolean).join('\n');
+    } else {
+      // No usable category — keep it as a General note rather than lose it.
+      e.type = 'General';
+      e['f-name'] = e.name = (e['ac-name'] || 'Activity');
+      e['f-description'] = e.description = note;
+    }
+    delete e['ac-category'];
+    return e;
+  }
+
   function migrateData(d) {
     if (!d.log) d.log = [];
     if (!d.propertyImages) d.propertyImages = [];
@@ -230,6 +263,7 @@
     if (!d.settings.photoQuality) d.settings.photoQuality = 'balanced';
     if (!d.bucks) d.bucks = [];
     if (!d.reportsMeta) d.reportsMeta = {};
+    d.log.forEach(function(e) { if (e && e.type === 'Activity') migrateActivityEntry(e); });
     return d;
   }
 

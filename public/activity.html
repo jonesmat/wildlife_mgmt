@@ -49,6 +49,9 @@
 .tl-node-Harvest     { border-color: #8b1a1a; background: #fde8e8; }
 .tl-node-Sighting    { border-color: #1a398b; background: #e8f0fd; }
 .tl-node-Activity    { border-color: #8b5a1a; background: #fdf5e8; }
+.tl-node-Habitat     { border-color: #2e7d32; background: #e9f5ea; }
+.tl-node-Erosion     { border-color: #6d4c1a; background: #f5efe4; }
+.tl-node-Supplemental{ border-color: #0277bd; background: #e6f3fb; }
 .tl-node-Census      { border-color: #5a1a8b; background: #f0e8fd; }
 .tl-node-Predator    { border-color: #8b1a6a; background: #fde8f5; }
 .tl-node-Maintenance { border-color: #1a3a8b; background: #e8eefd; }
@@ -73,6 +76,9 @@
 .badge-Harvest    { background: #fde8e8; color: #8b1a1a; }
 .badge-Sighting   { background: #e8f0fd; color: #1a398b; }
 .badge-Activity   { background: #fdf5e8; color: #8b5a1a; }
+.badge-Habitat    { background: #e9f5ea; color: #2e7d32; }
+.badge-Erosion    { background: #f5efe4; color: #6d4c1a; }
+.badge-Supplemental{ background: #e6f3fb; color: #0277bd; }
 .badge-Census     { background: #f0e8fd; color: #5a1a8b; }
 .badge-Predator   { background: #fde8f5; color: #8b1a6a; }
 .badge-Maintenance{ background: #e8eefd; color: #1a3a8b; }
@@ -236,9 +242,13 @@
           <option>General</option>
           <option>Harvest</option>
           <option>Sighting</option>
-          <option>Activity</option>
-          <option>Census</option>
+          <option>Habitat Control</option>
+          <option>Erosion Control</option>
           <option>Predator Control</option>
+          <option>Supplemental Water</option>
+          <option>Supplemental Food</option>
+          <option>Supplemental Shelter</option>
+          <option>Census</option>
           <option>Maintenance</option>
           <option>Purchase</option>
         </select>
@@ -268,9 +278,13 @@
             <option>General</option>
             <option>Harvest</option>
             <option>Sighting</option>
-            <option>Activity</option>
-            <option>Census</option>
+            <option>Habitat Control</option>
+            <option>Erosion Control</option>
             <option>Predator Control</option>
+            <option>Supplemental Water</option>
+            <option>Supplemental Food</option>
+            <option>Supplemental Shelter</option>
+            <option>Census</option>
             <option>Maintenance</option>
             <option>Purchase</option>
           </select>
@@ -496,21 +510,9 @@
       </div>
 
       <!-- Activity -->
-      <div id="fields-Activity" style="display:none">
-        <div class="entry-tip">💡 <strong>Tip:</strong> Pick the category matching one of the seven 1-D-1 qualifying practices — "Update from Activity Log" on the annual report checks the Part II box for you. Record acres treated and take before/after photos; appraisal districts want evidence the practice actually happened.</div>
+      <div id="fields-Practice" style="display:none">
+        <div class="entry-tip">💡 <strong>Tip:</strong> The event type you picked <em>is</em> the 1-D-1 qualifying practice — "Update from Activity Log" on the annual report checks the matching Part II box for you. Record acres treated and take before/after photos; appraisal districts want evidence the practice actually happened.</div>
         <div class="form-row">
-          <div class="form-group"><label>Category</label>
-            <select id="ac-category">
-              <option value="">--</option>
-              <option>Habitat Control</option>
-              <option>Erosion Control</option>
-              <option>Predator Control</option>
-              <option>Supplemental Water</option>
-              <option>Supplemental Food</option>
-              <option>Supplemental Shelter</option>
-              <option>Census</option>
-            </select>
-          </div>
           <div class="form-group"><label>Activity / Practice Name</label><input type="text" id="ac-name" placeholder="Prescribed Burning"></div>
           <div class="form-group"><label>Acres Treated</label><input type="number" id="ac-acres"></div>
         </div>
@@ -848,8 +850,11 @@ function showMore() {
 
 // ── Timeline icons ──
 var TYPE_ICONS = {
-  'General': '📝', 'Harvest': '🎯', 'Sighting': '👀', 'Activity': '🚜',
-  'Census': '📊', 'Predator Control': '🪤', 'Maintenance': '🔧', 'Purchase': '🛒'
+  'General': '📝', 'Harvest': '🎯', 'Sighting': '👀',
+  'Habitat Control': '🌳', 'Erosion Control': '🏞️', 'Predator Control': '🪤',
+  'Supplemental Water': '💧', 'Supplemental Food': '🌽', 'Supplemental Shelter': '🏠',
+  'Census': '📊', 'Maintenance': '🔧', 'Purchase': '🛒',
+  'Activity': '🚜' // legacy entries (pre-split); migrated on load
 };
 
 var PURCHASE_ICONS = {
@@ -883,7 +888,7 @@ var CENSUS_ICONS = {
 function eventSubIcon(e) {
   if (e.type === 'Harvest' || e.type === 'Sighting' || e.type === 'Predator Control')
     return SPECIES_ICONS[e['hv-species'] || e['si-species'] || e['pc-species']] || '';
-  if (e.type === 'Activity') return ACTIVITY_ICONS[e['ac-category']] || '';
+  if (e.type === 'Activity') return ACTIVITY_ICONS[e['ac-category']] || ''; // legacy
   if (e.type === 'Census') return CENSUS_ICONS[e['ce-surveyType']] || SPECIES_ICONS[e['ce-species']] || '';
   if (e.type === 'Purchase') return PURCHASE_ICONS[e['pu-category']] || '';
   return '';
@@ -1035,9 +1040,8 @@ function renderDetail(e) {
     rows += twoCol('Sex/Age', e['si-sexAge'], 'Method', e['si-method']);
     rows += twoCol('Location', e['si-location'], '', '');
     rows += labelVal('Notes', e['si-notes']);
-  } else if (e.type === 'Activity') {
-    rows += twoCol('Category', e['ac-category'], 'Activity', e['ac-name']);
-    rows += labelVal('Acres', e['ac-acres']);
+  } else if (PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') {
+    rows += twoCol('Practice', e['ac-name'] || e['ac-category'], 'Acres', e['ac-acres']);
     rows += labelVal('Notes', e['ac-notes']);
   } else if (e.type === 'Census') {
     rows += twoCol('Survey Type', e['ce-surveyType'], 'Species', e['ce-species']);
@@ -1494,20 +1498,23 @@ var QUAL_PRACTICES = {
   'Supplemental Water': 1, 'Supplemental Food': 1, 'Supplemental Shelter': 1
 };
 
+// The five qualifying practices that don't have richer dedicated forms.
+// They share the "Practice" form (ac-name / ac-acres / ac-notes).
+var PRACTICE_TYPES = ['Habitat Control','Erosion Control','Supplemental Water','Supplemental Food','Supplemental Shelter'];
+
 function practicesCovered(list) {
   var covered = {};
   list.forEach(function(e) {
-    if (e.type === 'Activity' && QUAL_PRACTICES[e['ac-category']]) covered[e['ac-category']] = 1;
+    if (QUAL_PRACTICES[e.type]) covered[e.type] = 1;
     if (e.type === 'Purchase' && QUAL_PRACTICES[e['pu-practice']]) covered[e['pu-practice']] = 1;
-    if (e.type === 'Predator Control') covered['Predator Control'] = 1;
-    if (e.type === 'Census' || e.type === 'Harvest') covered['Census'] = 1;
+    if (e.type === 'Harvest') covered['Census'] = 1;
   });
   return Object.keys(covered).length;
 }
 
 function sumAcres(list) {
   var t = 0;
-  list.forEach(function(e) { if (e.type === 'Activity') t += parseFloat(e['ac-acres']) || 0; });
+  list.forEach(function(e) { if (PRACTICE_TYPES.indexOf(e.type) !== -1) t += parseFloat(e['ac-acres']) || 0; });
   return t;
 }
 
@@ -1539,7 +1546,7 @@ function checkMilestones(prev, entry) {
     if (nh === 1) msgs.push('🎯 First harvest of the ' + y + ' season!');
   }
   var acresPrev = sumAcres(prev);
-  var acresNow = acresPrev + (entry.type === 'Activity' ? (parseFloat(entry['ac-acres']) || 0) : 0);
+  var acresNow = acresPrev + (PRACTICE_TYPES.indexOf(entry.type) !== -1 ? (parseFloat(entry['ac-acres']) || 0) : 0);
   ACRE_MILESTONES.forEach(function(t) {
     if (acresPrev < t && acresNow >= t) msgs.push('🌳 Over ' + t.toLocaleString() + ' acres of habitat treated all-time!');
   });
@@ -1874,10 +1881,12 @@ function resolveSpeciesFields(entry, type) {
 
 function switchType() {
   var t = document.getElementById('fType').value;
-  var types = ['General','Harvest','Sighting','Activity','Census','Predator Control','Maintenance','Purchase'];
-  types.forEach(function(typ) {
-    var el = document.getElementById('fields-' + typ);
-    if (el) el.style.display = (typ === t) ? '' : 'none';
+  // The five supplemental/habitat/erosion practice types share one form
+  var shown = (PRACTICE_TYPES.indexOf(t) !== -1) ? 'Practice' : t;
+  var divs = ['General','Harvest','Sighting','Practice','Census','Predator Control','Maintenance','Purchase'];
+  divs.forEach(function(d) {
+    var el = document.getElementById('fields-' + d);
+    if (el) el.style.display = (d === shown) ? '' : 'none';
   });
   // Census uses Route/Stand ID instead of a map location
   document.getElementById('locSection').style.display = (t === 'Census') ? 'none' : '';
@@ -1886,10 +1895,10 @@ function switchType() {
 }
 
 function getTypeFields(type) {
+  if (PRACTICE_TYPES.indexOf(type) !== -1) return ['ac-name','ac-acres','ac-notes'];
   var map = {
     'Harvest':   ['hv-species','hv-sex','hv-age','hv-weight','hv-tag','hv-hunter','hv-location','hv-method','hv-points','hv-mainBeam','hv-tines','hv-spread','hv-buckId','hv-notes'].concat(BC_FIELDS),
     'Sighting':  ['si-species','si-count','si-sexAge','si-location','si-method','si-buckId','si-notes'],
-    'Activity':  ['ac-category','ac-name','ac-acres','ac-notes'],
     'Census':    ['ce-surveyType','ce-species','ce-routeId','ce-total','ce-conditions','ce-notes'],
     'Predator Control': ['pc-species','pc-method','pc-count','pc-notes'],
     'Maintenance': ['ma-item','ma-action','ma-notes'],
@@ -2144,7 +2153,7 @@ function entryTitle(e) {
     return title;
   }
   if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + ' ' : '') + (e['si-species'] || 'Sighting');
-  if (e.type === 'Activity') return (e['ac-name'] || e['ac-category'] || 'Activity');
+  if (PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') return (e['ac-name'] || e['ac-category'] || e.type);
   if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
   if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
   if (e.type === 'Maintenance') return (e['ma-item'] || 'Maintenance');

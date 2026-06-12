@@ -278,6 +278,12 @@ async function updateFromLog() {
   var hvTally = {}; // harvested species -> count
 
   entries.forEach(function(e) {
+    // Promoted practice types (Habitat/Erosion/Supplemental*) check their Part II box.
+    // Predator Control and Census have their own branches below that add technique detail.
+    if (QUAL[e.type] && e.type !== 'Predator Control' && e.type !== 'Census') {
+      check(QUAL[e.type][0], QUAL[e.type][1]);
+    }
+    // Legacy un-split "Activity" entries (in case any reach here un-migrated)
     if (e.type === 'Activity' && QUAL[e['ac-category']]) {
       check(QUAL[e['ac-category']][0], QUAL[e['ac-category']][1]);
     }
@@ -388,10 +394,15 @@ function setupAutoSave() {
 
 var ALL_LOG_ENTRIES = [];
 
+// Promoted qualifying-practice event types that share the ac-name/acres/notes shape.
+var PRACTICE_TYPES = ['Habitat Control','Erosion Control','Supplemental Water','Supplemental Food','Supplemental Shelter'];
+
 var TYPE_COLORS = {
   'General':'#1a4a1a', 'Harvest':'#8b1a1a', 'Sighting':'#1a398b',
-  'Activity':'#8b5a1a', 'Census':'#5a1a8b', 'Predator Control':'#8b1a6a',
-  'Maintenance':'#1a3a8b', 'Purchase':'#176a55'
+  'Habitat Control':'#2e7d32', 'Erosion Control':'#6d4c1a', 'Predator Control':'#8b1a6a',
+  'Supplemental Water':'#0277bd', 'Supplemental Food':'#b8860b', 'Supplemental Shelter':'#7b5e3b',
+  'Census':'#5a1a8b', 'Maintenance':'#1a3a8b', 'Purchase':'#176a55',
+  'Activity':'#8b5a1a' // legacy
 };
 
 async function loadLogEntries() {
@@ -557,7 +568,7 @@ function entryTitle(e) {
     return title;
   }
   if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + '× ' : '') + (e['si-species'] || 'Sighting');
-  if (e.type === 'Activity') return e['ac-name'] || e['ac-category'] || 'Activity';
+  if (PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') return e['ac-name'] || e['ac-category'] || e.type;
   if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
   if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
   if (e.type === 'Maintenance') return e['ma-item'] || 'Maintenance';
@@ -591,8 +602,8 @@ function entryDetailLines(e) {
     if (e['si-sexAge']) pairs.push(['Detail', e['si-sexAge']]);
     if (e['si-location']) pairs.push(['Location', e['si-location']]);
     if (e['si-notes']) pairs.push(['Notes', e['si-notes']]);
-  } else if (e.type === 'Activity') {
-    if (e['ac-category']) pairs.push(['Category', e['ac-category']]);
+  } else if (PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') {
+    if (e.type === 'Activity' && e['ac-category']) pairs.push(['Category', e['ac-category']]);
     if (e['ac-acres']) pairs.push(['Acres', e['ac-acres']]);
     if (e['ac-notes']) pairs.push(['Notes', e['ac-notes']]);
   } else if (e.type === 'Census') {
