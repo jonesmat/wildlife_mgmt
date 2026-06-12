@@ -800,6 +800,17 @@ async function init() {
   applyFilter();
   // Deep link from Trophy Board on the home page: /activity#entry-<id>
   if (location.hash.indexOf('#entry-') === 0) jumpToEntry(location.hash.slice(7));
+  // Deep link from the practices dashboard: /activity#log-<Type> opens a new
+  // entry with that event type preselected
+  if (location.hash.indexOf('#log-') === 0) {
+    var wantType = decodeURIComponent(location.hash.slice(5));
+    var typeSel = document.getElementById('fType');
+    if (Array.prototype.some.call(typeSel.options, function(o) { return o.value === wantType; })) {
+      showNewForm();
+      typeSel.value = wantType;
+      switchType();
+    }
+  }
   // Returning from Settings after creating a route mid-Census-entry
   var params = new URLSearchParams(location.search);
   var savedState = localStorage.getItem('censusFormState');

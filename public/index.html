@@ -156,6 +156,14 @@
     background: #f0f0f0; color: #999; border: 1px solid #e0e0e0;
   }
   .practice-chip.done { background: #e8f0e8; color: #1a4a1a; border-color: #b8d0b8; }
+  .practice-chip.todo { cursor: pointer; transition: background 0.12s, color 0.12s; }
+  .practice-chip.todo:hover { background: #e8f0e8; color: #1a4a1a; border-color: #b8d0b8; }
+  .practice-chip .chip-count { opacity: 0.65; font-weight: 400; }
+  .practice-warning {
+    flex-basis: 100%; font-size: 0.82rem; color: #8b5a1a; background: #fdf5e8;
+    border: 1px solid #ecd9b0; border-radius: 6px; padding: 7px 11px; margin-top: 4px;
+  }
+  .practice-warning.urgent { color: #8b1a1a; background: #fdf0ef; border-color: #e8c2bd; }
 
   /* ── Wildlife gallery (formerly trophy board) ── */
   .trophy-board {
@@ -326,17 +334,30 @@
     'Supplemental Shelter': 'Shelter'
   };
 
+  var MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function fmtEntryDate(dt) {
+    // datetime is 'YYYY-MM-DD...' — format from the string to avoid TZ shifts
+    var mo = parseInt(dt.slice(5, 7), 10);
+    return (MONTHS_SHORT[mo - 1] || '') + ' ' + parseInt(dt.slice(8, 10), 10);
+  }
+
   function renderPracticeRing(entries) {
     var year = String(new Date().getFullYear());
-    var covered = {};
+    var stats = {};
+    PRACTICES.forEach(function(p) { stats[p] = { count: 0, last: '' }; });
+    function hit(p, dt) {
+      if (!stats[p]) return;
+      stats[p].count++;
+      if (dt > stats[p].last) stats[p].last = dt;
+    }
     entries.forEach(function(e) {
       if (!e.datetime || !e.datetime.startsWith(year)) return;
-      if (PRACTICES.indexOf(e.type) !== -1) covered[e.type] = true;
-      if (e.type === 'Activity' && PRACTICES.indexOf(e['ac-category']) !== -1) covered[e['ac-category']] = true; // legacy
-      if (e.type === 'Purchase' && PRACTICES.indexOf(e['pu-practice']) !== -1) covered[e['pu-practice']] = true;
-      if (e.type === 'Census' || e.type === 'Harvest') covered['Census'] = true;
+      hit(e.type, e.datetime);
+      if (e.type === 'Activity') hit(e['ac-category'], e.datetime); // legacy
+      if (e.type === 'Purchase') hit(e['pu-practice'], e.datetime);
+      if (e.type === 'Harvest') hit('Census', e.datetime); // harvest records are census data
     });
-    var n = Object.keys(covered).length;
+    var n = PRACTICES.filter(function(p) { return stats[p].count > 0; }).length;
     var qualified = n >= 3;
 
     // Compact SVG ring: 7 segments worth of progress
@@ -353,29 +374,43 @@
     var headline = qualified
       ? 'Qualified for ' + year + '! 🎉'
       : (3 - n) + ' more practice' + (3 - n === 1 ? '' : 's') + ' to qualify for ' + year;
-    var sub = (qualified
+    var sub = qualified
       ? n + ' of 7 qualifying practices documented this year.'
-      : n + ' of 7 documented — the report needs three.') +
-      ' <span class="toggle-link" onclick="togglePractices()">practices</span>';
+      : n + ' of 7 documented — the annual report needs three by Dec 31.';
 
     var chips = PRACTICES.map(function(p) {
-      return '<span class="practice-chip' + (covered[p] ? ' done' : '') + '">' +
-        (covered[p] ? '✓ ' : '') + PRACTICE_LABELS[p] + '</span>';
+      var s = stats[p];
+      if (s.count > 0) {
+        return '<span class="practice-chip done" title="' + s.count + ' entr' + (s.count === 1 ? 'y' : 'ies') +
+          ' this year · last ' + fmtEntryDate(s.last) + '">✓ ' + PRACTICE_LABELS[p] +
+          ' <span class="chip-count">· ' + s.count + '</span></span>';
+      }
+      return '<span class="practice-chip todo" title="Nothing logged in ' + year + ' — click to start an entry"' +
+        ' onclick="location.href=\'/activity#log-' + encodeURIComponent(p) + '\'">+ ' + PRACTICE_LABELS[p] + '</span>';
     }).join('');
+
+    // As the year runs out, nudge harder: a gentle heads-up from October, an
+    // urgent one inside the last month.
+    var warning = '';
+    if (!qualified) {
+      var now = new Date();
+      var daysLeft = Math.round((new Date(now.getFullYear(), 11, 31) - now) / 86400000);
+      if (daysLeft <= 92) {
+        var need = (3 - n) + ' more practice' + (3 - n === 1 ? '' : 's');
+        warning = '<div class="practice-warning' + (daysLeft <= 31 ? ' urgent' : '') + '">⏳ Only <strong>' +
+          daysLeft + ' days</strong> left in ' + year + ' to document ' + need +
+          ' — click a practice above to log one.</div>';
+      }
+    }
 
     var card = document.getElementById('practiceCard');
     card.style.display = 'flex';
     card.innerHTML = ring +
       '<div class="practice-info">' +
         '<div class="practice-headline">' + headline + '</div>' +
-        '<div class="practice-sub" style="margin-bottom:0">' + sub + '</div>' +
-        '<div class="practice-chiprow" id="practiceChips" style="display:none;margin-top:10px">' + chips + '</div>' +
-      '</div>';
-  }
-
-  function togglePractices() {
-    var el = document.getElementById('practiceChips');
-    el.style.display = (el.style.display === 'none') ? 'flex' : 'none';
+        '<div class="practice-sub">' + sub + '</div>' +
+        '<div class="practice-chiprow">' + chips + '</div>' +
+      '</div>' + warning;
   }
 
   // Celebratory facts about this year's work on the ranch
