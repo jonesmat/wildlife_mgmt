@@ -107,9 +107,13 @@ var propImages = [], currentPropId = null, routes = [], entries = [];
 var selectedImageId = null, selectedEntryId = null;
 
 var TYPE_ICONS = {
-  'General': '📝', 'Harvest': '🎯', 'Sighting': '👀', 'Activity': '🚜',
-  'Census': '📊', 'Predator Control': '🪤', 'Maintenance': '🔧', 'Purchase': '🛒'
+  'General': '📝', 'Harvest': '🎯', 'Sighting': '👀',
+  'Habitat Control': '🌳', 'Erosion Control': '🏞️', 'Predator Control': '🪤',
+  'Supplemental Water': '💧', 'Supplemental Food': '🌽', 'Supplemental Shelter': '🏠',
+  'Census': '📊', 'Maintenance': '🔧', 'Purchase': '🛒',
+  'Activity': '🚜' // legacy
 };
+var PRACTICE_TYPES = ['Habitat Control','Erosion Control','Supplemental Water','Supplemental Food','Supplemental Shelter'];
 
 function escHtml(s) {
   if (!s) return '';
@@ -127,7 +131,7 @@ function entryTitle(e) {
   if (e.type === 'General') return e['f-name'] || e.name || 'General Entry';
   if (e.type === 'Harvest') return (e['hv-species'] || 'Harvest') + (e['hv-sex'] ? ' — ' + e['hv-sex'] : '');
   if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + ' ' : '') + (e['si-species'] || 'Sighting');
-  if (e.type === 'Activity') return e['ac-name'] || e['ac-category'] || 'Activity';
+  if (PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') return e['ac-name'] || e['ac-category'] || e.type;
   if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
   if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control');
   if (e.type === 'Maintenance') return e['ma-item'] || 'Maintenance';

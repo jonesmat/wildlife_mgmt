@@ -324,15 +324,17 @@
     'Census': 'Census', 'Supplemental Water': 'Water', 'Supplemental Food': 'Food',
     'Supplemental Shelter': 'Shelter'
   };
+  // Practice event types that carry acres treated (formerly the "Activity" type).
+  var ACRE_PRACTICE_TYPES = ['Habitat Control','Erosion Control','Supplemental Water','Supplemental Food','Supplemental Shelter'];
 
   function renderPracticeRing(entries) {
     var year = String(new Date().getFullYear());
     var covered = {};
     entries.forEach(function(e) {
       if (!e.datetime || !e.datetime.startsWith(year)) return;
-      if (e.type === 'Activity' && PRACTICES.indexOf(e['ac-category']) !== -1) covered[e['ac-category']] = true;
+      if (PRACTICES.indexOf(e.type) !== -1) covered[e.type] = true;
+      if (e.type === 'Activity' && PRACTICES.indexOf(e['ac-category']) !== -1) covered[e['ac-category']] = true; // legacy
       if (e.type === 'Purchase' && PRACTICES.indexOf(e['pu-practice']) !== -1) covered[e['pu-practice']] = true;
-      if (e.type === 'Predator Control') covered['Predator Control'] = true;
       if (e.type === 'Census' || e.type === 'Harvest') covered['Census'] = true;
     });
     var n = Object.keys(covered).length;
@@ -384,7 +386,7 @@
     entries.forEach(function(e) {
       if (!e.datetime || !e.datetime.startsWith(year)) return;
       photos += (e.photos || []).length;
-      if (e.type === 'Activity') { activities++; acres += parseFloat(e['ac-acres']) || 0; }
+      if (ACRE_PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') { activities++; acres += parseFloat(e['ac-acres']) || 0; }
       if (e.type === 'Predator Control') predators += parseInt(e['pc-count'], 10) || 1;
       if (e.type === 'Census') census++;
       if (e.type === 'Sighting') sightings++;

@@ -35,15 +35,16 @@ function renderLogEntries(entries, propertyImages, routes) {
     return null;
   }
 
+  var PRACTICE_TYPES = ['Habitat Control','Erosion Control','Supplemental Water','Supplemental Food','Supplemental Shelter'];
   function entryTitle(e) {
     if (e.type === 'General') return e.name || e['f-name'] || 'General Entry';
+    if (PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') return e['ac-name'] || e['ac-category'] || e.type;
     if (e.type === 'Harvest') {
       var t = (e['hv-species'] || 'Harvest') + (e['hv-sex'] ? ' — ' + e['hv-sex'] : '');
       if (e['hv-points']) t += ' (' + e['hv-points'] + '-pt)';
       return t;
     }
     if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + '× ' : '') + (e['si-species'] || 'Sighting');
-    if (e.type === 'Activity') return e['ac-name'] || e['ac-category'] || 'Activity';
     if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
     if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
     if (e.type === 'Maintenance') return e['ma-item'] || 'Maintenance';
@@ -93,8 +94,8 @@ function renderLogEntries(entries, propertyImages, routes) {
       if (e['si-location']) pairs.push(['Location', e['si-location']]);
       if (e['si-method']) pairs.push(['Method', e['si-method']]);
       if (e['si-notes']) pairs.push(['Notes', e['si-notes']]);
-    } else if (e.type === 'Activity') {
-      if (e['ac-category']) pairs.push(['Category', e['ac-category']]);
+    } else if (PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') {
+      if (e.type === 'Activity' && e['ac-category']) pairs.push(['Category', e['ac-category']]);
       if (e['ac-acres']) pairs.push(['Acres', e['ac-acres']]);
       if (e['ac-notes']) pairs.push(['Notes', e['ac-notes']]);
     } else if (e.type === 'Census') {
