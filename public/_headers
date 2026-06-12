@@ -11,6 +11,12 @@
 # cuts off the easy exfiltration paths even if markup injection slips in.
 # COOP is same-origin-allow-popups (not same-origin) because the Google
 # OAuth popup must keep its opener link to deliver the token.
+#
+# Cache-Control no-cache = cache, but revalidate before every use. Assets
+# aren't fingerprinted, so without this browsers heuristically cache HTML/JS
+# and keep serving stale copies after a deployment. Workers static assets
+# serve strong ETags, so revalidation is a cheap 304 from the edge and every
+# deploy is picked up on the next navigation.
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
@@ -19,3 +25,4 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   Cross-Origin-Opener-Policy: same-origin-allow-popups
+  Cache-Control: public, no-cache
