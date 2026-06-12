@@ -18,6 +18,9 @@ header h1 { font-size: 1.1rem; }
 .sidebar-item {
   padding: 10px 16px; cursor: pointer; border-left: 3px solid transparent;
   font-size: 0.85rem; color: #444; transition: all 0.1s;
+  /* clickable div: stop mobile taps selecting the label text */
+  user-select: none; -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
 .sidebar-item:hover { background: #f5f5f5; }
 .sidebar-item.active { background: #f0f7f0; border-left-color: #1a4a1a; color: #1a4a1a; font-weight: 600; }
