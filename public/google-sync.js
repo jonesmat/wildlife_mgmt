@@ -1,9 +1,13 @@
 // Optional Google Drive sync. The standard export archive (same format as
 // the manual backup file) is stored in the user's Drive appDataFolder — a
-// hidden, app-private area that only this app's OAuth client can see. OAuth
-// runs entirely in the browser via Google Identity Services; the short-lived
-// access token is cached locally (see TOKEN_KEY) so syncs don't re-open the
-// OAuth popup on every page load.
+// hidden, app-private area that only this app's OAuth client can see.
+//
+// Auth: sign-in uses the GIS authorization-code flow; the same-origin
+// backend (worker.mjs on Cloudflare, server.js locally) exchanges the code
+// using the client secret and hands back access + refresh tokens. The
+// refresh token lets background syncs renew access silently forever — no
+// popups after the one-time sign-in. If the backend isn't configured, the
+// client falls back to the popup token flow with an hourly tap-to-sign-in.
 //
 // Requires a Google OAuth Client ID (Web application). Either hardcode it in
 // DEFAULT_CLIENT_ID below for your deployment, or paste it in
@@ -69,6 +73,42 @@
     accessToken = null;
     tokenExpires = 0;
     localStorage.removeItem(TOKEN_KEY);
+  }
+
+  function cacheToken(token, expiresIn) {
+    accessToken = token;
+    tokenExpires = Date.now() + (parseInt(expiresIn, 10) || 3600) * 1000;
+    try {
+      localStorage.setItem(TOKEN_KEY, JSON.stringify({
+        token: accessToken, expiresAt: tokenExpires, clientId: clientId()
+      }));
+    } catch (e) { /* private mode etc. — cache is best-effort */ }
+    return accessToken;
+  }
+
+  // ── Refresh token (long-lived; renews access silently via the backend) ──
+  var REFRESH_KEY = 'gsync-refresh';
+
+  function refreshToken() { return localStorage.getItem(REFRESH_KEY) || ''; }
+  function clearRefreshToken() { localStorage.removeItem(REFRESH_KEY); }
+
+  // Resolves to a fresh access token, or null when the backend is absent,
+  // the refresh token is missing, or the grant was revoked. Never shows UI.
+  function refreshAccessToken() {
+    var rt = refreshToken();
+    if (!rt) return Promise.resolve(null);
+    return fetch('/oauth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: rt })
+    }).then(function(r) {
+      if (r.status === 404 || r.status === 501) return null; // backend not available
+      return r.json().then(function(t) {
+        if (r.status === 401) { clearRefreshToken(); return null; } // grant revoked
+        if (!r.ok || !t.access_token) return null;                  // transient failure
+        return cacheToken(t.access_token, t.expires_in);
+      });
+    }).catch(function() { return null; }); // offline etc. — treat as transient
   }
 
   // ── Last-synced base snapshot (for three-way merges) ──
@@ -140,41 +180,96 @@
       return Promise.resolve(accessToken);
     }
     if (!clientId()) return Promise.reject(new Error('No Google Client ID configured.'));
-    if (!interactive) {
-      // The GIS token client ALWAYS opens a popup window when asked for a
-      // token — even with prompt:'none' — so a background sync must never
-      // ask. Pause instead; the pill offers a one-tap (user-gesture)
-      // reconnect, and any interactive Sync Now also refreshes the token.
-      var pauseErr = new Error('Sync paused — needs a quick sign-in.');
-      pauseErr.needsInteraction = true;
-      return Promise.reject(pauseErr);
-    }
-    return loadGis().then(function() {
-      return new Promise(function(resolve, reject) {
-        if (!tokenClient) {
-          tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: clientId(),
-            scope: SCOPE,
-            callback: function() {},
-            error_callback: function() {}
-          });
-        }
-        tokenClient.callback = function(resp) {
-          if (resp.error) { reject(new Error(resp.error_description || resp.error)); return; }
-          accessToken = resp.access_token;
-          tokenExpires = Date.now() + (parseInt(resp.expires_in, 10) || 3600) * 1000;
-          try {
-            localStorage.setItem(TOKEN_KEY, JSON.stringify({
-              token: accessToken, expiresAt: tokenExpires, clientId: clientId()
-            }));
-          } catch (e) { /* private mode etc. — cache is best-effort */ }
-          resolve(accessToken);
-        };
-        tokenClient.error_callback = function(err) {
-          reject(new Error(err && err.message ? err.message : 'Google sign-in was cancelled or blocked.'));
-        };
-        tokenClient.requestAccessToken({ prompt: '' });
+    return refreshAccessToken().then(function(tok) {
+      if (tok) return tok;
+      if (!interactive) {
+        // No silent path left (no refresh token, or backend unavailable).
+        // The GIS popup must never open from a background sync — pause and
+        // let the pill's tap (a user gesture) re-authenticate instead.
+        var pauseErr = new Error('Sync paused — needs a quick sign-in.');
+        pauseErr.needsInteraction = true;
+        throw pauseErr;
+      }
+      return interactiveSignIn();
+    });
+  }
+
+  // One-time sign-in. Prefers the authorization-code flow (yields a refresh
+  // token via the backend, so this popup is the LAST one); falls back to the
+  // plain token popup when the backend isn't configured.
+  function interactiveSignIn() {
+    return backendAvailable().then(function(hasBackend) {
+      return loadGis().then(function() {
+        return hasBackend ? codeFlow() : tokenFlow();
       });
+    });
+  }
+
+  var backendProbe = null;
+  function backendAvailable() {
+    if (refreshToken()) return Promise.resolve(true); // it worked before
+    if (backendProbe) return backendProbe;
+    backendProbe = fetch('/oauth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    }).then(function(r) {
+      return r.status === 400; // 'refresh_token required' = endpoint live + configured
+    }).catch(function() { return false; });
+    return backendProbe;
+  }
+
+  function codeFlow() {
+    return new Promise(function(resolve, reject) {
+      var codeClient = google.accounts.oauth2.initCodeClient({
+        client_id: clientId(),
+        scope: SCOPE,
+        ux_mode: 'popup',
+        callback: function(resp) {
+          if (resp.error || !resp.code) {
+            reject(new Error(resp.error_description || resp.error || 'Google sign-in was cancelled.'));
+            return;
+          }
+          fetch('/oauth/exchange', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: resp.code })
+          }).then(function(r) { return r.json().then(function(t) { return { ok: r.ok, t: t }; }); })
+            .then(function(res) {
+              if (!res.ok || !res.t.access_token) {
+                reject(new Error(res.t.error || 'Sign-in could not be completed.'));
+                return;
+              }
+              if (res.t.refresh_token) localStorage.setItem(REFRESH_KEY, res.t.refresh_token);
+              resolve(cacheToken(res.t.access_token, res.t.expires_in));
+            }, reject);
+        },
+        error_callback: function(err) {
+          reject(new Error(err && err.message ? err.message : 'Google sign-in was cancelled or blocked.'));
+        }
+      });
+      codeClient.requestCode();
+    });
+  }
+
+  function tokenFlow() {
+    return new Promise(function(resolve, reject) {
+      if (!tokenClient) {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: clientId(),
+          scope: SCOPE,
+          callback: function() {},
+          error_callback: function() {}
+        });
+      }
+      tokenClient.callback = function(resp) {
+        if (resp.error) { reject(new Error(resp.error_description || resp.error)); return; }
+        resolve(cacheToken(resp.access_token, resp.expires_in));
+      };
+      tokenClient.error_callback = function(err) {
+        reject(new Error(err && err.message ? err.message : 'Google sign-in was cancelled or blocked.'));
+      };
+      tokenClient.requestAccessToken({ prompt: '' });
     });
   }
 
@@ -785,8 +880,16 @@
   }
 
   function disconnect() {
+    var rt = refreshToken();
+    if (rt) {
+      // Revoking the refresh token kills the whole grant server-side, so a
+      // future reconnect gets a fresh consent (and a fresh refresh token).
+      fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(rt), { method: 'POST' })
+        .catch(function() { /* best effort */ });
+    }
     var done = function() {
       clearCachedToken();
+      clearRefreshToken();
       localStorage.removeItem('gsync-meta');
       localStorage.removeItem('gsync-auto');
       clearBase();
