@@ -209,6 +209,168 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  // ── Conflict diff ──
+  // Human summary of how the two archives differ, so the conflict dialog can
+  // say what would actually be gained or lost by each choice.
+  function diffArchives(localA, remoteA) {
+    var L = (localA && localA.data) || {};
+    var R = (remoteA && remoteA.data) || {};
+    var device = [], drive = [], both = [];
+
+    function byId(list) {
+      var m = {};
+      (list || []).forEach(function(x) { if (x && x.id != null) m[x.id] = x; });
+      return m;
+    }
+    function phrase(n, one, many, items, labelFn) {
+      var s = n + ' ' + (n === 1 ? one : many);
+      if (labelFn && n && n <= 2) s += ' \u2014 ' + items.map(labelFn).join(', ');
+      return s;
+    }
+    function compare(lList, rList, one, many, labelFn) {
+      var lm = byId(lList), rm = byId(rList);
+      var lOnly = [], rOnly = [], edited = 0;
+      Object.keys(lm).forEach(function(id) {
+        if (!rm[id]) lOnly.push(lm[id]);
+        else if (JSON.stringify(lm[id]) !== JSON.stringify(rm[id])) edited++;
+      });
+      Object.keys(rm).forEach(function(id) { if (!lm[id]) rOnly.push(rm[id]); });
+      if (lOnly.length) device.push(phrase(lOnly.length, one, many, lOnly, labelFn));
+      if (rOnly.length) drive.push(phrase(rOnly.length, one, many, rOnly, labelFn));
+      if (edited) both.push(phrase(edited, one, many, [], null));
+    }
+    function entryLabel(e) {
+      var name = (e && (e.name || e.type)) || 'entry';
+      var d = e && e.datetime ? String(e.datetime).slice(0, 10) : '';
+      return '\u201c' + name + '\u201d' + (d ? ' (' + d + ')' : '');
+    }
+    function nameLabel(x) { return '\u201c' + ((x && x.name) || 'unnamed') + '\u201d'; }
+
+    compare(L.log, R.log, 'activity log entry', 'activity log entries', entryLabel);
+    compare(L.bucks, R.bucks, 'buck', 'bucks', nameLabel);
+    compare(L.routes, R.routes, 'census route', 'census routes', nameLabel);
+    compare(L.propertyImages, R.propertyImages, 'property image', 'property images', null);
+
+    var lr = L.reports || {}, rr = R.reports || {};
+    Object.keys(lr).forEach(function(y) {
+      if (!rr[y]) device.push('the ' + y + ' annual report');
+      else if (JSON.stringify(lr[y]) !== JSON.stringify(rr[y])) both.push('the ' + y + ' annual report');
+    });
+    Object.keys(rr).forEach(function(y) { if (!lr[y]) drive.push('the ' + y + ' annual report'); });
+
+    if ((L.planUpdatedAt || '') !== (R.planUpdatedAt || '')) {
+      if ((L.planUpdatedAt || '') > (R.planUpdatedAt || '')) device.push('management plan edits');
+      else drive.push('management plan edits');
+    }
+
+    return { device: device, drive: drive, both: both };
+  }
+
+  // ── Conflict dialog ──
+  // Self-contained (dialog.js isn't loaded on every page). Resolves to
+  // 'drive' (replace this device with the Drive copy), 'local' (overwrite
+  // the Drive copy with this device), or null (decide later).
+  var conflictStyleAdded = false;
+  function showConflictDialog(remote, localStamp, diff) {
+    if (!conflictStyleAdded) {
+      conflictStyleAdded = true;
+      var style = document.createElement('style');
+      style.textContent =
+        '.gsync-conflict-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1001;' +
+          'display:flex;align-items:center;justify-content:center}' +
+        '.gsync-conflict{background:white;border-radius:10px;padding:22px 26px;width:540px;' +
+          'max-width:calc(100vw - 40px);max-height:88vh;overflow-y:auto;' +
+          'box-shadow:0 8px 32px rgba(0,0,0,0.25);font-family:Arial,sans-serif;' +
+          'animation:gsyncConflictIn 0.18s ease}' +
+        '@keyframes gsyncConflictIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:none}}' +
+        '.gsync-conflict h3{color:#8b5a1a;font-size:1.05rem;margin:0 0 10px}' +
+        '.gsync-conflict p{font-size:0.88rem;color:#444;line-height:1.55;margin:0 0 10px}' +
+        '.gsync-conflict-times{font-size:0.84rem;color:#555;background:#f7f5ef;border:1px solid #e5dfc9;' +
+          'border-radius:6px;padding:9px 12px;margin:0 0 12px;line-height:1.7}' +
+        '.gsync-conflict-diff{font-size:0.84rem;color:#444;background:#fbfbf6;border:1px solid #e5dfc9;' +
+          'border-radius:6px;padding:9px 12px;margin:0 0 12px;line-height:1.6}' +
+        '.gsync-conflict-diff .gc-diff-title{font-size:0.74rem;font-weight:700;color:#8b5a1a;' +
+          'text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px}' +
+        '.gsync-conflict-diff div+div{margin-top:3px}' +
+        '.gsync-conflict-tip{font-size:0.82rem;color:#555;background:#f0f7f0;border-left:3px solid #5a9a5a;' +
+          'padding:7px 10px;border-radius:0 4px 4px 0;margin:0 0 14px;line-height:1.5}' +
+        '.gsync-conflict-actions{display:flex;flex-direction:column;gap:8px}' +
+        '.gsync-conflict-actions button{border:none;border-radius:6px;padding:11px 16px;font-size:0.9rem;' +
+          'font-weight:600;cursor:pointer;text-align:left;font-family:Arial,sans-serif}' +
+        '.gsync-conflict-actions .gc-drive{background:#1a4a1a;color:white}' +
+        '.gsync-conflict-actions .gc-drive:hover{background:#256325}' +
+        '.gsync-conflict-actions .gc-local{background:#e8f0e8;color:#1a4a1a}' +
+        '.gsync-conflict-actions .gc-local:hover{background:#d0e4d0}' +
+        '.gsync-conflict-actions .gc-later{background:#f0f0f0;color:#555}' +
+        '.gsync-conflict-actions .gc-later:hover{background:#e2e2e2}' +
+        '.gsync-conflict-actions small{display:block;font-weight:400;font-size:0.76rem;opacity:0.85;margin-top:2px}' +
+        '@media print{.gsync-conflict-overlay{display:none !important}}';
+      document.head.appendChild(style);
+    }
+    return new Promise(function(resolve) {
+      function fmt(iso) {
+        var d = iso ? new Date(iso) : null;
+        return (d && !isNaN(d)) ? d.toLocaleString() : 'unknown';
+      }
+      function diffGroup(title, items) {
+        if (!items || !items.length) return '';
+        return '<div><strong>' + title + ':</strong> ' + items.map(esc).join('; ') + '</div>';
+      }
+      var diffHtml;
+      if (!diff) {
+        diffHtml = '<div>The contents of the two copies could not be compared.</div>';
+      } else {
+        diffHtml = diffGroup('Only on this device', diff.device) +
+          diffGroup('Only in the Drive copy', diff.drive) +
+          diffGroup('Edited differently in each copy', diff.both);
+        if (!diffHtml) diffHtml = '<div>The copies differ only in minor details (timestamps or settings).</div>';
+      }
+      var overlay = document.createElement('div');
+      overlay.className = 'gsync-conflict-overlay';
+      overlay.innerHTML =
+        '<div class="gsync-conflict" role="dialog" aria-modal="true" aria-label="Sync conflict">' +
+          '<h3>&#9888;&#65039; Sync conflict</h3>' +
+          '<p>This device and your Google Drive backup <strong>both have changes</strong> since they ' +
+          'last synced. This usually happens after editing on two devices (or two browsers) without ' +
+          'syncing in between.</p>' +
+          '<div class="gsync-conflict-times">' +
+            'Drive copy last updated: <strong>' + esc(fmt(remote && remote.modifiedTime)) + '</strong><br>' +
+            'This device last edited: <strong>' + esc(fmt(localStamp)) + '</strong>' +
+          '</div>' +
+          '<div class="gsync-conflict-diff"><div class="gc-diff-title">What\u2019s different</div>' + diffHtml + '</div>' +
+          '<p>Choose which version to keep &mdash; the other will be overwritten:</p>' +
+          '<div class="gsync-conflict-actions">' +
+            '<button class="gc-drive">Use the Drive copy' +
+              '<small>Replaces everything on this device with the Google Drive backup.</small></button>' +
+            '<button class="gc-local">Keep this device' +
+              '<small>Overwrites the Google Drive backup with this device\u2019s data.</small></button>' +
+            '<button class="gc-later">Decide later' +
+              '<small>Do nothing for now. Syncing stays paused until you choose.</small></button>' +
+          '</div>' +
+          '<div class="gsync-conflict-tip" style="margin-top:14px;margin-bottom:0">' +
+            '<strong>Not sure?</strong> Choose &ldquo;Decide later&rdquo;, save a backup of this device first ' +
+            '(Settings &rarr; Data Management &rarr; Export All Data), then sync again &mdash; with a backup ' +
+            'file saved, either choice is safe.' +
+          '</div>' +
+        '</div>';
+      function close(result) {
+        document.removeEventListener('keydown', onKey);
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        resolve(result);
+      }
+      function onKey(ev) {
+        if (ev.key === 'Escape') { ev.preventDefault(); close(null); }
+      }
+      overlay.addEventListener('click', function(ev) { if (ev.target === overlay) close(null); });
+      overlay.querySelector('.gc-drive').addEventListener('click', function() { close('drive'); });
+      overlay.querySelector('.gc-local').addEventListener('click', function() { close('local'); });
+      overlay.querySelector('.gc-later').addEventListener('click', function() { close(null); });
+      document.addEventListener('keydown', onKey);
+      document.body.appendChild(overlay);
+      overlay.querySelector('.gc-later').focus();
+    });
+  }
+
   // ── Sync logic ──
 
   function localArchive() {
@@ -266,11 +428,21 @@
   function performSync(interactive) {
     var m = meta();
     var localStamp, archive, remote;
+
+    // Archives are expensive — the local one base64s every photo into a
+    // single JSON blob, the remote one is a full Drive download — so the
+    // cheap change stamps decide first and an archive is only materialized
+    // on the branches that actually need it. An up-to-date check builds and
+    // downloads nothing; the Drive copy is only fetched pre-decision when a
+    // real conflict needs the what's-different diff.
+    function withLocalArchive(fn) {
+      return localArchive().then(function(a) { archive = a; return fn(a); });
+    }
+
     return getToken(interactive).then(function() {
-      return localArchive();
-    }).then(function(a) {
-      archive = a;
-      localStamp = (a.data && a.data.lastModifiedAt) || '';
+      return currentLocalStamp();
+    }).then(function(stamp) {
+      localStamp = stamp;
       return findRemote();
     }).then(function(r) {
       remote = r;
@@ -278,23 +450,32 @@
       var remoteChanged = !!remote && (!m.fileId || remote.modifiedTime !== m.remoteModifiedTime);
 
       if (!remote) {
-        if (archiveIsEmpty(archive)) return finish('Nothing to sync yet — log something first.');
-        return doUpload();
+        return withLocalArchive(function(a) {
+          if (archiveIsEmpty(a)) return finish('Nothing to sync yet — log something first.');
+          return doUpload();
+        });
       }
       if (remoteChanged && localChanged) {
-        // Never been synced on this device + empty local = plain first download.
-        if (!m.lastSyncAt && archiveIsEmpty(archive)) return doDownload();
-        if (!interactive) return 'Sync conflict — open Settings → Google Sync to resolve.';
-        var msg = 'Both this device and the Drive copy have changes since the last sync.\n\n' +
-          'Drive copy: last updated ' + new Date(remote.modifiedTime).toLocaleString() + '\n\n' +
-          'Choose "Use Drive copy" to REPLACE this device\'s data with Drive, or Cancel to keep ' +
-          'this device\'s data and overwrite the Drive copy with it.';
-        return appConfirm(msg, 'Sync conflict', 'Use Drive copy').then(function(useDrive) {
-          return useDrive ? doDownload() : doUpload();
+        return withLocalArchive(function(a) {
+          // Never been synced on this device + empty local = plain first download.
+          if (!m.lastSyncAt && archiveIsEmpty(a)) return doDownload();
+          return downloadRemote(remote.id).then(function(remoteArchive) {
+            var diff = null;
+            try { diff = diffArchives(a, remoteArchive); } catch (e) { /* shown as not-comparable */ }
+            return { archive: remoteArchive, diff: diff };
+          }, function() {
+            return { archive: null, diff: null };
+          }).then(function(info) {
+            return showConflictDialog(remote, localStamp, info.diff).then(function(choice) {
+              if (choice === 'drive') return info.archive ? doImport(info.archive) : doDownload();
+              if (choice === 'local') return doUpload();
+              return 'Sync conflict — not resolved yet. Sync again when ready to choose.';
+            });
+          });
         });
       }
       if (remoteChanged) return doDownload();
-      if (localChanged) return doUpload();
+      if (localChanged) return withLocalArchive(function() { return doUpload(); });
       return finish('Already up to date.');
     });
 
@@ -304,7 +485,13 @@
       });
     }
     function doDownload() {
-      return downloadRemote(remote.id).then(importArchive).then(currentLocalStamp).then(function(stamp) {
+      return downloadRemote(remote.id).then(doImport);
+    }
+    function doImport(remoteArchive) {
+      return importArchive(remoteArchive).then(currentLocalStamp).then(function(stamp) {
+        // The page rendered from the pre-import data; refresh to show what
+        // was just downloaded.
+        setTimeout(function() { location.reload(); }, 700);
         return finish('Downloaded latest from Google Drive.', remote.id, remote.modifiedTime, stamp);
       });
     }
@@ -359,6 +546,8 @@
     syncNow: syncNow,
     disconnect: disconnect,
     _indicator: indicator,
+    _conflictDialog: showConflictDialog,
+    _diffArchives: diffArchives,
     autoEnabled: function() { return localStorage.getItem('gsync-auto') === '1'; },
     setAuto: function(on) {
       if (on) localStorage.setItem('gsync-auto', '1');
