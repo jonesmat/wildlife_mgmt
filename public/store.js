@@ -233,13 +233,35 @@
   // practices simply adopt the category as their type (fields are unchanged).
   // The two categories that always had richer dedicated forms (Predator
   // Control, Census) fold into those types, preserving the notes.
+  // Move the old generic ac-name/ac-acres/ac-notes onto a practice-typed
+  // entry's own fields (acres into its acres field, the rest into its notes).
+  function foldGenericPracticeFields(e) {
+    if (!('ac-name' in e) && !('ac-acres' in e) && !('ac-notes' in e)) return;
+    var acresF = window.PRACTICE_ACRES_FIELD[e.type];
+    if (acresF && e['ac-acres'] && !e[acresF]) e[acresF] = e['ac-acres'];
+    var notesF = (window.PRACTICE_FIELDS[e.type] || []).reduce(function(acc, f) {
+      return f.type === 'textarea' ? f.id : acc;
+    }, null);
+    if (notesF) {
+      var carry = [e['ac-name'], (acresF ? '' : (e['ac-acres'] ? e['ac-acres'] + ' acres' : '')), e['ac-notes']]
+        .filter(Boolean).join(' — ');
+      if (carry) e[notesF] = [carry, e[notesF]].filter(Boolean).join('\n');
+    }
+    delete e['ac-name']; delete e['ac-acres']; delete e['ac-notes'];
+  }
+
   function migrateActivityEntry(e) {
     var cat = e['ac-category'];
     var note = [e['ac-name'], e['ac-acres'] ? e['ac-acres'] + ' acres' : '', e['ac-notes']]
       .filter(Boolean).join(' — ');
     if (PROMOTED_PRACTICES[cat]) {
+      // Promoted practice: adopt the category as the type; per-practice fields
+      // are filled in by foldGenericPracticeFields below.
       e.type = cat;
-    } else if (cat === 'Predator Control') {
+      delete e['ac-category'];
+      return e;
+    }
+    if (cat === 'Predator Control') {
       e.type = 'Predator Control';
       if (note) e['pc-notes'] = [note, e['pc-notes']].filter(Boolean).join('\n');
     } else if (cat === 'Census') {
@@ -252,6 +274,7 @@
       e['f-description'] = e.description = note;
     }
     delete e['ac-category'];
+    delete e['ac-name']; delete e['ac-acres']; delete e['ac-notes'];
     return e;
   }
 
@@ -263,7 +286,13 @@
     if (!d.settings.photoQuality) d.settings.photoQuality = 'balanced';
     if (!d.bucks) d.bucks = [];
     if (!d.reportsMeta) d.reportsMeta = {};
-    d.log.forEach(function(e) { if (e && e.type === 'Activity') migrateActivityEntry(e); });
+    d.log.forEach(function(e) {
+      if (!e) return;
+      if (e.type === 'Activity') migrateActivityEntry(e);
+      // Fold any leftover generic fields onto practice-typed entries (covers
+      // entries created by the interim single-shared-form version too).
+      if (window.PRACTICE_FIELDS[e.type]) foldGenericPracticeFields(e);
+    });
     return d;
   }
 
@@ -665,6 +694,106 @@
 
     return json({ error: 'Unknown endpoint ' + method + ' ' + pathname }, 404);
   }
+
+  // ── Qualifying-practice event types (shared by every page) ──
+
+  // Single source of truth for the five qualifying-practice event types that
+  // were split out of the old generic "Activity" type. Each has its own set
+  // of fields that make sense for that practice. The activity log renders its
+  // entry form from this, and the log/report/print/map views read summaries
+  // and roll-ups from it, so the shape only has to be defined once.
+  window.PRACTICE_FIELDS = {
+    'Habitat Control': [
+      { id: 'hc-method', label: 'Method', type: 'select', options: ['Prescribed Burning','Brush Management','Native Grass / Forb Planting','Mowing / Shredding','Disking','Herbicide / Chemical','Riparian / Wetland Enhancement','Wildlife-friendly Fencing','Other'] },
+      { id: 'hc-area', label: 'Area / Pasture', type: 'text' },
+      { id: 'hc-acres', label: 'Acres Treated', type: 'number' },
+      { id: 'hc-notes', label: 'Notes', type: 'textarea' }
+    ],
+    'Erosion Control': [
+      { id: 'ec-method', label: 'Method', type: 'select', options: ['Reseeding / Revegetation','Gully Shaping & Repair','Check Dams (rock / brush)','Terracing / Contour','Pond / Tank Construction','Streamside / Riparian Protection','Water Diversion','Other'] },
+      { id: 'ec-location', label: 'Location / Site', type: 'text' },
+      { id: 'ec-acres', label: 'Acres Stabilized', type: 'number' },
+      { id: 'ec-notes', label: 'Notes', type: 'textarea' }
+    ],
+    'Supplemental Water': [
+      { id: 'sw-source', label: 'Water Source', type: 'select', options: ['Trough','Wildlife Guzzler','Pond / Tank','Spring Development','Well / Windmill','Marsh / Wetland','Other'] },
+      { id: 'sw-action', label: 'Action', type: 'select', options: ['Installed','Maintained / Cleaned','Filled / Refilled','Repaired'] },
+      { id: 'sw-count', label: 'Number of Sources', type: 'number' },
+      { id: 'sw-notes', label: 'Notes', type: 'textarea' }
+    ],
+    'Supplemental Food': [
+      { id: 'sf-type', label: 'Food Type', type: 'select', options: ['Protein Feeder','Corn / Grain Feeder','Food Plot','Mineral Station','Hay / Forage','Other'] },
+      { id: 'sf-count', label: 'Feeders / Stations', type: 'number' },
+      { id: 'sf-acres', label: 'Food-plot Acres', type: 'number' },
+      { id: 'sf-notes', label: 'Notes', type: 'textarea' }
+    ],
+    'Supplemental Shelter': [
+      { id: 'ss-type', label: 'Shelter Type', type: 'select', options: ['Brush Pile','Nest Box','Half-cutting','Woody Cover Planting','Snag Retention','Hay Meadow Management','Fencerow / Edge','Other'] },
+      { id: 'ss-count', label: 'Structures Placed', type: 'number' },
+      { id: 'ss-acres', label: 'Acres', type: 'number' },
+      { id: 'ss-species', label: 'Target Species', type: 'text' },
+      { id: 'ss-notes', label: 'Notes', type: 'textarea' }
+    ]
+  };
+
+  window.PRACTICE_TYPES = Object.keys(window.PRACTICE_FIELDS);
+
+  // Which field holds "acres treated" for each practice (Supplemental Water
+  // has none), used for the home-page acres roll-up and milestones.
+  window.PRACTICE_ACRES_FIELD = {
+    'Habitat Control': 'hc-acres', 'Erosion Control': 'ec-acres',
+    'Supplemental Food': 'sf-acres', 'Supplemental Shelter': 'ss-acres'
+  };
+
+  // Practical, practice-specific advice shown above each practice form.
+  window.PRACTICE_TIPS = {
+    'Habitat Control': "💡 <strong>Tip:</strong> Habitat is the foundation — <strong>no amount of feed makes up for worn-out range</strong>. Keep brush in a mosaic (roughly half cover, half open) and treat in strips rather than clearing whole pastures. Time brush work and prescribed burns for late winter so native forbs respond in spring. Record acres treated and take before/after photos.",
+    'Erosion Control': "💡 <strong>Tip:</strong> Hit bare ground and active gullies <strong>before they widen</strong> — head-cuts march uphill fast in a Texas downpour. Reseed disturbed soil with native grasses, set small rock checks in draws, and rest healing ground from grazing. Record acres stabilized and photograph the work; appraisers want to see it actually happened.",
+    'Supplemental Water': "💡 <strong>Tip:</strong> Space water so animals are <strong>never more than about a mile from a drink</strong> — quail and fawns need it closer. Fit every trough with an escape ramp (rocks or wire) so birds and small game don't drown. In drought, check and top off on a set schedule and log each visit — reliable water is what holds wildlife on your place.",
+    'Supplemental Food': "💡 <strong>Tip:</strong> Feed <strong>supplements</strong> good habitat, it doesn't replace it. Protein (16%+) pays off most April–September for antler growth and fawn survival; keep feeders clean and spread out to limit disease. A cool-season legume / forb food plot often beats bagged feed per dollar. Record what you put out, where, and how much.",
+    'Supplemental Shelter': "💡 <strong>Tip:</strong> Build cover where it's missing — <strong>half-cut brush, brush piles, and left-standing fencerows</strong> give escape and thermal cover plus nesting sites. For quail, aim for scattered shrub clumps a covey can reach in a quick dash. Nest boxes only help where natural cavities are scarce. Note acres or the number of structures."
+  };
+
+  // Build the entry-form HTML for a practice type from its field definitions.
+  window.renderPracticeForm = function(type) {
+    var defs = window.PRACTICE_FIELDS[type] || [];
+    function fieldHtml(f) {
+      var inner;
+      if (f.type === 'select') {
+        inner = '<select id="' + f.id + '"><option value="">--</option>' +
+          f.options.map(function(o) { return '<option>' + o + '</option>'; }).join('') + '</select>';
+      } else if (f.type === 'textarea') {
+        inner = '<textarea id="' + f.id + '" rows="3"></textarea>';
+      } else {
+        inner = '<input type="' + (f.type === 'number' ? 'number' : 'text') + '" id="' + f.id + '">';
+      }
+      return '<div class="form-group"><label>' + f.label + '</label>' + inner + '</div>';
+    }
+    var rows = defs.filter(function(f) { return f.type !== 'textarea'; });
+    var areas = defs.filter(function(f) { return f.type === 'textarea'; });
+    return '<div class="entry-tip">' + (window.PRACTICE_TIPS[type] || '') + '</div>' +
+      '<div class="form-row">' + rows.map(fieldHtml).join('') + '</div>' +
+      areas.map(fieldHtml).join('');
+  };
+
+  // Short title for a practice log entry: the first filled descriptive field
+  // (a method/type/name select or text — not a bare acres/count number, and
+  // not the long notes), falling back to the practice name itself.
+  window.practiceTitle = function(e) {
+    var defs = window.PRACTICE_FIELDS[e.type] || [];
+    for (var i = 0; i < defs.length; i++) {
+      var f = defs[i];
+      if ((f.type === 'select' || f.type === 'text') && e[f.id]) return e[f.id];
+    }
+    return e.type;
+  };
+
+  // [label, value] pairs for a practice entry's filled fields, for summaries.
+  window.practiceSummaryPairs = function(e) {
+    return (window.PRACTICE_FIELDS[e.type] || [])
+      .filter(function(f) { return e[f.id]; })
+      .map(function(f) { return [f.label, e[f.id]]; });
+  };
 
   // ── fetch patch ──
 

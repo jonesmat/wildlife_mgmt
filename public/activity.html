@@ -293,7 +293,7 @@
 
       <!-- General -->
       <div id="fields-General">
-        <div class="entry-tip">💡 <strong>Tip:</strong> Use General for anything that doesn't fit another type — site visits, observations, planning notes. Give it a short descriptive name and enough detail in the notes that it makes sense on the annual report months later.</div>
+        <div class="entry-tip">💡 <strong>Tip:</strong> Use General for site visits, planning, and consultations that don't fit another type. <strong>Write down who you talked to and what they recommended</strong> — a documented visit from a TPWD biologist, NRCS, or consultant carries real weight at review time. Capture enough detail that the note still makes sense to you, or an appraiser, a year from now.</div>
         <div class="form-row">
           <div class="form-group"><label>Name / Title</label><input type="text" id="f-name" placeholder="e.g. Site visit"></div>
         </div>
@@ -302,7 +302,7 @@
 
       <!-- Harvest -->
       <div id="fields-Harvest" style="display:none">
-        <div class="entry-tip">💡 <strong>Tip:</strong> Log harvests the <strong>same day</strong> — MLDP requires the daily harvest log to be filled in before the deer leaves the property. Record the tag number and hunter, and estimate age and field-dressed weight; that data feeds your population trend records. For whitetail bucks, add antler measurements (or a full B&amp;C score) and a photo.</div>
+        <div class="entry-tip">💡 <strong>Tip:</strong> Log harvests the <strong>same day</strong> — MLDP requires the daily log filled in before the animal leaves the property. Beyond compliance, this is your richest herd data: <strong>field-dressed weights and ages tell you if you're at carrying capacity</strong>. Light does or few fawns mean you're overstocked — plan a heavier doe harvest next season. Pull a jawbone to age it, and for bucks add antler measurements (or a full B&amp;C score) and a photo.</div>
         <div class="form-row">
           <div class="form-group">
             <label>Species</label>
@@ -460,7 +460,7 @@
 
       <!-- Sighting -->
       <div id="fields-Sighting" style="display:none">
-        <div class="entry-tip">💡 <strong>Tip:</strong> Record the count and a sex/age breakdown ("2 bucks, 3 does, 1 fawn") — consistent sightings become incidental census data. Set the map location and attach game-camera photos when you have them; they're strong supporting documentation.</div>
+        <div class="entry-tip">💡 <strong>Tip:</strong> Always note a sex/age breakdown ("2 bucks, 3 does, 1 fawn"), not just a head count. <strong>Buck-to-doe and fawn-to-doe ratios tell you whether the herd is balanced</strong> — too many does means harvest more of them; few fawns points to predators or worn-out range. Late-summer trail-camera sets over feeders give the best read. Set the map location and attach camera photos as supporting documentation.</div>
         <div class="form-row">
           <div class="form-group">
             <label>Species</label>
@@ -510,18 +510,14 @@
       </div>
 
       <!-- Activity -->
-      <div id="fields-Practice" style="display:none">
-        <div class="entry-tip">💡 <strong>Tip:</strong> The event type you picked <em>is</em> the 1-D-1 qualifying practice — "Update from Activity Log" on the annual report checks the matching Part II box for you. Record acres treated and take before/after photos; appraisal districts want evidence the practice actually happened.</div>
-        <div class="form-row">
-          <div class="form-group"><label>Activity / Practice Name</label><input type="text" id="ac-name" placeholder="Prescribed Burning"></div>
-          <div class="form-group"><label>Acres Treated</label><input type="number" id="ac-acres"></div>
-        </div>
-        <div class="form-group"><label>Description &amp; Notes</label><textarea id="ac-notes" rows="3"></textarea></div>
-      </div>
+      <!-- Each practice type (Habitat/Erosion/Supplemental Water/Food/Shelter)
+           has its own fields; switchType() renders the right one here from
+           window.PRACTICE_FIELDS (defined once in store.js). -->
+      <div id="fields-Practice" style="display:none"></div>
 
       <!-- Census -->
       <div id="fields-Census" style="display:none">
-        <div class="entry-tip">💡 <strong>Tip:</strong> Run the <strong>same route under the same conditions</strong> each time — TPWD recommends at least three spotlight counts on a fixed route in late summer/fall. Record route, conditions, and totals consistently so year-over-year trends are comparable.</div>
+        <div class="entry-tip">💡 <strong>Tip:</strong> Run the <strong>same route, same conditions, same time of year</strong> (late summer/fall) so trends are comparable — TPWD suggests at least three spotlight runs a week or so apart to smooth out bad nights. The point isn't the paperwork: <strong>this is the number that sets your harvest</strong>. More deer than the range can carry means a heavier doe harvest this year. Keep written records — the appraisal district can ask to see them.</div>
         <div class="form-row">
           <div class="form-group"><label>Survey Type</label>
             <select id="ce-surveyType">
@@ -575,7 +571,7 @@
 
       <!-- Predator Control -->
       <div id="fields-Predator Control" style="display:none">
-        <div class="entry-tip">💡 <strong>Tip:</strong> Log every removal with species, method, and count — these document the predator-control qualifying practice on your annual report. Brown-headed cowbird trapping requires a free TPWD trapping certification; note trap locations on the map.</div>
+        <div class="entry-tip">💡 <strong>Tip:</strong> <strong>Timing beats volume</strong> — control around fawn drop and nesting (roughly April–June) protects the most young. Focus on the worst offenders (coyotes, feral hogs, nest-raiding raccoons/skunks) rather than blanket trapping. Cowbird trapping needs a free TPWD certification. Log species, method, and count, and mark trap/snare locations on the map so you can work them efficiently next time.</div>
         <div class="form-row">
           <div class="form-group">
             <label>Species Targeted</label>
@@ -611,7 +607,7 @@
 
       <!-- Maintenance -->
       <div id="fields-Maintenance" style="display:none">
-        <div class="entry-tip">💡 <strong>Tip:</strong> Upkeep of wildlife infrastructure — feeders, water troughs, nest boxes, fences — counts as ongoing practice implementation. Name the specific item and what was done; a quick photo of the completed work makes good documentation.</div>
+        <div class="entry-tip">💡 <strong>Tip:</strong> Routine upkeep of feeders, troughs, blinds, nest boxes, and fences is ongoing practice implementation — don't leave it unlogged. <strong>Service infrastructure ahead of peak need:</strong> water before summer, feeders before the fall rut, nest boxes cleaned out before spring. Name the specific item, say what you did, and snap a photo of the finished work.</div>
         <div class="form-row">
           <div class="form-group"><label>Item / Facility</label><input type="text" id="ma-item" placeholder="Water trough, fence, feeder..."></div>
           <div class="form-group"><label>Action Taken</label><input type="text" id="ma-action" placeholder="Repaired, replaced, installed..."></div>
@@ -621,7 +617,7 @@
 
       <!-- Purchase -->
       <div id="fields-Purchase" style="display:none">
-        <div class="entry-tip">💡 <strong>Tip:</strong> Photograph the receipt and attach it — receipts are the supporting documentation appraisal districts ask for. Tie the purchase to the management practice it supports so it strengthens the matching Part II checkbox on your annual report.</div>
+        <div class="entry-tip">💡 <strong>Tip:</strong> <strong>Photograph and attach every receipt</strong> — feed, seed, fencing, fuel, equipment, contract labor. They're the paper trail appraisal districts ask for, and they put real dollars behind your practices. Tie each purchase to the practice it supports so it backs the matching Part II box, and they'll add up to your investment-in-the-land total at year's end.</div>
         <div class="form-row">
           <div class="form-group"><label>Item Purchased</label><input type="text" id="pu-item" placeholder="Protein feed, feeder, seed mix..."></div>
           <div class="form-group"><label>Category</label>
@@ -1040,7 +1036,9 @@ function renderDetail(e) {
     rows += twoCol('Sex/Age', e['si-sexAge'], 'Method', e['si-method']);
     rows += twoCol('Location', e['si-location'], '', '');
     rows += labelVal('Notes', e['si-notes']);
-  } else if (PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') {
+  } else if (window.PRACTICE_FIELDS[e.type]) {
+    window.practiceSummaryPairs(e).forEach(function(p) { rows += labelVal(p[0], p[1]); });
+  } else if (e.type === 'Activity') { // legacy un-migrated
     rows += twoCol('Practice', e['ac-name'] || e['ac-category'], 'Acres', e['ac-acres']);
     rows += labelVal('Notes', e['ac-notes']);
   } else if (e.type === 'Census') {
@@ -1498,9 +1496,9 @@ var QUAL_PRACTICES = {
   'Supplemental Water': 1, 'Supplemental Food': 1, 'Supplemental Shelter': 1
 };
 
-// The five qualifying practices that don't have richer dedicated forms.
-// They share the "Practice" form (ac-name / ac-acres / ac-notes).
-var PRACTICE_TYPES = ['Habitat Control','Erosion Control','Supplemental Water','Supplemental Food','Supplemental Shelter'];
+// PRACTICE_TYPES, PRACTICE_FIELDS, PRACTICE_ACRES_FIELD and the practice
+// form/summary/title helpers live in store.js (window.*) so every page shares
+// one definition.
 
 function practicesCovered(list) {
   var covered = {};
@@ -1514,7 +1512,10 @@ function practicesCovered(list) {
 
 function sumAcres(list) {
   var t = 0;
-  list.forEach(function(e) { if (PRACTICE_TYPES.indexOf(e.type) !== -1) t += parseFloat(e['ac-acres']) || 0; });
+  list.forEach(function(e) {
+    var f = window.PRACTICE_ACRES_FIELD[e.type];
+    if (f) t += parseFloat(e[f]) || 0;
+  });
   return t;
 }
 
@@ -1546,7 +1547,8 @@ function checkMilestones(prev, entry) {
     if (nh === 1) msgs.push('🎯 First harvest of the ' + y + ' season!');
   }
   var acresPrev = sumAcres(prev);
-  var acresNow = acresPrev + (PRACTICE_TYPES.indexOf(entry.type) !== -1 ? (parseFloat(entry['ac-acres']) || 0) : 0);
+  var acresField = window.PRACTICE_ACRES_FIELD[entry.type];
+  var acresNow = acresPrev + (acresField ? (parseFloat(entry[acresField]) || 0) : 0);
   ACRE_MILESTONES.forEach(function(t) {
     if (acresPrev < t && acresNow >= t) msgs.push('🌳 Over ' + t.toLocaleString() + ' acres of habitat treated all-time!');
   });
@@ -1882,12 +1884,14 @@ function resolveSpeciesFields(entry, type) {
 function switchType() {
   var t = document.getElementById('fType').value;
   // The five supplemental/habitat/erosion practice types share one form
-  var shown = (PRACTICE_TYPES.indexOf(t) !== -1) ? 'Practice' : t;
+  var shown = window.PRACTICE_FIELDS[t] ? 'Practice' : t;
   var divs = ['General','Harvest','Sighting','Practice','Census','Predator Control','Maintenance','Purchase'];
   divs.forEach(function(d) {
     var el = document.getElementById('fields-' + d);
     if (el) el.style.display = (d === shown) ? '' : 'none';
   });
+  // Render the selected practice's own fields into the shared container
+  if (shown === 'Practice') document.getElementById('fields-Practice').innerHTML = window.renderPracticeForm(t);
   // Census uses Route/Stand ID instead of a map location
   document.getElementById('locSection').style.display = (t === 'Census') ? 'none' : '';
   // Moon phase applies to wildlife-activity events
@@ -1895,7 +1899,7 @@ function switchType() {
 }
 
 function getTypeFields(type) {
-  if (PRACTICE_TYPES.indexOf(type) !== -1) return ['ac-name','ac-acres','ac-notes'];
+  if (window.PRACTICE_FIELDS[type]) return window.PRACTICE_FIELDS[type].map(function(f) { return f.id; });
   var map = {
     'Harvest':   ['hv-species','hv-sex','hv-age','hv-weight','hv-tag','hv-hunter','hv-location','hv-method','hv-points','hv-mainBeam','hv-tines','hv-spread','hv-buckId','hv-notes'].concat(BC_FIELDS),
     'Sighting':  ['si-species','si-count','si-sexAge','si-location','si-method','si-buckId','si-notes'],
@@ -2153,7 +2157,8 @@ function entryTitle(e) {
     return title;
   }
   if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + ' ' : '') + (e['si-species'] || 'Sighting');
-  if (PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') return (e['ac-name'] || e['ac-category'] || e.type);
+  if (window.PRACTICE_FIELDS[e.type]) return window.practiceTitle(e);
+  if (e.type === 'Activity') return (e['ac-name'] || e['ac-category'] || e.type); // legacy
   if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
   if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
   if (e.type === 'Maintenance') return (e['ma-item'] || 'Maintenance');

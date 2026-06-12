@@ -113,7 +113,6 @@ var TYPE_ICONS = {
   'Census': '📊', 'Maintenance': '🔧', 'Purchase': '🛒',
   'Activity': '🚜' // legacy
 };
-var PRACTICE_TYPES = ['Habitat Control','Erosion Control','Supplemental Water','Supplemental Food','Supplemental Shelter'];
 
 function escHtml(s) {
   if (!s) return '';
@@ -131,7 +130,8 @@ function entryTitle(e) {
   if (e.type === 'General') return e['f-name'] || e.name || 'General Entry';
   if (e.type === 'Harvest') return (e['hv-species'] || 'Harvest') + (e['hv-sex'] ? ' — ' + e['hv-sex'] : '');
   if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + ' ' : '') + (e['si-species'] || 'Sighting');
-  if (PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') return e['ac-name'] || e['ac-category'] || e.type;
+  if (window.PRACTICE_FIELDS[e.type]) return window.practiceTitle(e);
+  if (e.type === 'Activity') return e['ac-name'] || e['ac-category'] || e.type; // legacy
   if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
   if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control');
   if (e.type === 'Maintenance') return e['ma-item'] || 'Maintenance';

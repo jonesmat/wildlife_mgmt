@@ -274,14 +274,83 @@ async function updateFromLog() {
     'Incidental Observation': 'incidentalObservations', 'Camera Survey': 'miscCameras', 'Harvest Data': 'harvestData'
   };
 
+  // Part VIII data-path segment for each practice (under reportData[''])
+  var PRACTICE_KEY = {
+    'Habitat Control': 'habitatControl', 'Erosion Control': 'erosionControl',
+    'Supplemental Water': 'supplementalWater', 'Supplemental Food': 'supplementalFood',
+    'Supplemental Shelter': 'supplementalShelter'
+  };
+  // Maps each practice's method/type choice to the detailed Part VIII checkbox
+  // to tick, the sub-practice info field to comment in, and how to tally it.
+  // 'kind' is "acres" (sums the acreage field) or "count" (sums the count field,
+  // defaulting to 1 per entry). Options not listed here just tick the Part II box.
+  var PRACTICE_DETAIL = {
+    'Habitat Control': { method: 'hc-method', kind: 'acres', qty: 'hc-acres', map: {
+      'Prescribed Burning': { box: 'prescribedBurning', info: 'burnInfo', label: 'prescribed burn' },
+      'Brush Management': { box: 'brushManagement', info: 'brushInfo', label: 'brush-management treatment' },
+      'Native Grass / Forb Planting': { box: 'rangeEnhancement', info: 'reseededInfo', label: 'reseeding project' },
+      'Riparian / Wetland Enhancement': { box: 'riparian', info: 'riparianInfo', label: 'riparian/wetland project' },
+      'Wildlife-friendly Fencing': { box: 'fenceModification', info: 'fenceInfo', label: 'fence modification' }
+    }},
+    'Erosion Control': { method: 'ec-method', kind: 'acres', qty: 'ec-acres', map: {
+      'Reseeding / Revegetation': { box: 'plantEstablishment', info: 'plantEstablishmentInfo', label: 'revegetation area' },
+      'Gully Shaping & Repair': { box: 'gullyShaping', info: 'gullyInfo', label: 'gully repair' },
+      'Pond / Tank Construction': { box: 'pondConstruction', info: 'pondInfo', label: 'pond/tank' },
+      'Streamside / Riparian Protection': { box: 'streamside', info: 'streamsideInfo', label: 'streamside project' },
+      'Water Diversion': { box: 'waterDiversion', info: 'waterDiversionInfo', label: 'water diversion' }
+    }},
+    'Supplemental Water': { method: 'sw-source', kind: 'count', qty: 'sw-count', map: {
+      'Trough': { box: 'wellTrough', info: 'facilityInfo', label: 'troughs' },
+      'Spring Development': { box: 'springDevelopment', info: 'springInfo', label: 'spring developments' },
+      'Well / Windmill': { box: 'windmill', info: 'facilityInfo', label: 'wells/windmills' },
+      'Marsh / Wetland': { box: 'marshWetland', info: 'marshInfo', label: 'marsh/wetland sites' }
+    }},
+    'Supplemental Food': { method: 'sf-type', kind: 'acres', qty: 'sf-acres', map: {
+      'Protein Feeder': { box: 'feeders', info: 'feederInfo', label: 'protein feeders', kind: 'count', qty: 'sf-count' },
+      'Corn / Grain Feeder': { box: 'feeders', info: 'feederInfo', label: 'grain feeders', kind: 'count', qty: 'sf-count' },
+      'Food Plot': { box: 'foodPlots', info: 'foodPlotInfo', label: 'food plot' }
+    }},
+    'Supplemental Shelter': { method: 'ss-type', kind: 'acres', qty: 'ss-acres', map: {
+      'Brush Pile': { box: 'brushPiles', info: 'brushPileInfo', label: 'brush piles', kind: 'count', qty: 'ss-count' },
+      'Nest Box': { box: 'nestBoxes', info: 'nestBoxInfo', label: 'nest boxes', kind: 'count', qty: 'ss-count' },
+      'Half-cutting': { box: 'halfCutting', info: 'halfCuttingInfo', label: 'half-cutting area' },
+      'Woody Cover Planting': { box: 'woodyPlant', info: 'woodyInfo', label: 'woody cover planting' },
+      'Snag Retention': { box: 'snagDevelopment', info: 'snagInfo', label: 'snag site' },
+      'Hay Meadow Management': { box: 'hayMeadow', info: 'hayMeadowInfo', label: 'hay meadow' },
+      'Fencerow / Edge': { box: 'fenceLineMgmt', info: 'fenceLineInfo', label: 'fencerow project' }
+    }}
+  };
+
   var pcTally = {}; // predator species -> number removed
   var hvTally = {}; // harvested species -> count
+  var practiceTally = {}; // '.practice.infoField' -> { kind, items:{label:total}, acres }
+
+  function tallyPractice(e) {
+    var spec = PRACTICE_DETAIL[e.type];
+    if (!spec) return;
+    var opt = spec.map[e[spec.method]];
+    if (!opt) return; // method not recognized — Part II box already ticked
+    var key = PRACTICE_KEY[e.type];
+    check('.' + key + '.' + opt.box, 'Part VIII: ' + opt.label);
+    var kind = opt.kind || spec.kind;
+    var qtyField = opt.qty || spec.qty;
+    var infoPath = '.' + key + '.' + opt.info;
+    var t = practiceTally[infoPath] || (practiceTally[infoPath] = { kind: kind, items: {}, acres: 0 });
+    if (kind === 'count') {
+      t.items[opt.label] = (t.items[opt.label] || 0) + (parseInt(e[qtyField], 10) || 1);
+    } else {
+      t.items[opt.label] = (t.items[opt.label] || 0) + 1;
+      t.acres += parseFloat(e[qtyField]) || 0;
+    }
+  }
 
   entries.forEach(function(e) {
-    // Promoted practice types (Habitat/Erosion/Supplemental*) check their Part II box.
+    // Promoted practice types (Habitat/Erosion/Supplemental*) check their Part II box,
+    // then map the method/type field onto the detailed Part VIII checkbox + comment.
     // Predator Control and Census have their own branches below that add technique detail.
     if (QUAL[e.type] && e.type !== 'Predator Control' && e.type !== 'Census') {
       check(QUAL[e.type][0], QUAL[e.type][1]);
+      tallyPractice(e);
     }
     // Legacy un-split "Activity" entries (in case any reach here un-migrated)
     if (e.type === 'Activity' && QUAL[e['ac-category']]) {
@@ -339,6 +408,18 @@ async function updateFromLog() {
       'From ' + year + ' Activity Log: harvested ' + tallyLine(hvTally) + '.',
       'Harvest summary');
   }
+  // One summary line per sub-practice info field, e.g.
+  // "From 2026 Activity Log: 2 prescribed burns (60 ac)."
+  Object.keys(practiceTally).forEach(function(infoPath) {
+    var t = practiceTally[infoPath];
+    var parts = Object.keys(t.items).map(function(lab) {
+      // count: "3 protein feeders"; acres: "prescribed burn ×2" (acreage appended after)
+      return t.kind === 'count' ? (t.items[lab] + ' ' + lab) : (lab + ' ×' + t.items[lab]);
+    });
+    var line = 'From ' + year + ' Activity Log: ' + parts.join(', ') +
+      (t.kind === 'acres' && t.acres ? ' (' + Math.round(t.acres * 10) / 10 + ' ac)' : '') + '.';
+    upsertAutoLine(infoPath, line, 'Practice summary: ' + infoPath.split('.').slice(1).join(' / '));
+  });
 
   populateForm(reportData);
   await saveData();
@@ -393,9 +474,6 @@ function setupAutoSave() {
 }
 
 var ALL_LOG_ENTRIES = [];
-
-// Promoted qualifying-practice event types that share the ac-name/acres/notes shape.
-var PRACTICE_TYPES = ['Habitat Control','Erosion Control','Supplemental Water','Supplemental Food','Supplemental Shelter'];
 
 var TYPE_COLORS = {
   'General':'#1a4a1a', 'Harvest':'#8b1a1a', 'Sighting':'#1a398b',
@@ -568,7 +646,8 @@ function entryTitle(e) {
     return title;
   }
   if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + '× ' : '') + (e['si-species'] || 'Sighting');
-  if (PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') return e['ac-name'] || e['ac-category'] || e.type;
+  if (window.PRACTICE_FIELDS[e.type]) return window.practiceTitle(e);
+  if (e.type === 'Activity') return e['ac-name'] || e['ac-category'] || e.type; // legacy
   if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
   if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
   if (e.type === 'Maintenance') return e['ma-item'] || 'Maintenance';
@@ -602,8 +681,10 @@ function entryDetailLines(e) {
     if (e['si-sexAge']) pairs.push(['Detail', e['si-sexAge']]);
     if (e['si-location']) pairs.push(['Location', e['si-location']]);
     if (e['si-notes']) pairs.push(['Notes', e['si-notes']]);
-  } else if (PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') {
-    if (e.type === 'Activity' && e['ac-category']) pairs.push(['Category', e['ac-category']]);
+  } else if (window.PRACTICE_FIELDS[e.type]) {
+    window.practiceSummaryPairs(e).forEach(function(p) { pairs.push(p); });
+  } else if (e.type === 'Activity') { // legacy
+    if (e['ac-category']) pairs.push(['Category', e['ac-category']]);
     if (e['ac-acres']) pairs.push(['Acres', e['ac-acres']]);
     if (e['ac-notes']) pairs.push(['Notes', e['ac-notes']]);
   } else if (e.type === 'Census') {
