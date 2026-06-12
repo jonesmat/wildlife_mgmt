@@ -256,6 +256,7 @@
           <option>Supplemental Food</option>
           <option>Supplemental Shelter</option>
           <option>Census</option>
+          <option>Rainfall</option>
           <option>Maintenance</option>
           <option>Purchase</option>
         </select>
@@ -292,6 +293,7 @@
             <option>Supplemental Food</option>
             <option>Supplemental Shelter</option>
             <option>Census</option>
+            <option>Rainfall</option>
             <option>Maintenance</option>
             <option>Purchase</option>
           </select>
@@ -574,6 +576,16 @@
           <div class="form-group"><label>Conditions (visibility, temp)</label><input type="text" id="ce-conditions"></div>
         </div>
         <div class="form-group"><label>Notes</label><textarea id="ce-notes" rows="2"></textarea></div>
+      </div>
+
+      <!-- Rainfall -->
+      <div id="fields-Rainfall" style="display:none">
+        <div class="entry-tip">💡 <strong>Tip:</strong> Rainfall explains more about your range than almost anything else — forb production, fawn survival, and quail nesting all track it. <strong>Read the gauge after every rain and empty it</strong>, and log even the duds ("0.1 inch"). The totals and trends show up on the Census Trends page, where you can compare them against your counts. Import regional history in Settings → Rainfall to see how your year stacks up.</div>
+        <div class="form-row">
+          <div class="form-group"><label>Rainfall (inches)</label><input type="number" id="rf-inches" min="0" step="0.01" placeholder="0.75"></div>
+          <div class="form-group"><label>Gauge / Location</label><input type="text" id="rf-gauge" placeholder="HQ gauge, north tank..."></div>
+        </div>
+        <div class="form-group"><label>Notes</label><textarea id="rf-notes" rows="2"></textarea></div>
       </div>
 
       <!-- Predator Control -->
@@ -895,7 +907,7 @@ var TYPE_ICONS = {
   'General': '📝', 'Harvest': '🎯', 'Sighting': '👀',
   'Habitat Control': '🌳', 'Erosion Control': '🏞️', 'Predator Control': '🪤',
   'Supplemental Water': '💧', 'Supplemental Food': '🌽', 'Supplemental Shelter': '🏠',
-  'Census': '📊', 'Maintenance': '🔧', 'Purchase': '🛒',
+  'Census': '📊', 'Rainfall': '🌧️', 'Maintenance': '🔧', 'Purchase': '🛒',
   'Activity': '🚜' // legacy entries (pre-split); migrated on load
 };
 
@@ -1096,6 +1108,9 @@ function renderDetail(e) {
     rows += twoCol('Species', e['pc-species'], 'Method', e['pc-method']);
     rows += labelVal('Number Removed', e['pc-count']);
     rows += labelVal('Notes', e['pc-notes']);
+  } else if (e.type === 'Rainfall') {
+    rows += twoCol('Rainfall', e['rf-inches'] ? e['rf-inches'] + ' in' : '', 'Gauge / Location', e['rf-gauge']);
+    rows += labelVal('Notes', e['rf-notes']);
   } else if (e.type === 'Maintenance') {
     rows += twoCol('Item', e['ma-item'], 'Action', e['ma-action']);
     if (assetNameById(e['ma-assetId'])) rows += labelVal('Registry Asset', assetNameById(e['ma-assetId']));
@@ -2011,7 +2026,7 @@ function switchType() {
   var t = document.getElementById('fType').value;
   // The five supplemental/habitat/erosion practice types share one form
   var shown = window.PRACTICE_FIELDS[t] ? 'Practice' : t;
-  var divs = ['General','Harvest','Sighting','Practice','Census','Predator Control','Maintenance','Purchase'];
+  var divs = ['General','Harvest','Sighting','Practice','Census','Rainfall','Predator Control','Maintenance','Purchase'];
   divs.forEach(function(d) {
     var el = document.getElementById('fields-' + d);
     if (el) el.style.display = (d === shown) ? '' : 'none';
@@ -2031,6 +2046,7 @@ function getTypeFields(type) {
     'Sighting':  ['si-species','si-count','si-sexAge','si-location','si-method','si-buckId','si-notes'],
     'Census':    ['ce-surveyType','ce-species','ce-routeId','ce-total','ce-conditions','ce-notes'],
     'Predator Control': ['pc-species','pc-method','pc-count','pc-notes'],
+    'Rainfall':  ['rf-inches','rf-gauge','rf-notes'],
     'Maintenance': ['ma-item','ma-action','ma-assetId','ma-notes'],
     'Purchase':  ['pu-item','pu-category','pu-vendor','pu-qty','pu-cost','pu-practice','pu-notes']
   };
@@ -2287,6 +2303,7 @@ function entryTitle(e) {
   if (e.type === 'Activity') return (e['ac-name'] || e['ac-category'] || e.type); // legacy
   if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
   if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
+  if (e.type === 'Rainfall') return (e['rf-inches'] ? e['rf-inches'] + ' in of rain' : 'Rainfall') + (e['rf-gauge'] ? ' — ' + e['rf-gauge'] : '');
   if (e.type === 'Maintenance') return (e['ma-item'] || assetNameById(e['ma-assetId']) || 'Maintenance');
   if (e.type === 'Purchase') {
     var t = e['pu-item'] || 'Purchase';

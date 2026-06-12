@@ -45,6 +45,7 @@
       conditions each season is what makes these lines meaningful.
     </div>
     <div class="trend-card" id="moonCard" style="display:none"></div>
+    <div class="trend-card" id="rainCard" style="display:none"></div>
 
     <div id="trendsBody">
       <div style="color:#999;font-size:0.9rem">Loading...</div>
@@ -53,7 +54,7 @@
 </div>
 
 <script>
-var entries = [], routes = [];
+var entries = [], routes = [], rainHistory = null;
 
 function escHtml(s) {
   if (!s) return '';
@@ -156,13 +157,106 @@ function renderMoonCard() {
     '</div>';
 }
 
+// ── Rainfall ──
+// 'YYYY-MM' -> { inches, src }. The owner's rain-gauge entries always win
+// over imported regional history for any month they logged.
+function monthlyRainfall() {
+  var out = {};
+  if (rainHistory && rainHistory.monthly) {
+    rainHistory.monthly.forEach(function(m) {
+      out[m.year + '-' + String(m.month).padStart(2, '0')] = { inches: m.inches, src: 'history' };
+    });
+  }
+  var gauge = {};
+  entries.forEach(function(e) {
+    if (e.type !== 'Rainfall' || !e.datetime) return;
+    var v = parseFloat(e['rf-inches']);
+    if (!isFinite(v) || v < 0) return;
+    var k = e.datetime.slice(0, 7);
+    gauge[k] = (gauge[k] || 0) + v;
+  });
+  Object.keys(gauge).forEach(function(k) {
+    out[k] = { inches: Math.round(gauge[k] * 100) / 100, src: 'gauge' };
+  });
+  return out;
+}
+
+function yearlyRainfall(monthly) {
+  var byYear = {};
+  Object.keys(monthly).forEach(function(k) {
+    var y = k.slice(0, 4);
+    if (!byYear[y]) byYear[y] = { inches: 0, months: 0, gauge: false };
+    byYear[y].inches += monthly[k].inches;
+    byYear[y].months++;
+    if (monthly[k].src === 'gauge') byYear[y].gauge = true;
+  });
+  return byYear;
+}
+
+function renderRainCard(byYear) {
+  var years = Object.keys(byYear).sort();
+  if (!years.length) return;
+  var card = document.getElementById('rainCard');
+  card.style.display = '';
+
+  var shown = years.slice(-12);
+  var max = Math.max.apply(null, shown.map(function(y) { return byYear[y].inches; })) || 1;
+  var thisYear = String(new Date().getFullYear());
+
+  var bars = shown.map(function(y) {
+    var r = byYear[y];
+    var h = Math.max(4, Math.round(r.inches / max * 110));
+    var partial = r.months < 12;
+    var color = y === thisYear ? '#1a5a8b' : '#7aaed4';
+    return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px"' +
+      ' title="' + y + ': ' + (Math.round(r.inches * 10) / 10) + ' in over ' + r.months + ' month' + (r.months === 1 ? '' : 's') +
+      (r.gauge ? ' (includes your gauge readings)' : ' (regional history)') + '">' +
+      '<span style="font-size:0.72rem;color:#777">' + (Math.round(r.inches * 10) / 10) + '</span>' +
+      '<div style="width:70%;max-width:38px;height:' + h + 'px;border-radius:4px 4px 0 0;background:' + color +
+        (partial ? ';opacity:0.55' : '') + '"></div>' +
+      '<span style="font-size:0.7rem;color:#888">' + y.slice(2) + (partial ? '*' : '') + '</span>' +
+    '</div>';
+  }).join('');
+
+  var full = years.filter(function(y) { return byYear[y].months === 12; });
+  var avg = full.length
+    ? full.reduce(function(s, y) { return s + byYear[y].inches; }, 0) / full.length
+    : null;
+
+  var stats = [];
+  if (byYear[thisYear]) {
+    stats.push('<span class="trend-stat">' + thisYear + ' so far: ' + (Math.round(byYear[thisYear].inches * 10) / 10) + ' in</span>');
+  }
+  if (avg !== null) {
+    stats.push('<span class="trend-stat">Average full year: ' + (Math.round(avg * 10) / 10) + ' in</span>');
+    if (byYear[thisYear] && avg) {
+      var pct = Math.round(byYear[thisYear].inches / avg * 100);
+      stats.push('<span class="trend-stat ' + (pct >= 75 ? 'up' : 'down') + '">' + pct + '% of an average year</span>');
+    }
+  }
+
+  card.innerHTML =
+    '<div class="trend-title">🌧️ Rainfall</div>' +
+    '<div class="trend-sub">Annual totals — your rain-gauge entries' +
+      (rainHistory ? ', backfilled with regional history (' + escHtml(rainHistory.region || 'imported') + ')' : '') +
+      ' · * partial year</div>' +
+    '<div style="display:flex;align-items:flex-end;gap:4px;padding:8px 0 4px">' + bars + '</div>' +
+    (stats.length ? '<div class="trend-stats" style="margin-top:10px">' + stats.join('') + '</div>' : '') +
+    (!rainHistory ? '<div style="font-size:0.78rem;color:#888;margin-top:8px">Import regional history in <a href="/settings#rainfall" style="color:#1a4a1a">Settings → Rainfall</a> to see how your years compare to the long-term record.</div>' : '');
+}
+
 async function init() {
   try {
     entries = await (await fetch('/api/log')).json();
     routes = await (await fetch('/api/routes')).json();
   } catch (e) { /* leave empty */ }
+  try {
+    rainHistory = await (await fetch('/api/rainfall')).json();
+  } catch (e) { rainHistory = null; }
+  var rainYears = yearlyRainfall(monthlyRainfall());
 
   renderMoonCard();
+  renderRainCard(rainYears);
 
   // Group census entries by route (saved route id, legacy text, or unrouted),
   // then split each route into a series per target species
@@ -216,7 +310,7 @@ async function init() {
 
     var chartable = seriesArr.some(function(s) { return s.points.length >= 2; });
     var chart = chartable
-      ? renderChart(seriesArr)
+      ? renderChart(seriesArr, rainYears)
       : '<div style="color:#999;font-size:0.85rem;font-style:italic;padding:14px 0">Only one survey per species so far — a second one starts the trend line.</div>';
 
     var legend = (speciesNames.length > 1 || speciesNames[0] !== 'Unspecified')
@@ -261,7 +355,7 @@ async function init() {
   }).join('');
 }
 
-function renderChart(seriesArr) {
+function renderChart(seriesArr, rainYears) {
   var W = 640, H = 220, padL = 42, padR = 16, padT = 14, padB = 28;
   var allPoints = [];
   seriesArr.forEach(function(s) { allPoints = allPoints.concat(s.points); });
@@ -275,6 +369,25 @@ function renderChart(seriesArr) {
   function Y(v) { return H - padB - (v / maxY) * (H - padT - padB); }
 
   var svg = '<svg class="trend-chart" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">';
+
+  // Annual rainfall, drawn first as soft bars behind the census lines so wet
+  // and dry years are visible context for the counts (own scale, not the
+  // left axis)
+  if (rainYears) {
+    var rys = [];
+    for (var ry = minX; ry < maxX; ry++) if (rainYears[ry]) rys.push(ry);
+    if (rys.length) {
+      var rainMax = (Math.max.apply(null, rys.map(function(y) { return rainYears[y].inches; })) || 1) * 1.25;
+      rys.forEach(function(y) {
+        var barTop = H - padB - (rainYears[y].inches / rainMax) * (H - padT - padB);
+        svg += '<rect x="' + X(y + 0.08) + '" y="' + barTop + '" width="' + (X(y + 0.92) - X(y + 0.08)) +
+          '" height="' + (H - padB - barTop) + '" rx="3" fill="#cfe3f5" opacity="0.6">' +
+          '<title>' + y + ' rainfall: ' + (Math.round(rainYears[y].inches * 10) / 10) + ' in' +
+          (rainYears[y].months < 12 ? ' (partial year)' : '') + '</title></rect>';
+      });
+      svg += '<text x="' + (W - padR) + '" y="' + (padT - 2) + '" text-anchor="end" font-size="9" fill="#7aaed4">blue bars: annual rainfall</text>';
+    }
+  }
 
   // Horizontal gridlines + y labels
   var ySteps = 4;

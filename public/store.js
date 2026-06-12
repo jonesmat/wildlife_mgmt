@@ -689,6 +689,32 @@
       }
     }
 
+    if (pathname === '/api/rainfall') {
+      if (method === 'GET') return json(data.rainfallHistory || null);
+      if (method === 'POST') {
+        var rh = body;
+        if (!rh || rh.format !== 'wildlife-rainfall-history' || !Array.isArray(rh.monthly)) {
+          return json({ error: 'Not a rainfall history file — expected format "wildlife-rainfall-history" and a monthly array.' }, 400);
+        }
+        for (var ri = 0; ri < rh.monthly.length; ri++) {
+          var row = rh.monthly[ri];
+          if (!row || typeof row.year !== 'number' || typeof row.month !== 'number' ||
+              row.month < 1 || row.month > 12 || typeof row.inches !== 'number' || row.inches < 0) {
+            return json({ error: 'Invalid monthly row #' + (ri + 1) + ' — each needs numeric year, month (1-12), and inches.' }, 400);
+          }
+        }
+        rh._importedAt = now;
+        data.rainfallHistory = rh;
+        await saveData(data);
+        return json({ ok: true });
+      }
+      if (method === 'DELETE') {
+        delete data.rainfallHistory;
+        await saveData(data);
+        return json({ ok: true });
+      }
+    }
+
     if (pathname === '/api/export' && method === 'GET') {
       var photos = await collectFiles('/photos/');
       var propImgs = await collectFiles('/property-images/');
