@@ -428,11 +428,21 @@
   function performSync(interactive) {
     var m = meta();
     var localStamp, archive, remote;
+
+    // Archives are expensive — the local one base64s every photo into a
+    // single JSON blob, the remote one is a full Drive download — so the
+    // cheap change stamps decide first and an archive is only materialized
+    // on the branches that actually need it. An up-to-date check builds and
+    // downloads nothing; the Drive copy is only fetched pre-decision when a
+    // real conflict needs the what's-different diff.
+    function withLocalArchive(fn) {
+      return localArchive().then(function(a) { archive = a; return fn(a); });
+    }
+
     return getToken(interactive).then(function() {
-      return localArchive();
-    }).then(function(a) {
-      archive = a;
-      localStamp = (a.data && a.data.lastModifiedAt) || '';
+      return currentLocalStamp();
+    }).then(function(stamp) {
+      localStamp = stamp;
       return findRemote();
     }).then(function(r) {
       remote = r;
@@ -440,30 +450,32 @@
       var remoteChanged = !!remote && (!m.fileId || remote.modifiedTime !== m.remoteModifiedTime);
 
       if (!remote) {
-        if (archiveIsEmpty(archive)) return finish('Nothing to sync yet — log something first.');
-        return doUpload();
+        return withLocalArchive(function(a) {
+          if (archiveIsEmpty(a)) return finish('Nothing to sync yet — log something first.');
+          return doUpload();
+        });
       }
       if (remoteChanged && localChanged) {
-        // Never been synced on this device + empty local = plain first download.
-        if (!m.lastSyncAt && archiveIsEmpty(archive)) return doDownload();
-        // Fetch the Drive copy up front so the dialog can say what's
-        // actually different (and so choosing it needs no second download).
-        return downloadRemote(remote.id).then(function(remoteArchive) {
-          var diff = null;
-          try { diff = diffArchives(archive, remoteArchive); } catch (e) { /* shown as not-comparable */ }
-          return { archive: remoteArchive, diff: diff };
-        }, function() {
-          return { archive: null, diff: null };
-        }).then(function(info) {
-          return showConflictDialog(remote, localStamp, info.diff).then(function(choice) {
-            if (choice === 'drive') return info.archive ? doImport(info.archive) : doDownload();
-            if (choice === 'local') return doUpload();
-            return 'Sync conflict — not resolved yet. Sync again when ready to choose.';
+        return withLocalArchive(function(a) {
+          // Never been synced on this device + empty local = plain first download.
+          if (!m.lastSyncAt && archiveIsEmpty(a)) return doDownload();
+          return downloadRemote(remote.id).then(function(remoteArchive) {
+            var diff = null;
+            try { diff = diffArchives(a, remoteArchive); } catch (e) { /* shown as not-comparable */ }
+            return { archive: remoteArchive, diff: diff };
+          }, function() {
+            return { archive: null, diff: null };
+          }).then(function(info) {
+            return showConflictDialog(remote, localStamp, info.diff).then(function(choice) {
+              if (choice === 'drive') return info.archive ? doImport(info.archive) : doDownload();
+              if (choice === 'local') return doUpload();
+              return 'Sync conflict — not resolved yet. Sync again when ready to choose.';
+            });
           });
         });
       }
       if (remoteChanged) return doDownload();
-      if (localChanged) return doUpload();
+      if (localChanged) return withLocalArchive(function() { return doUpload(); });
       return finish('Already up to date.');
     });
 
