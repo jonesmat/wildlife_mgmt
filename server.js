@@ -1,3 +1,15 @@
+// Friendly version guard before any dependency loads: express-rate-limit
+// needs modern Node, and on old versions requiring it dies with an opaque
+// SyntaxError or "Cannot find module" instead of this message.
+const nodeMajor = parseInt(process.versions.node.split('.')[0], 10);
+if (nodeMajor < 18) {
+  console.error('');
+  console.error(' This app needs Node.js 18 or newer — you are running ' + process.version + '.');
+  console.error(' Download the current LTS from https://nodejs.org/en/download/ and try again.');
+  console.error('');
+  process.exit(1);
+}
+
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const path = require('path');

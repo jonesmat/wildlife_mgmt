@@ -58,10 +58,40 @@ exit /b 1
 
 :node_ready
 
-:: --- Install dependencies (first run only) -----------------------------------
+:: --- Check the Node.js version -----------------------------------------------
 
-if not exist "node_modules\" (
-    echo  Installing dependencies - this only happens once...
+set "NODE_MAJOR="
+for /f "tokens=1 delims=v." %%V in ('node -v 2^>nul') do set "NODE_MAJOR=%%V"
+if not defined NODE_MAJOR set "NODE_MAJOR=0"
+if %NODE_MAJOR% LSS 18 (
+    echo  ERROR: This app needs Node.js 18 or newer - you have:
+    node -v
+    echo.
+    echo  Download the current LTS installer from:
+    echo    https://nodejs.org/en/download/
+    echo  Run the installer, then run start.bat again.
+    echo.
+    echo  ^(Or use the portable runtime: extract a current Node zip into
+    echo  _runtime\ as described at https://nodejs.org/en/download/prebuilt-binaries^)
+    echo.
+    pause
+    exit /b 1
+)
+
+:: --- Install dependencies (first run, or when package.json gained new ones) ---
+
+set "NEED_INSTALL="
+if not exist "node_modules\.package-lock.json" (
+    set "NEED_INSTALL=1"
+) else (
+    rem npm refreshes node_modules\.package-lock.json on every install, so a
+    rem package.json newer than it means dependencies changed since the last
+    rem install (after a git pull, for example) and node_modules is stale.
+    node -e "const s=require('fs').statSync; process.exit(s('package.json').mtimeMs > s('node_modules/.package-lock.json').mtimeMs ? 1 : 0)"
+    if errorlevel 1 set "NEED_INSTALL=1"
+)
+if defined NEED_INSTALL (
+    echo  Installing dependencies...
     call npm install --silent
     if errorlevel 1 (
         echo.
@@ -71,6 +101,8 @@ if not exist "node_modules\" (
         pause
         exit /b 1
     )
+    rem Touch the marker so an unchanged package.json doesn't reinstall next run
+    if exist "node_modules\.package-lock.json" copy /b "node_modules\.package-lock.json"+,, "node_modules\.package-lock.json" >nul
     echo  Done.
     echo.
 )
