@@ -71,6 +71,64 @@
     localStorage.removeItem(TOKEN_KEY);
   }
 
+  // ── Last-synced base snapshot (for three-way merges) ──
+  // Stored in the app's IndexedDB (same DB store.js uses) because the data
+  // can exceed localStorage limits. The snapshot is tagged with the Drive
+  // revision it reconciled, so it's only trusted as a merge ancestor when it
+  // matches the revision this device last synced with.
+  var BASE_KEY = 'gsync-base';
+
+  function openDb() {
+    return new Promise(function(resolve, reject) {
+      var req = indexedDB.open('wildlife-mgmt', 1);
+      req.onupgradeneeded = function() {
+        var db = req.result;
+        if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
+        if (!db.objectStoreNames.contains('files')) db.createObjectStore('files');
+      };
+      req.onsuccess = function() { resolve(req.result); };
+      req.onerror = function() { reject(req.error); };
+    });
+  }
+
+  function kvOp(mode, fn) {
+    return openDb().then(function(db) {
+      return new Promise(function(resolve, reject) {
+        var tx = db.transaction('kv', mode);
+        var req = fn(tx.objectStore('kv'));
+        req.onsuccess = function() { resolve(req.result); };
+        req.onerror = function() { reject(req.error); };
+      });
+    });
+  }
+
+  function fileNames(archive, group) {
+    return Object.keys(((archive || {}).files || {})[group] || {});
+  }
+
+  function saveBase(archive, remoteModifiedTime) {
+    return kvOp('readwrite', function(s) {
+      return s.put({
+        remoteModifiedTime: remoteModifiedTime,
+        data: archive.data,
+        fileKeys: {
+          photos: fileNames(archive, 'photos'),
+          'property-images': fileNames(archive, 'property-images')
+        }
+      }, BASE_KEY);
+    }).catch(function() { /* best effort — merge falls back to the dialog */ });
+  }
+
+  function loadBase(expectedRemoteTime) {
+    return kvOp('readonly', function(s) { return s.get(BASE_KEY); }).then(function(b) {
+      return (b && expectedRemoteTime && b.remoteModifiedTime === expectedRemoteTime) ? b : null;
+    }).catch(function() { return null; });
+  }
+
+  function clearBase() {
+    return kvOp('readwrite', function(s) { return s.delete(BASE_KEY); }).catch(function() {});
+  }
+
   // interactive=false must never show UI: it only succeeds when Google can
   // mint a token from an existing session + prior grant.
   function getToken(interactive) {
@@ -266,12 +324,152 @@
     return { device: device, drive: drive, both: both };
   }
 
+  // ── Three-way merge ──
+  // Merges local and Drive changes against the last-synced base snapshot.
+  // Independent changes (different plan/report fields, different records,
+  // different fields of the same record, additions on both sides) merge
+  // cleanly; only a field changed differently on both sides — or an edit
+  // colliding with a delete — is a conflict.
+  var DATA_COLLECTIONS = ['log', 'bucks', 'routes', 'propertyImages'];
+  var DATA_SPECIAL = { log: 1, bucks: 1, routes: 1, propertyImages: 1, reports: 1, reportsMeta: 1, lastModifiedAt: 1, planUpdatedAt: 1 };
+
+  function mergeArchives(base, localA, remoteA) {
+    var j = JSON.stringify;
+    var B = base.data || {};
+    var L = (localA && localA.data) || {};
+    var R = (remoteA && remoteA.data) || {};
+    var merged = {};
+    var conflicts = [];
+
+    function mergeValue(label, b, l, r) {
+      if (j(l) === j(r)) return l;
+      if (j(l) !== j(b) && j(r) === j(b)) return l;
+      if (j(r) !== j(b) && j(l) === j(b)) return r;
+      conflicts.push(label);
+      return l;
+    }
+
+    function mergeRecord(labelPrefix, b, l, r) {
+      var out = {};
+      var keys = {};
+      [b, l, r].forEach(function(o) { Object.keys(o || {}).forEach(function(k) { keys[k] = 1; }); });
+      Object.keys(keys).forEach(function(k) {
+        var v = mergeValue(labelPrefix + ' \u2014 field \u201c' + k + '\u201d',
+          b ? b[k] : undefined, l ? l[k] : undefined, r ? r[k] : undefined);
+        if (v !== undefined) out[k] = v;
+      });
+      return out;
+    }
+
+    function recLabel(rec, kind) {
+      var name = (rec && (rec.name || rec.type)) || 'record';
+      return kind + ' \u201c' + name + '\u201d';
+    }
+
+    function byId(list) {
+      var m = {};
+      (list || []).forEach(function(x) { if (x && x.id != null) m[x.id] = x; });
+      return m;
+    }
+
+    DATA_COLLECTIONS.forEach(function(name) {
+      var kind = { log: 'log entry', bucks: 'buck', routes: 'route', propertyImages: 'property image' }[name];
+      var bm = byId(B[name]), lm = byId(L[name]), rm = byId(R[name]);
+      var seen = {};
+      var out = [];
+      function visit(id) {
+        if (seen[id]) return;
+        seen[id] = 1;
+        var b = bm[id], l = lm[id], r = rm[id];
+        if (l && r) {
+          if (j(l) === j(r)) out.push(l);
+          else if (!b) { conflicts.push(recLabel(l, kind) + ' added differently on both devices'); out.push(l); }
+          else out.push(mergeRecord(recLabel(l, kind), b, l, r));
+        } else if (l) {
+          if (!b) out.push(l); // added locally
+          else if (j(l) !== j(b)) { conflicts.push(recLabel(l, kind) + ' edited here but deleted in the Drive copy'); out.push(l); }
+          // unchanged + gone remotely = deleted there; drop
+        } else if (r) {
+          if (!b) out.push(r); // added remotely
+          else if (j(r) !== j(b)) { conflicts.push(recLabel(r, kind) + ' edited in the Drive copy but deleted here'); out.push(r); }
+        }
+      }
+      (L[name] || []).forEach(function(x) { if (x && x.id != null) visit(x.id); });
+      (R[name] || []).forEach(function(x) { if (x && x.id != null) visit(x.id); });
+      (B[name] || []).forEach(function(x) { if (x && x.id != null) visit(x.id); });
+      merged[name] = out;
+    });
+
+    // Annual reports, keyed by year, merged per-field within a year
+    var br = B.reports || {}, lr = L.reports || {}, rr = R.reports || {};
+    var years = {};
+    [br, lr, rr].forEach(function(o) { Object.keys(o).forEach(function(y) { years[y] = 1; }); });
+    merged.reports = {};
+    merged.reportsMeta = {};
+    Object.keys(years).forEach(function(y) {
+      var b = br[y], l = lr[y], r = rr[y];
+      var label = 'the ' + y + ' annual report';
+      var keep;
+      if (l && r) keep = (j(l) === j(r)) ? l : (!b ? (conflicts.push(label + ' created differently on both devices'), l) : mergeRecord(label, b, l, r));
+      else if (l) {
+        if (!b) keep = l;
+        else if (j(l) !== j(b)) { conflicts.push(label + ' edited here but deleted in the Drive copy'); keep = l; }
+      } else if (r) {
+        if (!b) keep = r;
+        else if (j(r) !== j(b)) { conflicts.push(label + ' edited in the Drive copy but deleted here'); keep = r; }
+      }
+      if (keep !== undefined) {
+        merged.reports[y] = keep;
+        var lm2 = (L.reportsMeta || {})[y], rm2 = (R.reportsMeta || {})[y];
+        merged.reportsMeta[y] = ((lm2 && lm2.updatedAt) || '') >= ((rm2 && rm2.updatedAt) || '') ? (lm2 || rm2 || {}) : rm2;
+      }
+    });
+
+    // Plan + other root-level fields, three-way per field
+    var rootKeys = {};
+    [B, L, R].forEach(function(o) { Object.keys(o).forEach(function(k) { if (!DATA_SPECIAL[k]) rootKeys[k] = 1; }); });
+    Object.keys(rootKeys).forEach(function(k) {
+      var v = mergeValue('plan field \u201c' + k + '\u201d', B[k], L[k], R[k]);
+      if (v !== undefined) merged[k] = v;
+    });
+    merged.planUpdatedAt = ((L.planUpdatedAt || '') >= (R.planUpdatedAt || '')) ? L.planUpdatedAt : R.planUpdatedAt;
+
+    // Files: union of both sides; a file present in the base but missing
+    // from one side was deleted there (file contents are never edited
+    // in place, so there are no per-file conflicts)
+    function mergeFiles(group) {
+      var baseNames = {};
+      ((base.fileKeys || {})[group] || []).forEach(function(n) { baseNames[n] = 1; });
+      var lf = ((localA || {}).files || {})[group] || {};
+      var rf = ((remoteA || {}).files || {})[group] || {};
+      var out = {};
+      Object.keys(lf).forEach(function(n) {
+        if (rf[n] !== undefined || !baseNames[n]) out[n] = lf[n];
+      });
+      Object.keys(rf).forEach(function(n) {
+        if (out[n] === undefined && lf[n] === undefined && !baseNames[n]) out[n] = rf[n];
+      });
+      return out;
+    }
+
+    return {
+      conflicts: conflicts,
+      archive: {
+        format: localA.format,
+        version: localA.version,
+        exportedAt: new Date().toISOString(),
+        data: merged,
+        files: { photos: mergeFiles('photos'), 'property-images': mergeFiles('property-images') }
+      }
+    };
+  }
+
   // ── Conflict dialog ──
   // Self-contained (dialog.js isn't loaded on every page). Resolves to
   // 'drive' (replace this device with the Drive copy), 'local' (overwrite
   // the Drive copy with this device), or null (decide later).
   var conflictStyleAdded = false;
-  function showConflictDialog(remote, localStamp, diff) {
+  function showConflictDialog(remote, localStamp, diff, conflicts) {
     if (!conflictStyleAdded) {
       conflictStyleAdded = true;
       var style = document.createElement('style');
@@ -324,6 +522,12 @@
           diffGroup('Only in the Drive copy', diff.drive) +
           diffGroup('Edited differently in each copy', diff.both);
         if (!diffHtml) diffHtml = '<div>The copies differ only in minor details (timestamps or settings).</div>';
+      }
+      if (conflicts && conflicts.length) {
+        var shown = conflicts.slice(0, 8);
+        if (conflicts.length > 8) shown.push('\u2026 and ' + (conflicts.length - 8) + ' more');
+        diffHtml += diffGroup('Conflicting edits (same thing changed on both)', shown);
+        diffHtml = '<div style="margin-bottom:6px">Everything that could be merged automatically was \u2014 only these clashes need a decision:</div>' + diffHtml;
       }
       var overlay = document.createElement('div');
       overlay.className = 'gsync-conflict-overlay';
@@ -459,18 +663,30 @@
         return withLocalArchive(function(a) {
           // Never been synced on this device + empty local = plain first download.
           if (!m.lastSyncAt && archiveIsEmpty(a)) return doDownload();
-          return downloadRemote(remote.id).then(function(remoteArchive) {
+          function askUser(remoteArchive, conflicts) {
             var diff = null;
-            try { diff = diffArchives(a, remoteArchive); } catch (e) { /* shown as not-comparable */ }
-            return { archive: remoteArchive, diff: diff };
-          }, function() {
-            return { archive: null, diff: null };
-          }).then(function(info) {
-            return showConflictDialog(remote, localStamp, info.diff).then(function(choice) {
-              if (choice === 'drive') return info.archive ? doImport(info.archive) : doDownload();
+            if (remoteArchive) {
+              try { diff = diffArchives(a, remoteArchive); } catch (e) { /* shown as not-comparable */ }
+            }
+            return showConflictDialog(remote, localStamp, diff, conflicts).then(function(choice) {
+              if (choice === 'drive') return remoteArchive ? doImport(remoteArchive) : doDownload();
               if (choice === 'local') return doUpload();
               return 'Sync conflict — not resolved yet. Sync again when ready to choose.';
             });
+          }
+          return downloadRemote(remote.id).then(function(remoteArchive) {
+            // Three-way merge against the last-synced snapshot: independent
+            // changes from both devices combine without bothering the user.
+            return loadBase(m.remoteModifiedTime).then(function(base) {
+              var mergeResult = null;
+              if (base) {
+                try { mergeResult = mergeArchives(base, a, remoteArchive); } catch (e) { mergeResult = null; }
+              }
+              if (mergeResult && !mergeResult.conflicts.length) return doMerge(mergeResult.archive);
+              return askUser(remoteArchive, mergeResult ? mergeResult.conflicts : null);
+            });
+          }, function() {
+            return askUser(null, null);
           });
         });
       }
@@ -481,7 +697,9 @@
 
     function doUpload() {
       return uploadRemote(remote && remote.id, JSON.stringify(archive)).then(function(f) {
-        return finish('Uploaded to Google Drive.', f.id, f.modifiedTime, localStamp);
+        return saveBase(archive, f.modifiedTime).then(function() {
+          return finish('Uploaded to Google Drive.', f.id, f.modifiedTime, localStamp);
+        });
       });
     }
     function doDownload() {
@@ -489,10 +707,26 @@
     }
     function doImport(remoteArchive) {
       return importArchive(remoteArchive).then(currentLocalStamp).then(function(stamp) {
-        // The page rendered from the pre-import data; refresh to show what
-        // was just downloaded.
-        setTimeout(function() { location.reload(); }, 700);
-        return finish('Downloaded latest from Google Drive.', remote.id, remote.modifiedTime, stamp);
+        return saveBase(remoteArchive, remote.modifiedTime).then(function() {
+          // The page rendered from the pre-import data; refresh to show what
+          // was just downloaded.
+          setTimeout(function() { location.reload(); }, 700);
+          return finish('Downloaded latest from Google Drive.', remote.id, remote.modifiedTime, stamp);
+        });
+      });
+    }
+    function doMerge(mergedArchive) {
+      // Converge both sides on the merged result: import it here, upload it
+      // to Drive, and make it the new base snapshot.
+      return importArchive(mergedArchive).then(function() {
+        return uploadRemote(remote.id, JSON.stringify(mergedArchive));
+      }).then(function(f) {
+        return currentLocalStamp().then(function(stamp) {
+          return saveBase(mergedArchive, f.modifiedTime).then(function() {
+            setTimeout(function() { location.reload(); }, 700);
+            return finish('Merged changes from both devices.', f.id, f.modifiedTime, stamp);
+          });
+        });
       });
     }
     function finish(status, fileId, remoteTime, stamp) {
@@ -522,6 +756,7 @@
       clearCachedToken();
       localStorage.removeItem('gsync-meta');
       localStorage.removeItem('gsync-auto');
+      clearBase();
     };
     if (accessToken && window.google && google.accounts) {
       return new Promise(function(resolve) {
@@ -548,6 +783,7 @@
     _indicator: indicator,
     _conflictDialog: showConflictDialog,
     _diffArchives: diffArchives,
+    _mergeArchives: mergeArchives,
     autoEnabled: function() { return localStorage.getItem('gsync-auto') === '1'; },
     setAuto: function(on) {
       if (on) localStorage.setItem('gsync-auto', '1');
