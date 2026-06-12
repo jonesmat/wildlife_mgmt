@@ -121,7 +121,10 @@ Then use **Sync Now** on each device you want connected. The optional
 auto-sync checkbox syncs silently whenever the app opens, and again a few
 seconds after any change you make — a small pill in the bottom-left corner
 shows when a sync is running. If both a device and Drive have changes since
-their last sync, the app asks which copy to keep.
+their last sync, the app merges them automatically as long as they don't
+collide (different plan fields, different log entries, even different fields
+of the same entry); only when the very same field was changed differently on
+both sides does it ask which version to keep.
 
 ---
 
