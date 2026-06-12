@@ -256,7 +256,6 @@ function serviceChip(assetId) {
 }
 
 var activeCat = 'All';
-function setCat(c) { activeCat = c; render(); }
 
 function renderCatFilter() {
   var cats = {};
@@ -264,11 +263,20 @@ function renderCatFilter() {
   var names = Object.keys(cats).sort();
   var el = document.getElementById('catFilter');
   if (names.length < 2) { el.innerHTML = ''; return; }
+  // Category names round-trip through importable backups, so they're built
+  // as data attributes and read back on click — never spliced into JS.
   el.innerHTML = ['All'].concat(names).map(function(c) {
-    return '<span class="cat-chip' + (c === activeCat ? ' on' : '') + '" onclick="setCat(\'' + escAttr(c).replace(/'/g, "\\'") + '\')">' +
+    return '<span class="cat-chip' + (c === activeCat ? ' on' : '') + '" data-cat="' + escAttr(c) + '">' +
       (c === 'All' ? 'All' : catIcon(c) + ' ' + escHtml(c)) + '</span>';
   }).join('');
 }
+
+document.getElementById('catFilter').addEventListener('click', function(ev) {
+  var chip = ev.target.closest('[data-cat]');
+  if (!chip) return;
+  activeCat = chip.getAttribute('data-cat');
+  render();
+});
 
 function render() {
   renderCatFilter();

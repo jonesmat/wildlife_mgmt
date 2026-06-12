@@ -134,6 +134,14 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// For HTML attribute values (title=, etc.): also escapes quotes
+function escAttr(s) {
+  if (!s) return '';
+  return String(s).replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
 function fmtDate(s) {
   if (!s) return '';
   try {
@@ -315,7 +323,7 @@ function render() {
     var sel = (e.id === selectedEntryId) ? ' selected' : '';
     return '<div class="map-pin pin-' + e.type.split(' ')[0] + sel + '"' +
       ' style="left:' + (e.loc.x * 100) + '%;top:' + (e.loc.y * 100) + '%"' +
-      ' title="' + escHtml(entryTitle(e)) + ' — ' + fmtDate(e.datetime) + '"' +
+      ' title="' + escAttr(entryTitle(e)) + ' — ' + fmtDate(e.datetime) + '"' +
       ' onclick="selectPin(\'' + sanFn(e.id) + '\')">' +
       (TYPE_ICONS[e.type] || '📌') +
     '</div>';
@@ -330,7 +338,7 @@ function render() {
       var sel = (a.id === selectedAssetId) ? ' selected' : '';
       return '<div class="map-pin asset-pin' + sel + '"' +
         ' style="left:' + (a.loc.x * 100) + '%;top:' + (a.loc.y * 100) + '%"' +
-        ' title="' + escHtml(a.name) + ' (' + escHtml(a.category) + ')"' +
+        ' title="' + escAttr(a.name) + ' (' + escAttr(a.category) + ')"' +
         ' onclick="selectAssetPin(\'' + sanFn(a.id) + '\')">' +
         (ASSET_ICONS[a.category] || '🔧') +
       '</div>';
