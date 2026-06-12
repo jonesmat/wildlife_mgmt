@@ -173,8 +173,14 @@
   background: white; border-radius: 10px; padding: 18px;
   max-width: min(92vw, 900px); max-height: 92vh; overflow: auto;
 }
-.loc-map-wrap { position: relative; cursor: crosshair; display: inline-block; }
+.loc-map-scroll {
+  display: inline-block; overflow: auto; max-width: 100%; max-height: 65vh;
+  border: 1px solid #ddd; border-radius: 6px;
+  -webkit-overflow-scrolling: touch;
+}
+.loc-map-wrap { position: relative; cursor: crosshair; display: inline-block; vertical-align: top; }
 .loc-map-wrap img { display: block; max-width: 100%; max-height: 65vh; }
+.loc-zoom-btn { font-size: 1.1rem; font-weight: 700; line-height: 1; padding: 6px 14px; min-width: 42px; }
 #locSaveBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Moon phase display (derived from the entry date) ── */
@@ -719,9 +725,16 @@
   <div class="loc-modal">
     <h3 style="color:#1a4a1a;margin-bottom:4px;font-size:1rem">Set Location</h3>
     <p style="font-size:0.84rem;color:#777;margin-bottom:10px">Click the spot on the property map. A red crosshair marks the location.</p>
-    <div class="loc-map-wrap" id="locMapWrap" onclick="locMapClick(event)">
-      <img id="locMapImg" draggable="false" alt="Property map">
-      <span id="locMark" class="loc-crosshair" style="display:none">&#10010;</span>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+      <button type="button" class="btn btn-secondary loc-zoom-btn" id="locZoomOutBtn" onclick="locZoomBy(1/1.5)" title="Zoom out" aria-label="Zoom out">&minus;</button>
+      <button type="button" class="btn btn-secondary loc-zoom-btn" id="locZoomInBtn" onclick="locZoomBy(1.5)" title="Zoom in" aria-label="Zoom in">+</button>
+      <span id="locZoomPct" style="font-size:0.8rem;color:#777">100%</span>
+    </div>
+    <div class="loc-map-scroll" id="locMapScroll">
+      <div class="loc-map-wrap" id="locMapWrap" onclick="locMapClick(event)">
+        <img id="locMapImg" draggable="false" alt="Property map">
+        <span id="locMark" class="loc-crosshair" style="display:none">&#10010;</span>
+      </div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
       <button class="btn btn-secondary" onclick="closeLocPicker()">Cancel</button>
@@ -1767,7 +1780,54 @@ function openLocPicker() {
     mark.style.display = 'none';
   }
   document.getElementById('locSaveBtn').disabled = !modalLoc;
+  locZoomReset();
   document.getElementById('locModal').classList.add('open');
+}
+
+// ── Map zoom (click/tap + and − buttons) ──
+// The image renders fit-to-modal at zoom 1; zooming gives it an explicit
+// width inside the scrollable .loc-map-scroll viewport. The crosshair and
+// click handler use fractions of the image box, so they need no adjustment.
+var locZoom = 1;
+var LOC_ZOOM_MAX = 6;
+
+function locZoomReset() {
+  locZoom = 1;
+  var img = document.getElementById('locMapImg');
+  img.style.width = img.style.maxWidth = img.style.maxHeight = '';
+  var scroll = document.getElementById('locMapScroll');
+  scroll.scrollLeft = scroll.scrollTop = 0;
+  locZoomUI();
+}
+
+function locZoomUI() {
+  document.getElementById('locZoomOutBtn').disabled = locZoom <= 1;
+  document.getElementById('locZoomInBtn').disabled = locZoom >= LOC_ZOOM_MAX;
+  document.getElementById('locZoomPct').textContent = Math.round(locZoom * 100) + '%';
+}
+
+function locZoomBy(factor) {
+  var img = document.getElementById('locMapImg');
+  var scroll = document.getElementById('locMapScroll');
+  if (!img.clientWidth) return;
+  var prev = locZoom;
+  var base = img.clientWidth / prev; // fitted width at zoom 1
+  locZoom = Math.min(LOC_ZOOM_MAX, Math.max(1, locZoom * factor));
+  if (Math.abs(locZoom - 1) < 0.01) locZoom = 1;
+  if (locZoom === prev) return;
+  // Keep the point at the center of the viewport centered after zooming
+  var cx = (scroll.scrollLeft + scroll.clientWidth / 2) / img.clientWidth;
+  var cy = (scroll.scrollTop + scroll.clientHeight / 2) / img.clientHeight;
+  if (locZoom === 1) {
+    img.style.width = img.style.maxWidth = img.style.maxHeight = '';
+  } else {
+    img.style.maxWidth = 'none';
+    img.style.maxHeight = 'none';
+    img.style.width = Math.round(base * locZoom) + 'px';
+  }
+  scroll.scrollLeft = cx * img.clientWidth - scroll.clientWidth / 2;
+  scroll.scrollTop = cy * img.clientHeight - scroll.clientHeight / 2;
+  locZoomUI();
 }
 
 function locMapClick(ev) {
