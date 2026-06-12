@@ -464,6 +464,8 @@ async function saveReminder() {
 }
 
 async function deleteReminder(id) {
+  var r = reminders.find(function(x) { return x.id === id; });
+  if (!(await appConfirm(r ? '“' + r.text + '”' : '', 'Delete this reminder?', 'Delete'))) return;
   await fetch('/api/reminders/' + id, { method: 'DELETE' });
   load();
 }

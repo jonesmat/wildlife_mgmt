@@ -2280,8 +2280,9 @@ function renderFormPhotos() {
   grid.innerHTML = html;
 }
 
-function removeFormPhoto(i) {
+async function removeFormPhoto(i) {
   var p = pendingPhotos[i];
+  if (!(await appConfirm('Existing photos are removed when you save the entry; photos added just now are deleted right away.', 'Remove this photo?', 'Remove'))) return;
   // Photos uploaded this session can be deleted from disk immediately;
   // pre-existing entry photos are deleted on save (the user might cancel)
   if (p && p.uploaded && p.isNew) deletePhotoFile(p.filename);
