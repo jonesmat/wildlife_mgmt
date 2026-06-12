@@ -46,6 +46,7 @@
     </div>
     <div class="trend-card" id="moonCard" style="display:none"></div>
     <div class="trend-card" id="rainCard" style="display:none"></div>
+    <div class="trend-card" id="spendCard" style="display:none"></div>
 
     <div id="trendsBody">
       <div style="color:#999;font-size:0.9rem">Loading...</div>
@@ -157,6 +158,70 @@ function renderMoonCard() {
     '</div>';
 }
 
+// ── Spending ──
+// Purchases carry pu-cost; every other entry type can carry an optional cost.
+function entryCost(e) {
+  return (parseFloat(e.cost) || 0) + (parseFloat(e['pu-cost']) || 0);
+}
+
+function spendBucket(e) {
+  if (e.type === 'Purchase') return e['pu-category'] || 'Purchases';
+  return e.type;
+}
+
+function fmtDollars(v) {
+  return '$' + Math.round(v).toLocaleString();
+}
+
+function renderSpendCard() {
+  var byYear = {};   // year -> total
+  var thisYearBuckets = {};
+  var thisYear = String(new Date().getFullYear());
+  entries.forEach(function(e) {
+    var c = entryCost(e);
+    if (!c || !e.datetime) return;
+    var y = e.datetime.slice(0, 4);
+    byYear[y] = (byYear[y] || 0) + c;
+    if (y === thisYear) {
+      var b = spendBucket(e);
+      thisYearBuckets[b] = (thisYearBuckets[b] || 0) + c;
+    }
+  });
+  var years = Object.keys(byYear).sort();
+  if (!years.length) return;
+
+  var card = document.getElementById('spendCard');
+  card.style.display = '';
+
+  var shown = years.slice(-12);
+  var max = Math.max.apply(null, shown.map(function(y) { return byYear[y]; })) || 1;
+  var bars = shown.map(function(y) {
+    var h = Math.max(4, Math.round(byYear[y] / max * 110));
+    return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px"' +
+      ' title="' + y + ': ' + fmtDollars(byYear[y]) + '">' +
+      '<span style="font-size:0.72rem;color:#777">' + fmtDollars(byYear[y]) + '</span>' +
+      '<div style="width:70%;max-width:38px;height:' + h + 'px;border-radius:4px 4px 0 0;background:' +
+        (y === thisYear ? '#176a55' : '#8fbfae') + '"></div>' +
+      '<span style="font-size:0.7rem;color:#888">' + y.slice(2) + '</span>' +
+    '</div>';
+  }).join('');
+
+  // This year's spending by bucket, largest first
+  var buckets = Object.keys(thisYearBuckets).sort(function(a, b) {
+    return thisYearBuckets[b] - thisYearBuckets[a];
+  });
+  var chips = buckets.map(function(b) {
+    return '<span class="trend-stat">' + escHtml(b) + ': ' + fmtDollars(thisYearBuckets[b]) + '</span>';
+  }).join('');
+
+  card.innerHTML =
+    '<div class="trend-title">💰 Investment in the Land</div>' +
+    '<div class="trend-sub">Annual totals from Purchase costs and the optional Cost field on other entries — the paper trail behind your practices</div>' +
+    '<div style="display:flex;align-items:flex-end;gap:4px;padding:8px 0 4px">' + bars + '</div>' +
+    (chips ? '<div style="font-size:0.78rem;font-weight:700;color:#777;text-transform:uppercase;letter-spacing:0.04em;margin-top:12px">' + thisYear + ' by category</div>' +
+      '<div class="trend-stats" style="margin-top:6px">' + chips + '</div>' : '');
+}
+
 // ── Rainfall ──
 // 'YYYY-MM' -> { inches, src }. The owner's rain-gauge entries always win
 // over imported regional history for any month they logged.
@@ -257,6 +322,7 @@ async function init() {
 
   renderMoonCard();
   renderRainCard(rainYears);
+  renderSpendCard();
 
   // Group census entries by route (saved route id, legacy text, or unrouted),
   // then split each route into a series per target species

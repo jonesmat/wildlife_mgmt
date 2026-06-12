@@ -298,6 +298,11 @@
             <option>Purchase</option>
           </select>
         </div>
+        <!-- Hidden for Purchases, which have their own Cost field -->
+        <div class="form-group" id="f-costGroup">
+          <label>Cost ($, optional)</label>
+          <input type="number" id="f-cost" min="0" step="0.01" placeholder="0.00">
+        </div>
       </div>
 
       <!-- General -->
@@ -1122,6 +1127,10 @@ function renderDetail(e) {
     rows += labelVal('Notes', e['pu-notes']);
   }
 
+  if (parseFloat(e.cost) > 0) {
+    rows += labelVal('Cost', '$' + Number(e.cost).toLocaleString(undefined, { maximumFractionDigits: 2 }));
+  }
+
   var mi = entryMoonIndex(e);
   if (mi !== null) {
     rows += labelVal('Moon Phase', MOON_PHASES[mi].icon + ' ' + MOON_PHASES[mi].name);
@@ -1243,6 +1252,7 @@ function editEntry(id) {
   originalPhotos = (e.photos || []).slice();
   pendingPhotos = (e.photos || []).map(function(f) { return { filename: f, uploaded: true, localUrl: '/photos/' + f }; });
   renderFormPhotos();
+  document.getElementById('f-cost').value = e.cost || '';
   pendingLoc = e.loc || null;
   updateLocUI();
   updateMoonUI();
@@ -2035,6 +2045,8 @@ function switchType() {
   if (shown === 'Practice') document.getElementById('fields-Practice').innerHTML = window.renderPracticeForm(t);
   // Census uses Route/Stand ID instead of a map location
   document.getElementById('locSection').style.display = (t === 'Census') ? 'none' : '';
+  // Purchases carry their own Cost field
+  document.getElementById('f-costGroup').style.display = (t === 'Purchase') ? 'none' : '';
   // Moon phase applies to wildlife-activity events
   document.getElementById('moonSection').style.display = MOON_TYPES[t] ? '' : 'none';
 }
@@ -2071,7 +2083,8 @@ async function saveEntry() {
     type: type,
     photos: pendingPhotos.filter(function(p) { return p.uploaded; }).map(function(p) { return p.filename; }),
     loc: (type === 'Census') ? null : pendingLoc,
-    moon: MOON_TYPES[type] ? moonFromForm() : null
+    moon: MOON_TYPES[type] ? moonFromForm() : null,
+    cost: (type === 'Purchase') ? '' : document.getElementById('f-cost').value
   };
 
   if (type === 'General') {

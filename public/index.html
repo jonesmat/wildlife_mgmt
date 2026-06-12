@@ -516,6 +516,7 @@
       if (e.type === 'Census') census++;
       if (e.type === 'Sighting') sightings++;
       if (e.type === 'Purchase') invested += parseFloat(e['pu-cost']) || 0;
+      invested += parseFloat(e.cost) || 0;
     });
     var facts = [];
     if (acres) facts.push('🌳 <strong>' + Math.round(acres).toLocaleString() + ' acres</strong> of habitat improved');
