@@ -751,12 +751,31 @@ function escHtml(s) {
 }
 
 // ── Pane switching ──
+var PANES = ['property', 'routes', 'photos', 'calendar', 'prefs', 'data', 'appinfo'];
+
 function showPane(p) {
-  ['property', 'routes', 'photos', 'calendar', 'prefs', 'data', 'appinfo'].forEach(function(id) {
+  PANES.forEach(function(id) {
     document.getElementById(id).style.display = (id === p) ? '' : 'none';
     document.getElementById('nav-' + id).classList.toggle('active', id === p);
   });
+  // Remember the open pane in the URL so a refresh (or bookmark) returns to it
+  if (location.hash !== '#' + p) history.replaceState(null, '', '#' + p);
+  // On mobile the sidebar is a horizontally scrolling bar — keep the
+  // highlighted item centered in it (no-op on desktop, where the list
+  // doesn't overflow horizontally).
+  var active = document.getElementById('nav-' + p);
+  var bar = active.parentElement;
+  if (bar.scrollWidth > bar.clientWidth + 1) {
+    bar.scrollTo({
+      left: active.offsetLeft - (bar.clientWidth - active.offsetWidth) / 2,
+      behavior: 'smooth'
+    });
+  }
 }
+
+// Restore the pane from the URL hash on load
+var initialPane = location.hash.slice(1);
+if (PANES.indexOf(initialPane) !== -1 && initialPane !== 'property') showPane(initialPane);
 
 // ── Photo settings ──
 async function loadPhotoSetting() {
