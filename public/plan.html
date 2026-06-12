@@ -293,9 +293,22 @@ function navTo(id) {
 }
 
 function setActiveNav(id) {
+  let active = null;
   document.querySelectorAll('.sidebar-item').forEach(el => {
-    el.classList.toggle('active', el.getAttribute('data-target') === id);
+    const on = el.getAttribute('data-target') === id;
+    el.classList.toggle('active', on);
+    if (on) active = el;
   });
+  // On mobile the sidebar is a horizontally scrolling bar — keep the
+  // highlighted item centered in it (no-op on desktop, where the list
+  // doesn't overflow horizontally).
+  const bar = active && active.parentElement;
+  if (bar && bar.scrollWidth > bar.clientWidth + 1) {
+    bar.scrollTo({
+      left: active.offsetLeft - (bar.clientWidth - active.offsetWidth) / 2,
+      behavior: 'smooth'
+    });
+  }
 }
 
 function setupScrollSpy() {
