@@ -549,6 +549,7 @@
           id: String(Date.now()),
           name: body.name || 'Unnamed Buck',
           notes: body.notes || '',
+          birthYear: body.birthYear || '',
           status: 'Watching',
           createdAt: now
         };
@@ -563,7 +564,7 @@
       if (method === 'PUT') {
         var b = data.bucks.find(function(x) { return x.id === bid; });
         if (!b) return json({ error: 'Buck not found' }, 404);
-        ['name', 'notes', 'status'].forEach(function(k) {
+        ['name', 'notes', 'status', 'birthYear'].forEach(function(k) {
           if (body[k] !== undefined) b[k] = body[k];
         });
         await saveData(data);
