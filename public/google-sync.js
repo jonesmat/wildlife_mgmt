@@ -140,6 +140,15 @@
       return Promise.resolve(accessToken);
     }
     if (!clientId()) return Promise.reject(new Error('No Google Client ID configured.'));
+    if (!interactive) {
+      // The GIS token client ALWAYS opens a popup window when asked for a
+      // token — even with prompt:'none' — so a background sync must never
+      // ask. Pause instead; the pill offers a one-tap (user-gesture)
+      // reconnect, and any interactive Sync Now also refreshes the token.
+      var pauseErr = new Error('Sync paused — needs a quick sign-in.');
+      pauseErr.needsInteraction = true;
+      return Promise.reject(pauseErr);
+    }
     return loadGis().then(function() {
       return new Promise(function(resolve, reject) {
         if (!tokenClient) {
@@ -164,7 +173,7 @@
         tokenClient.error_callback = function(err) {
           reject(new Error(err && err.message ? err.message : 'Google sign-in was cancelled or blocked.'));
         };
-        tokenClient.requestAccessToken({ prompt: interactive ? '' : 'none' });
+        tokenClient.requestAccessToken({ prompt: '' });
       });
     });
   }
@@ -239,6 +248,7 @@
           'box-shadow:0 3px 10px rgba(0,0,0,0.3);cursor:default}' +
         '.gsync-pill.show{display:flex}' +
         '.gsync-pill.error{background:#8b1a1a;cursor:pointer}' +
+        '.gsync-pill.paused{background:#8b5a1a;cursor:pointer}' +
         '.gsync-spinner{width:13px;height:13px;border:2px solid rgba(255,255,255,0.35);' +
           'border-top-color:white;border-radius:50%;animation:gsyncSpin 0.8s linear infinite;flex-shrink:0}' +
         '@keyframes gsyncSpin{to{transform:rotate(360deg)}}' +
@@ -248,17 +258,27 @@
       indicatorEl.className = 'gsync-pill';
       indicatorEl.setAttribute('role', 'status');
       indicatorEl.addEventListener('click', function() {
-        if (indicatorEl.classList.contains('error')) location.href = '/settings';
+        if (indicatorEl.classList.contains('paused')) {
+          // Click = user gesture, so the OAuth popup is permitted and (with
+          // the existing grant) closes itself without asking anything.
+          syncNow(true).catch(function() { /* surfaced via the pill */ });
+        } else if (indicatorEl.classList.contains('error')) {
+          location.href = '/settings';
+        }
       });
       document.body.appendChild(indicatorEl);
     }
     clearTimeout(indicatorTimer);
     if (!state) { indicatorEl.classList.remove('show'); return; }
     indicatorEl.classList.toggle('error', state === 'error');
+    indicatorEl.classList.toggle('paused', state === 'paused');
     indicatorEl.innerHTML = (state === 'syncing' ? '<span class="gsync-spinner"></span>' : '') + esc(text);
-    indicatorEl.title = state === 'error' ? text + ' — tap to open Settings' : text;
+    indicatorEl.title = state === 'error' ? text + ' — tap to open Settings'
+      : state === 'paused' ? 'Google needs a quick sign-in to keep syncing — tap to reconnect'
+      : text;
     indicatorEl.classList.add('show');
-    if (state !== 'syncing') {
+    // 'paused' stays visible until acted on — it means edits aren't backed up.
+    if (state !== 'syncing' && state !== 'paused') {
       indicatorTimer = setTimeout(function() { indicatorEl.classList.remove('show'); },
         state === 'error' ? 8000 : 2500);
     }
@@ -632,7 +652,8 @@
       return status;
     }, function(err) {
       syncing = false;
-      if (interactive) indicator('error', 'Sync failed');
+      if (err && err.needsInteraction) indicator('paused', '\u26a0 Sync paused \u2014 tap to sign in');
+      else if (interactive) indicator('error', 'Sync failed');
       else indicator(null);
       throw err;
     });
