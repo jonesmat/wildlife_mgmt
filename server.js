@@ -25,9 +25,9 @@ app.use(rateLimit({
 app.use((req, res, next) => {
   res.set({
     'Content-Security-Policy':
-      "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; " +
+      "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com https://static.cloudflareinsights.com; " +
       "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
-      "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; " +
+      "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://cloudflareinsights.com; " +
       "frame-src https://accounts.google.com; object-src 'none'; base-uri 'self'; " +
       "form-action 'self'; frame-ancestors 'none'",
     'X-Content-Type-Options': 'nosniff',
