@@ -341,20 +341,32 @@
     var merged = {};
     var conflicts = [];
 
-    function mergeValue(label, b, l, r) {
+    function isPlainObject(v) {
+      return v !== null && typeof v === 'object' && !Array.isArray(v);
+    }
+
+    // Recursive: plain objects merge per-key at any depth, so e.g. editing
+    // plan.owner.name on one device and plan.owner.accountNumber on the
+    // other combines cleanly. Only a leaf changed differently on both sides
+    // (or an object/non-object clash) is a conflict. Arrays and scalars are
+    // atomic.
+    function mergeValue(prefix, path, b, l, r) {
       if (j(l) === j(r)) return l;
-      if (j(l) !== j(b) && j(r) === j(b)) return l;
-      if (j(r) !== j(b) && j(l) === j(b)) return r;
-      conflicts.push(label);
+      if (j(l) === j(b)) return r;   // only the Drive copy changed
+      if (j(r) === j(b)) return l;   // only this device changed
+      if (isPlainObject(l) && isPlainObject(r)) {
+        return mergeObject(prefix, path, isPlainObject(b) ? b : {}, l, r);
+      }
+      conflicts.push(prefix + (path ? ' \u2014 \u201c' + path + '\u201d' : ''));
       return l;
     }
 
-    function mergeRecord(labelPrefix, b, l, r) {
+    function mergeObject(prefix, path, b, l, r) {
       var out = {};
       var keys = {};
       [b, l, r].forEach(function(o) { Object.keys(o || {}).forEach(function(k) { keys[k] = 1; }); });
       Object.keys(keys).forEach(function(k) {
-        var v = mergeValue(labelPrefix + ' \u2014 field \u201c' + k + '\u201d',
+        var v = mergeValue(prefix, path ? path + '.' + k : k,
           b ? b[k] : undefined, l ? l[k] : undefined, r ? r[k] : undefined);
         if (v !== undefined) out[k] = v;
       });
@@ -384,7 +396,7 @@
         if (l && r) {
           if (j(l) === j(r)) out.push(l);
           else if (!b) { conflicts.push(recLabel(l, kind) + ' added differently on both devices'); out.push(l); }
-          else out.push(mergeRecord(recLabel(l, kind), b, l, r));
+          else out.push(mergeObject(recLabel(l, kind), '', b, l, r));
         } else if (l) {
           if (!b) out.push(l); // added locally
           else if (j(l) !== j(b)) { conflicts.push(recLabel(l, kind) + ' edited here but deleted in the Drive copy'); out.push(l); }
@@ -410,7 +422,7 @@
       var b = br[y], l = lr[y], r = rr[y];
       var label = 'the ' + y + ' annual report';
       var keep;
-      if (l && r) keep = (j(l) === j(r)) ? l : (!b ? (conflicts.push(label + ' created differently on both devices'), l) : mergeRecord(label, b, l, r));
+      if (l && r) keep = (j(l) === j(r)) ? l : (!b ? (conflicts.push(label + ' created differently on both devices'), l) : mergeObject(label, '', b, l, r));
       else if (l) {
         if (!b) keep = l;
         else if (j(l) !== j(b)) { conflicts.push(label + ' edited here but deleted in the Drive copy'); keep = l; }
@@ -429,7 +441,7 @@
     var rootKeys = {};
     [B, L, R].forEach(function(o) { Object.keys(o).forEach(function(k) { if (!DATA_SPECIAL[k]) rootKeys[k] = 1; }); });
     Object.keys(rootKeys).forEach(function(k) {
-      var v = mergeValue('plan field \u201c' + k + '\u201d', B[k], L[k], R[k]);
+      var v = mergeValue('field', k, B[k], L[k], R[k]);
       if (v !== undefined) merged[k] = v;
     });
     merged.planUpdatedAt = ((L.planUpdatedAt || '') >= (R.planUpdatedAt || '')) ? L.planUpdatedAt : R.planUpdatedAt;
