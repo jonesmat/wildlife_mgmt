@@ -920,6 +920,7 @@
 
   async function completeForever() {
     if (!completeTarget) return;
+    if (!(await appConfirm('The reminder is removed for good — it won\'t come back on any date.', 'Stop reminding?', 'Delete'))) return;
     await fetch('/api/reminders/' + completeTarget, { method: 'DELETE' });
     closeCompleteModal();
     await reloadReminders();
