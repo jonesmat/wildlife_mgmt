@@ -6,33 +6,45 @@
     home: {
       title: 'Home Dashboard',
       html:
-        '<p><strong>What this page is for:</strong> Your launch pad. The tiles open each tool — ' +
-        'the Activity Log, the Management Plan (PWD 885), Annual Reports (PWD 888), Buck Watch, ' +
-        'the Property Map, and Census Trends. The Season Calendar below shows upcoming hunting ' +
-        'seasons and management dates so nothing sneaks up on you.</p>' +
+        '<p><strong>What this page is for:</strong> Your launch pad and year-at-a-glance status. ' +
+        'The ring at the top tracks the <strong>qualifying practices</strong> documented this year ' +
+        '(the annual report needs 3 of 7) — click a "+" practice chip to start logging it. The tiles ' +
+        'open each tool, <strong>Ranch Highlights</strong> celebrates the year (and prints the ' +
+        '📖 Yearbook), and the <strong>Season Calendar</strong> shows hunting seasons, deadlines, ' +
+        'your service reminders, and your own custom events.</p>' +
         '<p><strong>How it affects other pages:</strong> Nothing here changes your plan or report ' +
-        'data — only your calendar choices (snoozed or dismissed events) are remembered.</p>' +
+        'data — only calendar choices (snoozes, dismissals, custom events) and reminder completions ' +
+        'are saved.</p>' +
         '<p><strong>Tips:</strong></p><ul>' +
-        '<li>Snooze a calendar event to hide it until closer to the date, or dismiss it for good — ' +
-        'the "Show dismissed/snoozed" buttons bring them back.</li>' +
-        '<li>Which events appear is configurable in <strong>Settings &rarr; Calendar</strong>.</li>' +
-        '<li>The printer icon prints just the calendar — handy for the fridge or the camp house.</li></ul>'
+        '<li><strong>+ Add Event</strong> in the calendar creates your own dates (e.g. "fill feeders ' +
+        'before the rut"); the ✏️ on a custom event edits or deletes it.</li>' +
+        '<li>Reminders set on the Ranch Assets page appear here when due — <strong>✓ Complete</strong> ' +
+        'lets you schedule the next one (7 days / 1 month / 6 months / 1 year).</li>' +
+        '<li>Snooze or dismiss built-in events you don’t need; "Show dismissed/snoozed" brings them back. ' +
+        'Filter whole species or regions in <strong>Settings &rarr; Calendar</strong>.</li>' +
+        '<li>Import an AI-generated TPWD calendar in Settings for exact season dates.</li></ul>'
     },
     activity: {
       title: 'Activity Log',
       html:
         '<p><strong>What this page is for:</strong> Your day-to-day journal of management work — ' +
-        'feeder refills, predator control, census counts, habitat work, and so on. Each entry can ' +
-        'carry a date, notes, photos, and a pinned location on your property map.</p>' +
+        'harvests, sightings, the seven qualifying practices, censuses, rain-gauge readings, ' +
+        'maintenance, and purchases. Each entry can carry a date, notes, photos, an optional ' +
+        'cost, and a pinned location on your property map.</p>' +
         '<p><strong>How it affects other pages:</strong> This log is the heart of the app. Entries ' +
         'from a given year are embedded (photos and all) in that year’s printed Annual Report ' +
-        '(PWD 888). Census-type entries feed the <strong>Census Trends</strong> charts, and entries ' +
-        'with a pinned location show up on the <strong>Property Map</strong>.</p>' +
+        '(PWD 888) and the 📖 Yearbook, and they drive the home-page practices ring. Census and ' +
+        'Rainfall entries feed the <strong>Census Trends</strong> charts, costs roll up there too, ' +
+        'Maintenance entries linked to an asset build its service history, and pinned entries show ' +
+        'on the <strong>Property Map</strong>.</p>' +
         '<p><strong>Tips:</strong></p><ul>' +
         '<li>Log activities as you do them — at report time the annual report practically writes itself.</li>' +
-        '<li>Use <strong>Set Location</strong> to pin where the work happened; pins make the map view useful.</li>' +
-        '<li>Photos attached here appear in the printed report, so a quick phone snap is great documentation.</li>' +
-        '<li>Use the filters and sort controls to review a single activity type or season at a glance.</li></ul>'
+        '<li>On a Maintenance entry, pick the <strong>Asset</strong> instead of typing the item — the ' +
+        'service shows up on that asset’s card with a freshness chip.</li>' +
+        '<li>Add the <strong>Cost</strong> when money changed hands; it counts toward your ' +
+        'investment-in-the-land totals.</li>' +
+        '<li>Read the rain gauge after every rain and log it — rainfall explains census swings.</li>' +
+        '<li>Photos attached here appear in the printed report, so a quick phone snap is great documentation.</li></ul>'
     },
     plan: {
       title: 'Wildlife Management Plan (PWD 885)',
@@ -86,62 +98,94 @@
     bucks: {
       title: 'Buck Watch',
       html:
-        '<p><strong>What this page is for:</strong> A catalog of individual bucks on your property — ' +
-        'track each one across seasons with photos and notes (age, antler points, where he shows up).</p>' +
+        '<p><strong>What this page is for:</strong> A catalog of individual bucks on your property. ' +
+        'Link Harvest and Sighting entries to a buck in the Activity Log and his story collects ' +
+        'here — a <strong>season-by-season photo strip</strong>, an encounter timeline, and (with an ' +
+        'estimated birth year) his age each fall, right up to "5½ at harvest".</p>' +
         '<p><strong>How it affects other pages:</strong> Reference only — Buck Watch doesn’t feed ' +
         'the plan or report forms. It’s your own record for making harvest decisions.</p>' +
         '<p><strong>Tips:</strong></p><ul>' +
-        '<li>Add camera-survey photos year over year; watching a buck age is the best guide to ' +
-        'when he’s ready (or should be passed).</li>' +
+        '<li>Set an <strong>estimated birth year</strong> (Edit on the card) and every season photo ' +
+        'gets an age label — watching him grow is the best guide to when he’s ready or should be passed.</li>' +
+        '<li>Link camera-survey Sightings each year so the comparison strip fills in; the harvest ' +
+        'photo caps off his story.</li>' +
         '<li>Give bucks memorable names — it makes camera review and hunting conversations much easier.</li></ul>'
     },
     map: {
       title: 'Property Map',
       html:
-        '<p><strong>What this page is for:</strong> A bird’s-eye view of your management work — ' +
-        'every Activity Log entry with a pinned location, shown on your property photo. Click a pin ' +
-        'to see the entry and jump to it in the Activity Log.</p>' +
-        '<p><strong>How it affects other pages:</strong> Read-only — it just visualizes the log, ' +
-        'so nothing you do here changes your data.</p>' +
+        '<p><strong>What this page is for:</strong> A bird’s-eye view of the place — every Activity ' +
+        'Log entry with a pinned location, your census routes, and (dashed gold pins) your ' +
+        'registered <strong>assets</strong>: feeders, troughs, blinds, and cameras. Click any pin ' +
+        'for details and a jump-through to the log or the Asset Registry.</p>' +
+        '<p><strong>How it affects other pages:</strong> Read-only — it just visualizes your data, ' +
+        'so nothing you do here changes anything.</p>' +
         '<p><strong>Tips:</strong></p><ul>' +
         '<li>No map showing? Upload a property image in <strong>Settings &rarr; Property</strong> first.</li>' +
-        '<li>Pins come from <strong>Set Location</strong> on Activity Log entries — the more you pin, ' +
-        'the more useful this view becomes.</li>' +
-        '<li>Clusters of pins are a quick way to spot which parts of the property get attention ' +
-        'and which are being neglected.</li></ul>'
+        '<li>Entry pins follow the year/month filters; asset pins always show (toggle them with ' +
+        '"Show assets"). Pin an asset from its Edit row on the Ranch Assets page.</li>' +
+        '<li>Use the month slider to replay the year — it’s a quick way to see where work ' +
+        'concentrates and what gets neglected.</li></ul>'
     },
     trends: {
-      title: 'Census Trends',
+      title: 'Census Trends & Analytics',
       html:
-        '<p><strong>What this page is for:</strong> Charts of your census counts over time, grouped ' +
-        'by route, with moon phases for context. See whether the herd is growing, shrinking, or holding.</p>' +
-        '<p><strong>How it affects other pages:</strong> Read-only — counts are read from census ' +
-        'entries in the Activity Log.</p>' +
+        '<p><strong>What this page is for:</strong> The numbers behind the ranch, all read from your ' +
+        'Activity Log: census trend charts per route (with annual rainfall drawn behind the counts), ' +
+        'the <strong>Rainfall</strong> card, your <strong>Investment in the Land</strong> spending ' +
+        'roll-up, the <strong>Species Life List</strong>, and the best-hunting-time moon chart.</p>' +
+        '<p><strong>How it affects other pages:</strong> Read-only — everything here is computed ' +
+        'from entries you’ve already logged.</p>' +
         '<p><strong>Tips:</strong></p><ul>' +
         '<li>Run the same routes (set up in <strong>Settings &rarr; Routes</strong>) the same way each ' +
         'time — consistency is what makes year-to-year counts comparable.</li>' +
-        '<li>Moon phase affects deer movement; it can explain an oddly low count night.</li>' +
-        '<li>Multi-year trends are great backup for harvest recommendations and the census section ' +
-        'of your annual report.</li></ul>'
+        '<li>Import regional rainfall history in <strong>Settings &rarr; Rainfall</strong> to see how ' +
+        'this year stacks up against the long-term record; your own gauge readings always win.</li>' +
+        '<li>Wet and dry years explain a lot of census swings — that’s why the blue rainfall bars ' +
+        'sit behind the count lines.</li>' +
+        '<li>The species list grows from sightings, harvests, and census target species — log the ' +
+        'odd painted bunting or fox and watch the count climb.</li></ul>'
     },
     settings: {
       title: 'Settings',
       html:
-        '<p><strong>What this page is for:</strong> App-wide configuration — property details, census ' +
-        'routes, property photos, the season calendar, data management (export, restore, and ' +
-        'optional Google Drive sync), and app info.</p>' +
+        '<p><strong>What this page is for:</strong> App-wide configuration — property details and ' +
+        'photos, census routes, the season calendar, regional rainfall history, photo quality, ' +
+        'data management (export, restore, and optional Google Drive sync), and app info.</p>' +
         '<p><strong>How it affects other pages:</strong> The property image powers the Property Map ' +
         'and location pins; routes power census logging and the Trends charts; calendar settings ' +
-        'control the home page calendar.</p>' +
+        'control the home page calendar; imported rainfall backfills the Trends rainfall card.</p>' +
         '<p><strong>Tips:</strong></p><ul>' +
         '<li><strong>Most important thing in the app:</strong> all data lives in this browser — ' +
         'nothing is uploaded unless you turn on Google Sync. Use <strong>Data Management</strong> ' +
         'to download a backup regularly, or enable <strong>Google Sync</strong> there to keep a ' +
         'copy in your own Google Drive automatically.</li>' +
+        '<li>The <strong>Calendar</strong> and <strong>Rainfall</strong> panes each include copyable ' +
+        'AI instructions — paste them into a web-connected assistant and import the JSON it returns ' +
+        'for exact season dates and your area’s rainfall record.</li>' +
         '<li>Moving to a new computer? Export here and Restore on the new device — or connect ' +
         'both to Google Sync and they share the same data.</li>' +
         '<li>Set up your property image and census routes before logging census activities — entries ' +
         'can then be tied to a route and a spot on the map.</li></ul>'
+    },
+    assets: {
+      title: 'Ranch Assets',
+      html:
+        '<p><strong>What this page is for:</strong> The registry of everything you maintain — ' +
+        'feeders, troughs, blinds, cameras, nest boxes, wells, and equipment like the UTV, tractor, ' +
+        'and shredder. Each card shows how long since its last service and the recent history, with ' +
+        'the longest-neglected assets sorted to the top. The <strong>Reminders</strong> box at the ' +
+        'top holds dated to-dos ("grease the feeder motor on Sep 1"), optionally tied to an asset.</p>' +
+        '<p><strong>How it affects other pages:</strong> Maintenance entries in the Activity Log ' +
+        'linked to an asset build its service history. Reminders surface on the home-page Season ' +
+        'Calendar when due, where <strong>✓ Complete</strong> reschedules them. Pinned assets appear ' +
+        'as dashed gold pins on the Property Map.</p>' +
+        '<p><strong>Tips:</strong></p><ul>' +
+        '<li><strong>Log service</strong> on a card opens a Maintenance entry already linked to that ' +
+        'asset — the fastest way to keep histories accurate.</li>' +
+        '<li>Watch the freshness chips: amber past 90 days, red past a year.</li>' +
+        '<li>Pin fixed infrastructure on the map (Edit &rarr; 📍 Pin on map) so anyone can find it.</li>' +
+        '<li>Retire an asset you’ve sold or scrapped instead of deleting it — the history stays.</li></ul>'
     }
   };
 
