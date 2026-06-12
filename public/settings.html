@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Settings</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script src="/theme.js"></script>
 <script src="/store.js"></script>
 <script src="/dialog.js"></script>
 <script src="/version.js"></script>
@@ -60,6 +61,7 @@
     <div class="sidebar-item" id="nav-routes" onclick="showPane('routes')">Routes</div>
     <div class="sidebar-item" id="nav-photos" onclick="showPane('photos')">Photos</div>
     <div class="sidebar-item" id="nav-calendar" onclick="showPane('calendar')">Calendar</div>
+    <div class="sidebar-item" id="nav-prefs" onclick="showPane('prefs')">Preferences</div>
     <div class="sidebar-item" id="nav-data" onclick="showPane('data')">Data Management</div>
     <div class="sidebar-item" id="nav-appinfo" onclick="showPane('appinfo')">App Info</div>
   </nav>
@@ -453,6 +455,23 @@ Deliver a single file named `tpwd_wildlife_management_calendar.json` containing 
       </div>
     </div>
 
+    <!-- Preferences pane -->
+    <div class="section" id="prefs" style="display:none">
+      <div class="section-title">Preferences</div>
+
+      <div class="sub-section">
+        <div class="section-subtitle">Appearance</div>
+        <div class="hint-block">
+          Dark mode dims the whole app for low-light use — photos and property maps keep their
+          true colors. This is a per-device preference and is not included in backups or sync.
+        </div>
+        <label class="checkbox-item" style="margin-top:12px;font-size:0.9rem">
+          <input type="checkbox" id="darkModeToggle" onchange="appTheme.set(this.checked)">
+          Dark mode
+        </label>
+      </div>
+    </div>
+
     <!-- Data pane -->
     <div class="section" id="data" style="display:none">
       <div class="section-title">Data Management</div>
@@ -733,7 +752,7 @@ function escHtml(s) {
 
 // ── Pane switching ──
 function showPane(p) {
-  ['property', 'routes', 'photos', 'calendar', 'data', 'appinfo'].forEach(function(id) {
+  ['property', 'routes', 'photos', 'calendar', 'prefs', 'data', 'appinfo'].forEach(function(id) {
     document.getElementById(id).style.display = (id === p) ? '' : 'none';
     document.getElementById('nav-' + id).classList.toggle('active', id === p);
   });
@@ -1272,6 +1291,7 @@ async function gsyncDisconnect() {
 renderGsyncPane();
 
 document.getElementById('appVersion').textContent = window.APP_VERSION || 'dev';
+document.getElementById('darkModeToggle').checked = appTheme.isDark();
 loadPhotoSetting();
 loadCalendarPane();
 load().then(loadRoutes).then(function() {
