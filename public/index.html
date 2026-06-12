@@ -165,29 +165,6 @@
   }
   .practice-warning.urgent { color: #8b1a1a; background: #fdf0ef; border-color: #e8c2bd; }
 
-  /* ── Seasonal tasks ── */
-  .task-row {
-    display: flex; align-items: center; gap: 10px; padding: 7px 8px;
-    border-radius: 8px; font-size: 0.88rem;
-  }
-  .task-row:hover { background: #f7f9f6; }
-  .task-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #1a4a1a; flex-shrink: 0; }
-  .task-text { flex: 1; color: #333; }
-  .task-row.done .task-text { color: #999; text-decoration: line-through; }
-  .task-months {
-    font-size: 0.68rem; font-weight: 600; padding: 1px 8px; border-radius: 8px;
-    background: #eef2ea; color: #5a6a52; white-space: nowrap;
-  }
-  .task-auto {
-    font-size: 0.68rem; font-weight: 700; padding: 1px 8px; border-radius: 8px;
-    background: #e8f0e8; color: #1a4a1a; white-space: nowrap;
-  }
-  .task-del {
-    border: none; background: none; cursor: pointer; font-size: 0.8rem;
-    opacity: 0.3; padding: 2px 4px; flex-shrink: 0;
-  }
-  .task-del:hover { opacity: 1; color: #8b1a1a; }
-
   /* ── Wildlife gallery (formerly trophy board) ── */
   .trophy-board {
     background: linear-gradient(150deg, #25341f, #1a2a18 60%, #16241a); border-radius: 10px;
@@ -276,30 +253,6 @@
   <!-- Celebrations: year facts + remarkable bucks (collapsed by default) -->
   <div class="trophy-board" id="trophyBoard" style="display:none"></div>
 
-  <!-- Seasonal task checklist: built-in chores for the time of year that
-       check themselves off from the activity log, plus the user's own -->
-  <div class="card" id="tasksCard" style="display:none">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <h2 style="margin-bottom:0">✅ Seasonal Tasks</h2>
-      <span class="toggle-link" id="tasksScopeToggle" onclick="toggleTaskScope()">show all year</span>
-      <span class="toggle-link" style="margin-left:auto" onclick="showAddTask()">+ add task</span>
-    </div>
-    <div id="addTaskBox" style="display:none;margin-top:12px;border:1px solid #e0e0e0;border-radius:8px;padding:12px">
-      <div class="row" style="margin-bottom:10px">
-        <input type="text" id="newTaskText" placeholder="e.g. Re-batter the game cameras" style="flex:1;min-width:220px;width:auto">
-        <label style="font-size:0.8rem;color:#777">From</label>
-        <select id="newTaskFrom"></select>
-        <label style="font-size:0.8rem;color:#777">to</label>
-        <select id="newTaskTo"></select>
-      </div>
-      <div class="row" style="justify-content:flex-end">
-        <button class="btn btn-secondary btn-sm" onclick="hideAddTask()">Cancel</button>
-        <button class="btn btn-primary btn-sm" onclick="addCustomTask()">Add Task</button>
-      </div>
-    </div>
-    <div id="tasksBody" style="margin-top:10px"></div>
-  </div>
-
   <div class="card">
     <h2>📅 Season Calendar</h2>
     <div id="seasonCalendar" style="margin-top:8px"></div>
@@ -312,6 +265,43 @@
     enable Google Drive sync.<br>
     <a href="/privacy" style="color:#888">Privacy Policy</a> &middot;
     <a href="/terms" style="color:#888">Terms of Service</a>
+  </div>
+</div>
+
+<!-- Add / edit custom calendar event modal -->
+<div class="modal-overlay" id="eventModal">
+  <div class="modal">
+    <h3 style="color:#1a4a1a" id="eventModalTitle">📌 New Calendar Event</h3>
+    <div class="form-like">
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.8rem;font-weight:600;color:#555;margin-bottom:3px">Event</label>
+        <input type="text" id="evName" placeholder="e.g. Fill protein feeders before the rut" style="width:100%">
+      </div>
+      <div class="row" style="margin-bottom:12px">
+        <div>
+          <label style="display:block;font-size:0.8rem;font-weight:600;color:#555;margin-bottom:3px">Date</label>
+          <input type="date" id="evDate" style="width:auto">
+        </div>
+        <div>
+          <label style="display:block;font-size:0.8rem;font-weight:600;color:#555;margin-bottom:3px">End date (optional)</label>
+          <input type="date" id="evEndDate" style="width:auto">
+        </div>
+        <label style="font-size:0.85rem;color:#333;align-self:flex-end;padding-bottom:8px">
+          <input type="checkbox" id="evAnnual" checked> Repeats every year
+        </label>
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:0.8rem;font-weight:600;color:#555;margin-bottom:3px">Details (optional)</label>
+        <input type="text" id="evDetails" placeholder="Notes shown under the event" style="width:100%">
+      </div>
+    </div>
+    <div class="row" style="justify-content:space-between">
+      <button class="btn btn-secondary btn-sm" id="evDeleteBtn" style="color:#8b1a1a;display:none" onclick="deleteCustomEvent()">Delete</button>
+      <span style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-secondary btn-sm" onclick="closeEventModal()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="saveCustomEvent()">Save Event</button>
+      </span>
+    </div>
   </div>
 </div>
 
@@ -607,201 +597,6 @@
     document.getElementById('boardHead').classList.toggle('open', open);
   }
 
-  // ── Seasonal tasks ──
-  // Built-in chores for the Texas management year. Each auto-checks from the
-  // activity log ('entry': a matching entry inside the task's window this
-  // year; 'report': last year's annual report exists; 'practices': 3 of 7
-  // qualifying practices documented). Users can delete any of them and add
-  // their own; all of that state lives in settings.seasonalTasks.
-  var TASK_TEMPLATES = [
-    { id: 'file-888',      months: [0, 1],             text: 'File the PWD 888 annual report with your appraisal district (due end of February)', auto: 'report' },
-    { id: 'nestbox-clean', months: [0, 1],             text: 'Clean out nest boxes before spring nesting', auto: 'entry', types: ['Maintenance', 'Supplemental Shelter'], contains: 'nest' },
-    { id: 'warm-plots',    months: [2, 3],             text: 'Plant warm-season food plots', auto: 'entry', types: ['Supplemental Food'], contains: 'plot' },
-    { id: 'predators',     months: [2, 3, 4, 5],       text: 'Run predator control ahead of fawning & nesting season', auto: 'entry', types: ['Predator Control'] },
-    { id: 'protein',       months: [3, 4, 5, 6, 7, 8], text: 'Keep protein and mineral out through antler growth & fawning', auto: 'entry', types: ['Supplemental Food'] },
-    { id: 'summer-water',  months: [5, 6, 7],          text: 'Check and refill wildlife water through the heat', auto: 'entry', types: ['Supplemental Water'] },
-    { id: 'fall-census',   months: [7, 8, 9],          text: 'Run your fall deer census — TPWD recommends three counts', auto: 'entry', types: ['Census'] },
-    { id: 'preseason',     months: [8, 9],             text: 'Service blinds, feeders, and cameras before deer season', auto: 'entry', types: ['Maintenance'] },
-    { id: 'cool-plots',    months: [8, 9],             text: 'Plant cool-season food plots', auto: 'entry', types: ['Supplemental Food'], contains: 'plot' },
-    { id: 'compliance',    months: [9, 10, 11],        text: 'Confirm at least 3 qualifying practices are documented for the year', auto: 'practices' }
-  ];
-
-  var MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  var taskState = { removed: {}, custom: [], manual: {} };   // settings.seasonalTasks
-  var taskEntries = [];
-  var taskReportYears = [];
-  var tasksShowAll = false;
-
-  function monthsLabel(months) {
-    if (!months || months.length === 12) return 'all year';
-    var first = MONTH_NAMES[months[0]], last = MONTH_NAMES[months[months.length - 1]];
-    return first === last ? first : first + '–' + last;
-  }
-
-  function entryMonth(e) { return parseInt((e.datetime || '').slice(5, 7), 10) - 1; }
-
-  function taskAutoDone(t) {
-    var year = String(new Date().getFullYear());
-    var thisYear = taskEntries.filter(function(e) { return e.datetime && e.datetime.startsWith(year); });
-    if (t.auto === 'report') {
-      return taskReportYears.indexOf(String(new Date().getFullYear() - 1)) !== -1;
-    }
-    if (t.auto === 'practices') {
-      var covered = {};
-      thisYear.forEach(function(e) {
-        if (PRACTICES.indexOf(e.type) !== -1) covered[e.type] = 1;
-        if (e.type === 'Purchase' && PRACTICES.indexOf(e['pu-practice']) !== -1) covered[e['pu-practice']] = 1;
-        if (e.type === 'Harvest') covered['Census'] = 1;
-      });
-      return Object.keys(covered).length >= 3;
-    }
-    if (t.auto === 'entry') {
-      return thisYear.some(function(e) {
-        if (t.months.indexOf(entryMonth(e)) === -1) return false;
-        if (t.types.indexOf(e.type) === -1) return false;
-        if (t.contains) {
-          var hit = Object.keys(e).some(function(k) {
-            return typeof e[k] === 'string' && e[k].toLowerCase().indexOf(t.contains) !== -1;
-          });
-          if (!hit) return false;
-        }
-        return true;
-      });
-    }
-    return false;
-  }
-
-  function saveTaskState() {
-    fetch('/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ seasonalTasks: taskState })
-    });
-  }
-
-  function allTasks() {
-    return TASK_TEMPLATES.concat(taskState.custom || []).filter(function(t) {
-      return !(taskState.removed || {})[t.id];
-    });
-  }
-
-  function renderTasks() {
-    var card = document.getElementById('tasksCard');
-    card.style.display = '';
-    var nowMonth = new Date().getMonth();
-    var year = String(new Date().getFullYear());
-    var manual = (taskState.manual || {})[year] || {};
-
-    var shown = allTasks().filter(function(t) {
-      return tasksShowAll || !t.months || t.months.indexOf(nowMonth) !== -1;
-    });
-    // Open tasks first, done ones sink to the bottom
-    shown.sort(function(a, b) {
-      var da = taskAutoDone(a) || manual[a.id] ? 1 : 0;
-      var db = taskAutoDone(b) || manual[b.id] ? 1 : 0;
-      return da - db;
-    });
-
-    var body = document.getElementById('tasksBody');
-    if (!shown.length) {
-      body.innerHTML = '<div style="color:#999;font-size:0.85rem;font-style:italic;padding:8px 0">Nothing on the list for ' +
-        MONTH_NAMES[nowMonth] + ' — "show all year" has the full checklist.</div>';
-      return;
-    }
-    body.innerHTML = shown.map(function(t) {
-      var auto = taskAutoDone(t);
-      var done = auto || !!manual[t.id];
-      return '<div class="task-row' + (done ? ' done' : '') + '">' +
-        '<input type="checkbox"' + (done ? ' checked' : '') + (auto ? ' disabled title="Checked automatically from your activity log"' : '') +
-          ' data-task-check="' + escAttr(t.id) + '">' +
-        '<span class="task-text">' + escHtml(t.text) + '</span>' +
-        (auto ? '<span class="task-auto">✓ from your log</span>' : '') +
-        '<span class="task-months">' + monthsLabel(t.months) + '</span>' +
-        '<button class="task-del" title="Remove this task" data-task-del="' + escAttr(t.id) + '">✕</button>' +
-      '</div>';
-    }).join('');
-  }
-
-  function toggleTaskScope() {
-    tasksShowAll = !tasksShowAll;
-    document.getElementById('tasksScopeToggle').textContent = tasksShowAll ? 'show this month only' : 'show all year';
-    renderTasks();
-  }
-
-  function showAddTask() {
-    document.getElementById('addTaskBox').style.display = '';
-    document.getElementById('newTaskText').focus();
-  }
-
-  function hideAddTask() {
-    document.getElementById('addTaskBox').style.display = 'none';
-  }
-
-  function addCustomTask() {
-    var text = document.getElementById('newTaskText').value.trim();
-    if (!text) return;
-    var from = +document.getElementById('newTaskFrom').value;
-    var to = +document.getElementById('newTaskTo').value;
-    var months = [];
-    for (var m = from; ; m = (m + 1) % 12) {  // supports windows that wrap the new year
-      months.push(m);
-      if (m === to || months.length === 12) break;
-    }
-    taskState.custom = taskState.custom || [];
-    taskState.custom.push({ id: 'custom-' + Date.now(), text: text, months: months });
-    saveTaskState();
-    document.getElementById('newTaskText').value = '';
-    hideAddTask();
-    renderTasks();
-  }
-
-  document.getElementById('tasksBody').addEventListener('click', function(ev) {
-    var del = ev.target.closest('[data-task-del]');
-    if (del) {
-      taskState.removed = taskState.removed || {};
-      taskState.removed[del.getAttribute('data-task-del')] = 1;
-      saveTaskState();
-      renderTasks();
-      return;
-    }
-    var check = ev.target.closest('[data-task-check]');
-    if (check && !check.disabled) {
-      var year = String(new Date().getFullYear());
-      taskState.manual = taskState.manual || {};
-      taskState.manual[year] = taskState.manual[year] || {};
-      if (check.checked) taskState.manual[year][check.getAttribute('data-task-check')] = 1;
-      else delete taskState.manual[year][check.getAttribute('data-task-check')];
-      saveTaskState();
-      renderTasks();
-    }
-  });
-
-  async function loadTasks() {
-    try {
-      taskEntries = await (await fetch('/api/log')).json();
-    } catch (e) { taskEntries = []; }
-    try {
-      var years = await (await fetch('/api/years')).json();
-      taskReportYears = (years.years || []).map(function(y) { return y.year; });
-    } catch (e) { taskReportYears = []; }
-    try {
-      var settings = await (await fetch('/api/settings')).json();
-      taskState = settings.seasonalTasks || taskState;
-    } catch (e) { /* defaults apply */ }
-    // Month pickers for the add-task form
-    ['newTaskFrom', 'newTaskTo'].forEach(function(id, i) {
-      var sel = document.getElementById(id);
-      MONTH_NAMES.forEach(function(n, m) {
-        var opt = document.createElement('option');
-        opt.value = m;
-        opt.textContent = n;
-        sel.appendChild(opt);
-      });
-      sel.value = i === 0 ? 0 : 11;
-    });
-    renderTasks();
-  }
-
   // ── Season calendar ──
   // Renders from an imported TPWD calendar (Settings → Calendar) when one
   // exists, otherwise from this small built-in starter with approximate dates.
@@ -828,6 +623,7 @@
   };
 
   var calExpanded = false;
+  var customEvents = [];         // user-created calendar events (data.customEvents)
   var calReminders = [];         // asset/general reminders shown above the events
   var calAssets = [];            // for resolving a reminder's asset name
   var loadedCalendar = null;     // imported calendar, or null
@@ -1013,10 +809,16 @@
         right = '<span class="cal-due' + (st.days <= 14 ? ' urgent' : '') + '">' +
           (st.days === 0 ? 'today!' : 'in ' + st.days + ' day' + (st.days === 1 ? '' : 's')) + '</span>';
       }
-      right += '<button class="cal-act" title="Snooze" data-cal-action="snooze"' + keyAttr +
-        ' data-cal-name="' + escAttr(ev.name) + '"' +
-        (st.dateless ? '' : ' data-cal-start="' + st.sortTime + '"') + '>💤</button>' +
-        '<button class="cal-act" title="Dismiss" data-cal-action="dismiss"' + keyAttr + '>✕</button>';
+      if (item.customId) {
+        // User-created events are edited (and deleted from the edit dialog)
+        // rather than snoozed/dismissed
+        right += '<button class="cal-act" title="Edit" data-cal-action="editCustom" data-custom-id="' + escAttr(item.customId) + '">✏️</button>';
+      } else {
+        right += '<button class="cal-act" title="Snooze" data-cal-action="snooze"' + keyAttr +
+          ' data-cal-name="' + escAttr(ev.name) + '"' +
+          (st.dateless ? '' : ' data-cal-start="' + st.sortTime + '"') + '>💤</button>' +
+          '<button class="cal-act" title="Dismiss" data-cal-action="dismiss"' + keyAttr + '>✕</button>';
+      }
     } else if (mode === 'dismissing' || mode === 'dismissed') {
       right = '<button class="btn btn-secondary btn-sm" style="padding:5px 12px;font-size:0.78rem" data-cal-action="restore"' + keyAttr + '>Restore</button>';
       if (mode === 'dismissing') extraClass = (extraClass || '') + ' dismissing';
@@ -1129,6 +931,69 @@
     renderSeasonCalendar();
   }
 
+  // ── Custom calendar events (add / edit / delete) ──
+  var editingEventId = null;
+
+  function openEventModal(id) {
+    editingEventId = id || null;
+    var ce = id ? customEvents.find(function(x) { return x.id === id; }) : null;
+    document.getElementById('eventModalTitle').textContent = ce ? '📌 Edit Calendar Event' : '📌 New Calendar Event';
+    document.getElementById('evName').value = ce ? ce.name : '';
+    document.getElementById('evDate').value = ce ? ce.date : '';
+    document.getElementById('evEndDate').value = (ce && ce.endDate) || '';
+    document.getElementById('evAnnual').checked = ce ? !!ce.annual : true;
+    document.getElementById('evDetails').value = (ce && ce.details) || '';
+    document.getElementById('evDeleteBtn').style.display = ce ? '' : 'none';
+    document.getElementById('eventModal').classList.add('open');
+    document.getElementById('evName').focus();
+  }
+
+  function closeEventModal() {
+    editingEventId = null;
+    document.getElementById('eventModal').classList.remove('open');
+  }
+
+  async function saveCustomEvent() {
+    var name = document.getElementById('evName').value.trim();
+    var date = document.getElementById('evDate').value;
+    if (!name || !date) {
+      appDialog('An event needs at least a name and a date.');
+      return;
+    }
+    var endDate = document.getElementById('evEndDate').value;
+    if (endDate && endDate < date) endDate = '';
+    var body = JSON.stringify({
+      name: name, date: date, endDate: endDate,
+      annual: document.getElementById('evAnnual').checked,
+      details: document.getElementById('evDetails').value.trim()
+    });
+    if (editingEventId) {
+      await fetch('/api/custom-events/' + editingEventId, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: body
+      });
+    } else {
+      await fetch('/api/custom-events', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body
+      });
+    }
+    closeEventModal();
+    await reloadCustomEvents();
+  }
+
+  async function deleteCustomEvent() {
+    if (!editingEventId) return;
+    if (!(await appConfirm('This removes the event from the Season Calendar.', 'Delete this event?', 'Delete'))) return;
+    await fetch('/api/custom-events/' + editingEventId, { method: 'DELETE' });
+    closeEventModal();
+    await reloadCustomEvents();
+  }
+
+  async function reloadCustomEvents() {
+    try { customEvents = await (await fetch('/api/custom-events')).json(); }
+    catch (e) { /* keep what we have */ }
+    renderSeasonCalendar();
+  }
+
   function toggleDismissed() { showDismissed = !showDismissed; renderSeasonCalendar(); }
   function toggleSnoozed() { showSnoozed = !showSnoozed; renderSeasonCalendar(); }
 
@@ -1139,6 +1004,17 @@
       (g.events || []).forEach(function(ev) {
         items.push({ group: g.group, species: g.species, ev: ev, st: calItemState(ev), key: calKey(g.group, ev) });
       });
+    });
+    // User-created events join the same list under "My Events", with an Edit
+    // action instead of snooze/dismiss
+    customEvents.forEach(function(ce) {
+      if (!ce.date) return;
+      var ev = {
+        name: ce.name, start_date: ce.date, end_date: ce.endDate || undefined,
+        recurrence: ce.annual ? 'annual' : undefined, type: 'custom', emoji: '📌',
+        details: ce.details || ''
+      };
+      items.push({ group: 'My Events', ev: ev, st: calItemState(ev), key: 'custom|' + ce.id, customId: ce.id });
     });
     var visible = items.filter(calEventVisible);
     var hiddenCount = items.length - visible.length;
@@ -1191,6 +1067,7 @@
     var footer = '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
       '<button class="btn btn-secondary btn-sm" onclick="toggleCalendar()">' +
         (calExpanded ? 'Show next 3 only' : 'Show full calendar (' + mainItems.length + ' events)') + '</button>' +
+      '<button class="btn btn-secondary btn-sm" onclick="openEventModal(null)">+ Add Event</button>' +
       (dismissedItems.length
         ? '<button class="btn btn-secondary btn-sm" onclick="toggleDismissed()">' + (showDismissed ? 'Hide' : 'Show') + ' dismissed (' + dismissedItems.length + ')</button>' : '') +
       (snoozedItems.length
@@ -1229,6 +1106,9 @@
       calAssets = await (await fetch('/api/assets')).json();
     } catch (e) { calReminders = []; calAssets = []; }
     try {
+      customEvents = await (await fetch('/api/custom-events')).json();
+    } catch (e) { customEvents = []; }
+    try {
       var settings = await (await fetch('/api/settings')).json();
       calFilters = settings.calendarFilters || {};
       calState = settings.calendarState || {};
@@ -1246,6 +1126,7 @@
     if (action === 'dismiss') dismissEvent(key);
     else if (action === 'restore') restoreEvent(key);
     else if (action === 'cancelSnooze') cancelSnooze(key);
+    else if (action === 'editCustom') openEventModal(btn.getAttribute('data-custom-id'));
     else if (action === 'complete') {
       openCompleteModal(btn.getAttribute('data-rem-id'), btn.getAttribute('data-rem-name'));
     }
@@ -1261,14 +1142,16 @@
   document.getElementById('completeModal').addEventListener('click', function(ev) {
     if (ev.target === this) closeCompleteModal();
   });
+  document.getElementById('eventModal').addEventListener('click', function(ev) {
+    if (ev.target === this) closeEventModal();
+  });
   document.addEventListener('keydown', function(ev) {
-    if (ev.key === 'Escape') { closeSnoozeModal(); closeCompleteModal(); }
+    if (ev.key === 'Escape') { closeSnoozeModal(); closeCompleteModal(); closeEventModal(); }
   });
 
   loadYears();
   loadAssetsTile();
   loadTrophies();
-  loadTasks();
   loadCalendar();
 </script>
 <script src="/help.js"></script>

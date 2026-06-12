@@ -287,6 +287,7 @@
     if (!d.bucks) d.bucks = [];
     if (!d.assets) d.assets = [];
     if (!d.reminders) d.reminders = [];
+    if (!d.customEvents) d.customEvents = [];
     if (!d.reportsMeta) d.reportsMeta = {};
     d.log.forEach(function(e) {
       if (!e) return;
@@ -657,6 +658,42 @@
       }
     }
 
+    if (pathname === '/api/custom-events') {
+      if (method === 'GET') return json(data.customEvents);
+      if (method === 'POST') {
+        var cev = {
+          id: String(Date.now()),
+          name: body.name || 'Event',
+          date: body.date || '',
+          endDate: body.endDate || '',
+          annual: !!body.annual,
+          details: body.details || '',
+          createdAt: now
+        };
+        data.customEvents.push(cev);
+        await saveData(data);
+        return json(cev);
+      }
+    }
+
+    if ((m = pathname.match(/^\/api\/custom-events\/([^/]+)$/))) {
+      var cevId = m[1];
+      if (method === 'PUT') {
+        var cev2 = data.customEvents.find(function(x) { return x.id === cevId; });
+        if (!cev2) return json({ error: 'Event not found' }, 404);
+        ['name', 'date', 'endDate', 'annual', 'details'].forEach(function(k) {
+          if (body[k] !== undefined) cev2[k] = body[k];
+        });
+        await saveData(data);
+        return json(cev2);
+      }
+      if (method === 'DELETE') {
+        data.customEvents = data.customEvents.filter(function(x) { return x.id !== cevId; });
+        await saveData(data);
+        return json({ ok: true });
+      }
+    }
+
     if (pathname === '/api/settings') {
       if (method === 'GET') return json(data.settings);
       if (method === 'POST') {
@@ -789,6 +826,9 @@
         });
         (inc.reminders || []).forEach(function(r3) {
           if (!data.reminders.some(function(x) { return x.id === r3.id; })) data.reminders.push(r3);
+        });
+        (inc.customEvents || []).forEach(function(c2) {
+          if (!data.customEvents.some(function(x) { return x.id === c2.id; })) data.customEvents.push(c2);
         });
         await saveData(data);
         await writeFilesUnder('/photos/', files.photos, true);
