@@ -628,7 +628,11 @@
       <div id="fields-Maintenance" style="display:none">
         <div class="entry-tip">💡 <strong>Tip:</strong> Routine upkeep of feeders, troughs, blinds, nest boxes, and fences is ongoing practice implementation — don't leave it unlogged. <strong>Service infrastructure ahead of peak need:</strong> water before summer, feeders before the fall rut, nest boxes cleaned out before spring. Name the specific item, say what you did, and snap a photo of the finished work.</div>
         <div class="form-row">
-          <div class="form-group"><label>Item / Facility</label><input type="text" id="ma-item" placeholder="Water trough, fence, feeder..."></div>
+          <div class="form-group"><label>Asset</label>
+            <select id="ma-assetId" onchange="updateMaintFields()"><option value="">One-off / not in registry</option></select>
+            <a href="/assets" style="font-size:0.78rem;display:inline-block;margin-top:4px;color:#1a4a1a">manage assets</a>
+          </div>
+          <div class="form-group" id="ma-itemGroup"><label>Item / Facility</label><input type="text" id="ma-item" placeholder="Water trough, fence, feeder..."></div>
           <div class="form-group"><label>Action Taken</label><input type="text" id="ma-action" placeholder="Repaired, replaced, installed..."></div>
         </div>
         <div class="form-group"><label>Description &amp; Notes</label><textarea id="ma-notes" rows="2"></textarea></div>
@@ -774,6 +778,7 @@ var visibleCount = 25;  // pagination: how many entries are shown
 var PAGE_SIZE = 25;
 var logRoutes = [];       // census routes from settings: [{ id, name, imageId, points }]
 var logBucks = [];        // watched bucks: [{ id, name, notes, status }]
+var logAssets = [];       // registry assets: [{ id, name, category, status }]
 var photoQuality = 'balanced'; // photo downscaling setting ('original'|'high'|'balanced'|'compact')
 var propImages = [];      // property images from settings: [{ id, filename, uploadedAt }]
 var currentPropId = null; // active property image id
@@ -801,6 +806,10 @@ async function init() {
     logBucks = await (await fetch('/api/bucks')).json();
   } catch (e) { logBucks = []; }
   populateBuckSelects();
+  try {
+    logAssets = await (await fetch('/api/assets')).json();
+  } catch (e) { logAssets = []; }
+  populateAssetSelect();
   var routeSel = document.getElementById('ce-routeId');
   logRoutes.forEach(function(r) {
     var opt = document.createElement('option');
@@ -821,6 +830,18 @@ async function init() {
       showNewForm();
       typeSel.value = wantType;
       switchType();
+    }
+  }
+  // Deep link from the Asset Registry: /activity#maint-<assetId> opens a new
+  // Maintenance entry pre-linked to that asset
+  if (location.hash.indexOf('#maint-') === 0) {
+    var maintAssetId = location.hash.slice(7);
+    if (logAssets.some(function(a) { return a.id === maintAssetId; })) {
+      showNewForm();
+      document.getElementById('fType').value = 'Maintenance';
+      switchType();
+      document.getElementById('ma-assetId').value = maintAssetId;
+      updateMaintFields();
     }
   }
   // Returning from Settings after creating a route mid-Census-entry
@@ -1092,6 +1113,7 @@ function renderDetail(e) {
     rows += labelVal('Notes', e['rf-notes']);
   } else if (e.type === 'Maintenance') {
     rows += twoCol('Item', e['ma-item'], 'Action', e['ma-action']);
+    if (assetNameById(e['ma-assetId'])) rows += labelVal('Registry Asset', assetNameById(e['ma-assetId']));
     rows += labelVal('Notes', e['ma-notes']);
   } else if (e.type === 'Purchase') {
     rows += twoCol('Item', e['pu-item'], 'Category', e['pu-category']);
@@ -1214,6 +1236,8 @@ function editEntry(id) {
   populateSpeciesField('pc', e['pc-species']);
   populateSpeciesField('si', e['si-species']);
   updateSightingFields();
+  // Show the free-text item only when the entry isn't linked to an asset
+  document.getElementById('ma-itemGroup').style.display = e['ma-assetId'] ? 'none' : '';
   populateSpeciesField('ce', e['ce-species']);
   // Photos already on server
   originalPhotos = (e.photos || []).slice();
@@ -1265,6 +1289,7 @@ function resetForm() {
     document.getElementById(p + '-buckAdd').style.display = 'none';
   });
   updateSightingFields();
+  updateMaintFields();
   // Reset B&C scoring panel
   document.getElementById('bcEnable').checked = false;
   document.getElementById('bcPanel').style.display = 'none';
@@ -1635,6 +1660,35 @@ function populateBuckSelects() {
   });
 }
 
+// ── Asset registry link (Maintenance entries) ──
+function populateAssetSelect() {
+  var sel = document.getElementById('ma-assetId');
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">One-off / not in registry</option>';
+  logAssets.forEach(function(a) {
+    if (a.status === 'Retired') return;
+    var opt = document.createElement('option');
+    opt.value = a.id;
+    opt.textContent = a.name;
+    sel.appendChild(opt);
+  });
+  sel.value = cur;
+}
+
+// Picking a registered asset replaces the free-text item; one-offs type it in
+function updateMaintFields() {
+  var linked = !!document.getElementById('ma-assetId').value;
+  document.getElementById('ma-itemGroup').style.display = linked ? 'none' : '';
+  if (linked) document.getElementById('ma-item').value = '';
+}
+
+function assetNameById(id) {
+  for (var i = 0; i < logAssets.length; i++) {
+    if (logAssets[i].id === id) return logAssets[i].name;
+  }
+  return '';
+}
+
 function buckNameById(id) {
   for (var i = 0; i < logBucks.length; i++) {
     if (logBucks[i].id === id) return logBucks[i].name;
@@ -1993,7 +2047,7 @@ function getTypeFields(type) {
     'Census':    ['ce-surveyType','ce-species','ce-routeId','ce-total','ce-conditions','ce-notes'],
     'Predator Control': ['pc-species','pc-method','pc-count','pc-notes'],
     'Rainfall':  ['rf-inches','rf-gauge','rf-notes'],
-    'Maintenance': ['ma-item','ma-action','ma-notes'],
+    'Maintenance': ['ma-item','ma-action','ma-assetId','ma-notes'],
     'Purchase':  ['pu-item','pu-category','pu-vendor','pu-qty','pu-cost','pu-practice','pu-notes']
   };
   return map[type] || [];
@@ -2250,7 +2304,7 @@ function entryTitle(e) {
   if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
   if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
   if (e.type === 'Rainfall') return (e['rf-inches'] ? e['rf-inches'] + ' in of rain' : 'Rainfall') + (e['rf-gauge'] ? ' — ' + e['rf-gauge'] : '');
-  if (e.type === 'Maintenance') return (e['ma-item'] || 'Maintenance');
+  if (e.type === 'Maintenance') return (e['ma-item'] || assetNameById(e['ma-assetId']) || 'Maintenance');
   if (e.type === 'Purchase') {
     var t = e['pu-item'] || 'Purchase';
     if (e['pu-cost']) t += ' — $' + Number(e['pu-cost']).toLocaleString();

@@ -128,6 +128,10 @@ app.get('/bucks', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'bucks.html'));
 });
 
+app.get('/assets', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'assets.html'));
+});
+
 app.get('/map', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'map.html'));
 });

@@ -285,6 +285,8 @@
     if (!d.settings) d.settings = {};
     if (!d.settings.photoQuality) d.settings.photoQuality = 'balanced';
     if (!d.bucks) d.bucks = [];
+    if (!d.assets) d.assets = [];
+    if (!d.reminders) d.reminders = [];
     if (!d.reportsMeta) d.reportsMeta = {};
     d.log.forEach(function(e) {
       if (!e) return;
@@ -578,6 +580,82 @@
       }
     }
 
+    if (pathname === '/api/assets') {
+      if (method === 'GET') return json(data.assets);
+      if (method === 'POST') {
+        var asset = {
+          id: String(Date.now()),
+          name: body.name || 'Unnamed Asset',
+          category: body.category || 'Other',
+          location: body.location || '',
+          loc: body.loc || null,
+          acquired: body.acquired || '',
+          notes: body.notes || '',
+          status: 'Active',
+          createdAt: now
+        };
+        data.assets.push(asset);
+        await saveData(data);
+        return json(asset);
+      }
+    }
+
+    if ((m = pathname.match(/^\/api\/assets\/([^/]+)$/))) {
+      var aid = m[1];
+      if (method === 'PUT') {
+        var asset2 = data.assets.find(function(x) { return x.id === aid; });
+        if (!asset2) return json({ error: 'Asset not found' }, 404);
+        ['name', 'category', 'location', 'loc', 'acquired', 'notes', 'status'].forEach(function(k) {
+          if (body[k] !== undefined) asset2[k] = body[k];
+        });
+        await saveData(data);
+        return json(asset2);
+      }
+      if (method === 'DELETE') {
+        data.assets = data.assets.filter(function(x) { return x.id !== aid; });
+        data.reminders = data.reminders.filter(function(x) { return x.assetId !== aid; });
+        data.log.forEach(function(e) {
+          if (e['ma-assetId'] === aid) e['ma-assetId'] = '';
+        });
+        await saveData(data);
+        return json({ ok: true });
+      }
+    }
+
+    if (pathname === '/api/reminders') {
+      if (method === 'GET') return json(data.reminders);
+      if (method === 'POST') {
+        var rem = {
+          id: String(Date.now()),
+          text: body.text || 'Reminder',
+          date: body.date || '',
+          assetId: body.assetId || '',
+          createdAt: now
+        };
+        data.reminders.push(rem);
+        await saveData(data);
+        return json(rem);
+      }
+    }
+
+    if ((m = pathname.match(/^\/api\/reminders\/([^/]+)$/))) {
+      var remId = m[1];
+      if (method === 'PUT') {
+        var rem2 = data.reminders.find(function(x) { return x.id === remId; });
+        if (!rem2) return json({ error: 'Reminder not found' }, 404);
+        ['text', 'date', 'assetId'].forEach(function(k) {
+          if (body[k] !== undefined) rem2[k] = body[k];
+        });
+        await saveData(data);
+        return json(rem2);
+      }
+      if (method === 'DELETE') {
+        data.reminders = data.reminders.filter(function(x) { return x.id !== remId; });
+        await saveData(data);
+        return json({ ok: true });
+      }
+    }
+
     if (pathname === '/api/settings') {
       if (method === 'GET') return json(data.settings);
       if (method === 'POST') {
@@ -704,6 +782,12 @@
         });
         (inc.bucks || []).forEach(function(b2) {
           if (!data.bucks.some(function(x) { return x.id === b2.id; })) data.bucks.push(b2);
+        });
+        (inc.assets || []).forEach(function(a2) {
+          if (!data.assets.some(function(x) { return x.id === a2.id; })) data.assets.push(a2);
+        });
+        (inc.reminders || []).forEach(function(r3) {
+          if (!data.reminders.some(function(x) { return x.id === r3.id; })) data.reminders.push(r3);
         });
         await saveData(data);
         await writeFilesUnder('/photos/', files.photos, true);
