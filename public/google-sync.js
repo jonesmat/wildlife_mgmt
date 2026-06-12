@@ -784,10 +784,12 @@
     _conflictDialog: showConflictDialog,
     _diffArchives: diffArchives,
     _mergeArchives: mergeArchives,
-    autoEnabled: function() { return localStorage.getItem('gsync-auto') === '1'; },
+    // Defaults to on: when sync is first set up, auto-sync is enabled until
+    // the user unchecks it ('0'). Disconnect clears the stored choice, so a
+    // later re-setup starts at the default again.
+    autoEnabled: function() { return localStorage.getItem('gsync-auto') !== '0'; },
     setAuto: function(on) {
-      if (on) localStorage.setItem('gsync-auto', '1');
-      else localStorage.removeItem('gsync-auto');
+      localStorage.setItem('gsync-auto', on ? '1' : '0');
     }
   };
 
