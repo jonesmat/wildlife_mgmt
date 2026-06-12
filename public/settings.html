@@ -61,6 +61,7 @@
     <div class="sidebar-item" id="nav-routes" onclick="showPane('routes')">Routes</div>
     <div class="sidebar-item" id="nav-photos" onclick="showPane('photos')">Photos</div>
     <div class="sidebar-item" id="nav-calendar" onclick="showPane('calendar')">Calendar</div>
+    <div class="sidebar-item" id="nav-rainfall" onclick="showPane('rainfall')">Rainfall</div>
     <div class="sidebar-item" id="nav-prefs" onclick="showPane('prefs')">Preferences</div>
     <div class="sidebar-item" id="nav-data" onclick="showPane('data')">Data Management</div>
     <div class="sidebar-item" id="nav-appinfo" onclick="showPane('appinfo')">App Info</div>
@@ -455,6 +456,91 @@ Deliver a single file named `tpwd_wildlife_management_calendar.json` containing 
       </div>
     </div>
 
+    <!-- Rainfall pane -->
+    <div class="section" id="rainfall" style="display:none">
+      <div class="section-title">Rainfall</div>
+
+      <div class="sub-section">
+        <div class="section-subtitle">Historical Rainfall Data</div>
+        <div class="hint-block">
+          Log rain-gauge readings as <strong>Rainfall</strong> entries in the Activity Log; the
+          Census Trends page totals them by month and year. Importing regional history here fills
+          in the years before you started logging, so your gauge readings have context — your own
+          readings always take priority for any month you logged.
+        </div>
+
+        <div id="rainStatus" style="margin-top:12px;background:#f5f8f5;border:1px solid #ccc;border-radius:6px;padding:12px 14px;font-size:0.88rem;line-height:1.7">
+          Loading...
+        </div>
+
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="document.getElementById('rainFileInput').click()">Import Rainfall JSON</button>
+          <input type="file" id="rainFileInput" accept=".json,application/json" style="display:none" onchange="rainFilePicked(this)">
+          <button class="btn btn-secondary" id="rainRemoveBtn" style="display:none;color:#8b1a1a" onclick="removeRainfall()">Remove Imported History</button>
+          <span id="rainImportStatus" style="font-size:0.85rem;color:#777;align-self:center"></span>
+        </div>
+      </div>
+
+      <div class="sub-section" style="margin-top:26px">
+        <div class="section-subtitle">AI Instructions — Generate Historical Rainfall</div>
+        <div class="hint-block">
+          Copy these instructions into an AI assistant that has web access (so it can pull real
+          station records for your area). It will produce a <code>rainfall_history.json</code>
+          file you can import above.
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+          <button class="btn btn-secondary" onclick="copyRainfallAI()">Copy Instructions</button>
+          <span id="rainCopyStatus" style="font-size:0.85rem;color:#1a6a1a"></span>
+        </div>
+        <details style="margin-top:12px">
+          <summary style="cursor:pointer;font-size:0.88rem;color:#1a4a1a;font-weight:600">View instructions</summary>
+          <pre id="rainAIText" style="margin-top:10px;background:#fafafa;border:1px solid #ddd;border-radius:6px;padding:14px;font-size:0.74rem;line-height:1.5;white-space:pre-wrap;max-height:60vh;overflow:auto"># AI Generation Instructions: Historical Rainfall JSON
+
+## Purpose
+
+You (the AI) are generating a JSON data file of historical monthly rainfall for a specific location. The file is imported into a ranch wildlife-management app, which charts it next to the owner's own rain-gauge readings and wildlife census trends. The schema below is fixed — never change field names or the format string.
+
+## Step 1 — Ask for the location
+
+If the user has not already told you, ask where the property is: the nearest town and county, plus the state (e.g., "near Llano, Llano County, Texas"). Do not proceed without a location.
+
+## Step 2 — Research (mandatory, do not rely on memory)
+
+You MUST pull monthly precipitation totals from real station records via web search/fetch — never output remembered or "typical" values.
+
+Preferred sources, in order:
+1. NOAA NCEI climate data (ncei.noaa.gov) — monthly summaries for the nearest long-term station
+2. NWS climate pages (weather.gov) for the covering forecast office
+3. The state climatologist's office (for Texas: climatexas.tamu.edu)
+4. USDA / Texas A&amp;M AgriLife records for the county
+
+Coverage: the most recent 10 full calendar years, plus any completed months of the current year. Pick the station nearest the property with a complete record; name it in "region". If a month is missing from the station record, omit that month entirely — never interpolate or guess.
+
+## Step 3 — Output
+
+Produce ONE file named rainfall_history.json and nothing else (no commentary inside the file). Exact schema:
+
+{
+  "format": "wildlife-rainfall-history",
+  "region": "Llano County, TX — Llano municipal airport station",
+  "source": "NOAA NCEI monthly summaries, station USW00003999",
+  "generated": "YYYY-MM-DD",
+  "monthly": [
+    { "year": 2016, "month": 1, "inches": 1.42 },
+    { "year": 2016, "month": 2, "inches": 0.88 }
+  ]
+}
+
+Rules:
+- "format" must be exactly "wildlife-rainfall-history" — the app rejects anything else.
+- "year" and "month" (1–12) and "inches" are JSON numbers, never strings; inches uses up to two decimals; a dry month is 0, not omitted (omit only months genuinely missing from the record).
+- One object per month, sorted by year then month, no duplicate year+month pairs.
+- "generated" is today's date.
+- Every value must come from the researched record — if you could not verify a period, leave it out and say so in "source".</pre>
+        </details>
+      </div>
+    </div>
+
     <!-- Preferences pane -->
     <div class="section" id="prefs" style="display:none">
       <div class="section-title">Preferences</div>
@@ -751,7 +837,7 @@ function escHtml(s) {
 }
 
 // ── Pane switching ──
-var PANES = ['property', 'routes', 'photos', 'calendar', 'prefs', 'data', 'appinfo'];
+var PANES = ['property', 'routes', 'photos', 'calendar', 'rainfall', 'prefs', 'data', 'appinfo'];
 
 function showPane(p) {
   PANES.forEach(function(id) {
@@ -933,6 +1019,73 @@ function copyAIInstructions() {
   var text = document.getElementById('aiInstructionsText').textContent;
   navigator.clipboard.writeText(text).then(function() {
     var s = document.getElementById('copyStatus');
+    s.textContent = 'Copied! Paste into an AI assistant with web access.';
+    setTimeout(function() { s.textContent = ''; }, 4000);
+  });
+}
+
+// ── Rainfall history pane ──
+async function loadRainfallPane() {
+  var rh = null;
+  try { rh = await (await fetch('/api/rainfall')).json(); } catch (e) { /* show default state */ }
+  var el = document.getElementById('rainStatus');
+  var removeBtn = document.getElementById('rainRemoveBtn');
+  if (rh && rh.monthly) {
+    var years = {};
+    rh.monthly.forEach(function(m) { years[m.year] = 1; });
+    var yearList = Object.keys(years).sort();
+    el.innerHTML =
+      '<strong>' + escHtml(rh.region || 'Imported rainfall history') + '</strong><br>' +
+      rh.monthly.length + ' station-months &middot; ' +
+      (yearList.length ? yearList[0] + '–' + yearList[yearList.length - 1] : '') +
+      (rh.source ? '<div style="font-size:0.78rem;color:#888;margin-top:6px">' + escHtml(rh.source) + '</div>' : '');
+    removeBtn.style.display = '';
+  } else {
+    el.innerHTML = 'No rainfall history imported — the Census Trends page will chart only your own rain-gauge entries.';
+    removeBtn.style.display = 'none';
+  }
+}
+
+function rainFilePicked(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var status = document.getElementById('rainImportStatus');
+  status.textContent = 'Reading file...';
+  var reader = new FileReader();
+  reader.onload = async function() {
+    input.value = '';
+    var rh;
+    try { rh = JSON.parse(reader.result); }
+    catch (e) { status.textContent = ''; appDialog('That file is not valid JSON.'); return; }
+    try {
+      var resp = await fetch('/api/rainfall', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rh)
+      });
+      var result = await resp.json();
+      if (!resp.ok) throw new Error(result.error || ('HTTP ' + resp.status));
+      status.textContent = '';
+      await appDialog('Rainfall history for ' + (rh.region || 'your region') + ' imported. It now appears on the Census Trends page.', 'Rainfall imported');
+      loadRainfallPane();
+    } catch (err) {
+      status.textContent = '';
+      appDialog('Import failed: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function removeRainfall() {
+  if (!(await appConfirm('Your own rain-gauge entries are kept — only the imported regional history is removed.', 'Remove imported rainfall history?', 'Remove'))) return;
+  await fetch('/api/rainfall', { method: 'DELETE' });
+  loadRainfallPane();
+}
+
+function copyRainfallAI() {
+  var text = document.getElementById('rainAIText').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    var s = document.getElementById('rainCopyStatus');
     s.textContent = 'Copied! Paste into an AI assistant with web access.';
     setTimeout(function() { s.textContent = ''; }, 4000);
   });
@@ -1313,6 +1466,7 @@ document.getElementById('appVersion').textContent = window.APP_VERSION || 'dev';
 document.getElementById('darkModeToggle').checked = appTheme.isDark();
 loadPhotoSetting();
 loadCalendarPane();
+loadRainfallPane();
 load().then(loadRoutes).then(function() {
   if (createRouteReturn) {
     showPane('routes');
