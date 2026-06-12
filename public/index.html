@@ -324,8 +324,6 @@
     'Census': 'Census', 'Supplemental Water': 'Water', 'Supplemental Food': 'Food',
     'Supplemental Shelter': 'Shelter'
   };
-  // Practice event types that carry acres treated (formerly the "Activity" type).
-  var ACRE_PRACTICE_TYPES = ['Habitat Control','Erosion Control','Supplemental Water','Supplemental Food','Supplemental Shelter'];
 
   function renderPracticeRing(entries) {
     var year = String(new Date().getFullYear());
@@ -386,7 +384,11 @@
     entries.forEach(function(e) {
       if (!e.datetime || !e.datetime.startsWith(year)) return;
       photos += (e.photos || []).length;
-      if (ACRE_PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') { activities++; acres += parseFloat(e['ac-acres']) || 0; }
+      if (window.PRACTICE_FIELDS[e.type] || e.type === 'Activity') {
+        activities++;
+        var af = window.PRACTICE_ACRES_FIELD[e.type];
+        acres += parseFloat(af ? e[af] : e['ac-acres']) || 0;
+      }
       if (e.type === 'Predator Control') predators += parseInt(e['pc-count'], 10) || 1;
       if (e.type === 'Census') census++;
       if (e.type === 'Sighting') sightings++;

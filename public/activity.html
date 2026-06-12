@@ -510,14 +510,10 @@
       </div>
 
       <!-- Activity -->
-      <div id="fields-Practice" style="display:none">
-        <div class="entry-tip" id="practiceTip"></div>
-        <div class="form-row">
-          <div class="form-group"><label>Activity / Practice Name</label><input type="text" id="ac-name" placeholder="Prescribed Burning"></div>
-          <div class="form-group"><label>Acres Treated</label><input type="number" id="ac-acres"></div>
-        </div>
-        <div class="form-group"><label>Description &amp; Notes</label><textarea id="ac-notes" rows="3"></textarea></div>
-      </div>
+      <!-- Each practice type (Habitat/Erosion/Supplemental Water/Food/Shelter)
+           has its own fields; switchType() renders the right one here from
+           window.PRACTICE_FIELDS (defined once in store.js). -->
+      <div id="fields-Practice" style="display:none"></div>
 
       <!-- Census -->
       <div id="fields-Census" style="display:none">
@@ -1040,7 +1036,9 @@ function renderDetail(e) {
     rows += twoCol('Sex/Age', e['si-sexAge'], 'Method', e['si-method']);
     rows += twoCol('Location', e['si-location'], '', '');
     rows += labelVal('Notes', e['si-notes']);
-  } else if (PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') {
+  } else if (window.PRACTICE_FIELDS[e.type]) {
+    window.practiceSummaryPairs(e).forEach(function(p) { rows += labelVal(p[0], p[1]); });
+  } else if (e.type === 'Activity') { // legacy un-migrated
     rows += twoCol('Practice', e['ac-name'] || e['ac-category'], 'Acres', e['ac-acres']);
     rows += labelVal('Notes', e['ac-notes']);
   } else if (e.type === 'Census') {
@@ -1498,19 +1496,9 @@ var QUAL_PRACTICES = {
   'Supplemental Water': 1, 'Supplemental Food': 1, 'Supplemental Shelter': 1
 };
 
-// The five qualifying practices that don't have richer dedicated forms.
-// They share the "Practice" form (ac-name / ac-acres / ac-notes).
-var PRACTICE_TYPES = ['Habitat Control','Erosion Control','Supplemental Water','Supplemental Food','Supplemental Shelter'];
-
-// Practical, practice-specific advice shown above the shared Practice form.
-var TIP = '💡 <strong>Tip:</strong> ';
-var PRACTICE_TIPS = {
-  'Habitat Control': TIP + 'Habitat is the foundation — <strong>no amount of feed makes up for worn-out range</strong>. Keep brush in a mosaic (roughly half cover, half open) and treat in strips rather than clearing whole pastures. Time brush work and prescribed burns for late winter so native forbs respond in spring. Record acres treated and take before/after photos.',
-  'Erosion Control': TIP + 'Hit bare ground and active gullies <strong>before they widen</strong> — head-cuts march uphill fast in a Texas downpour. Reseed disturbed soil with native grasses, set small rock checks in draws, and rest healing ground from grazing. Record acres stabilized and photograph the work; appraisers want to see it actually happened.',
-  'Supplemental Water': TIP + 'Space water so animals are <strong>never more than about a mile from a drink</strong> — quail and fawns need it closer. Fit every trough with an escape ramp (rocks or wire) so birds and small game don\'t drown. In drought, check and top off on a set schedule and log each visit — reliable water is what holds wildlife on your place.',
-  'Supplemental Food': TIP + 'Feed <strong>supplements</strong> good habitat, it doesn\'t replace it. Protein (16%+) pays off most April–September for antler growth and fawn survival; keep feeders clean and spread out to limit disease. A cool-season legume/forb food plot often beats bagged feed per dollar. Record what you put out, where, and how much.',
-  'Supplemental Shelter': TIP + 'Build cover where it\'s missing — <strong>half-cut brush, brush piles, and left-standing fencerows</strong> give escape and thermal cover plus nesting sites. For quail, aim for scattered shrub clumps a covey can reach in a quick dash. Nest boxes only help where natural cavities are scarce. Note acres or the number of structures.'
-};
+// PRACTICE_TYPES, PRACTICE_FIELDS, PRACTICE_ACRES_FIELD and the practice
+// form/summary/title helpers live in store.js (window.*) so every page shares
+// one definition.
 
 function practicesCovered(list) {
   var covered = {};
@@ -1524,7 +1512,10 @@ function practicesCovered(list) {
 
 function sumAcres(list) {
   var t = 0;
-  list.forEach(function(e) { if (PRACTICE_TYPES.indexOf(e.type) !== -1) t += parseFloat(e['ac-acres']) || 0; });
+  list.forEach(function(e) {
+    var f = window.PRACTICE_ACRES_FIELD[e.type];
+    if (f) t += parseFloat(e[f]) || 0;
+  });
   return t;
 }
 
@@ -1556,7 +1547,8 @@ function checkMilestones(prev, entry) {
     if (nh === 1) msgs.push('🎯 First harvest of the ' + y + ' season!');
   }
   var acresPrev = sumAcres(prev);
-  var acresNow = acresPrev + (PRACTICE_TYPES.indexOf(entry.type) !== -1 ? (parseFloat(entry['ac-acres']) || 0) : 0);
+  var acresField = window.PRACTICE_ACRES_FIELD[entry.type];
+  var acresNow = acresPrev + (acresField ? (parseFloat(entry[acresField]) || 0) : 0);
   ACRE_MILESTONES.forEach(function(t) {
     if (acresPrev < t && acresNow >= t) msgs.push('🌳 Over ' + t.toLocaleString() + ' acres of habitat treated all-time!');
   });
@@ -1892,14 +1884,14 @@ function resolveSpeciesFields(entry, type) {
 function switchType() {
   var t = document.getElementById('fType').value;
   // The five supplemental/habitat/erosion practice types share one form
-  var shown = (PRACTICE_TYPES.indexOf(t) !== -1) ? 'Practice' : t;
+  var shown = window.PRACTICE_FIELDS[t] ? 'Practice' : t;
   var divs = ['General','Harvest','Sighting','Practice','Census','Predator Control','Maintenance','Purchase'];
   divs.forEach(function(d) {
     var el = document.getElementById('fields-' + d);
     if (el) el.style.display = (d === shown) ? '' : 'none';
   });
-  // Swap in practical advice for whichever practice type is selected
-  if (shown === 'Practice') document.getElementById('practiceTip').innerHTML = PRACTICE_TIPS[t] || '';
+  // Render the selected practice's own fields into the shared container
+  if (shown === 'Practice') document.getElementById('fields-Practice').innerHTML = window.renderPracticeForm(t);
   // Census uses Route/Stand ID instead of a map location
   document.getElementById('locSection').style.display = (t === 'Census') ? 'none' : '';
   // Moon phase applies to wildlife-activity events
@@ -1907,7 +1899,7 @@ function switchType() {
 }
 
 function getTypeFields(type) {
-  if (PRACTICE_TYPES.indexOf(type) !== -1) return ['ac-name','ac-acres','ac-notes'];
+  if (window.PRACTICE_FIELDS[type]) return window.PRACTICE_FIELDS[type].map(function(f) { return f.id; });
   var map = {
     'Harvest':   ['hv-species','hv-sex','hv-age','hv-weight','hv-tag','hv-hunter','hv-location','hv-method','hv-points','hv-mainBeam','hv-tines','hv-spread','hv-buckId','hv-notes'].concat(BC_FIELDS),
     'Sighting':  ['si-species','si-count','si-sexAge','si-location','si-method','si-buckId','si-notes'],
@@ -2165,7 +2157,8 @@ function entryTitle(e) {
     return title;
   }
   if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + ' ' : '') + (e['si-species'] || 'Sighting');
-  if (PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') return (e['ac-name'] || e['ac-category'] || e.type);
+  if (window.PRACTICE_FIELDS[e.type]) return window.practiceTitle(e);
+  if (e.type === 'Activity') return (e['ac-name'] || e['ac-category'] || e.type); // legacy
   if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
   if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
   if (e.type === 'Maintenance') return (e['ma-item'] || 'Maintenance');

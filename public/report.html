@@ -394,9 +394,6 @@ function setupAutoSave() {
 
 var ALL_LOG_ENTRIES = [];
 
-// Promoted qualifying-practice event types that share the ac-name/acres/notes shape.
-var PRACTICE_TYPES = ['Habitat Control','Erosion Control','Supplemental Water','Supplemental Food','Supplemental Shelter'];
-
 var TYPE_COLORS = {
   'General':'#1a4a1a', 'Harvest':'#8b1a1a', 'Sighting':'#1a398b',
   'Habitat Control':'#2e7d32', 'Erosion Control':'#6d4c1a', 'Predator Control':'#8b1a6a',
@@ -568,7 +565,8 @@ function entryTitle(e) {
     return title;
   }
   if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + '× ' : '') + (e['si-species'] || 'Sighting');
-  if (PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') return e['ac-name'] || e['ac-category'] || e.type;
+  if (window.PRACTICE_FIELDS[e.type]) return window.practiceTitle(e);
+  if (e.type === 'Activity') return e['ac-name'] || e['ac-category'] || e.type; // legacy
   if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
   if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
   if (e.type === 'Maintenance') return e['ma-item'] || 'Maintenance';
@@ -602,8 +600,10 @@ function entryDetailLines(e) {
     if (e['si-sexAge']) pairs.push(['Detail', e['si-sexAge']]);
     if (e['si-location']) pairs.push(['Location', e['si-location']]);
     if (e['si-notes']) pairs.push(['Notes', e['si-notes']]);
-  } else if (PRACTICE_TYPES.indexOf(e.type) !== -1 || e.type === 'Activity') {
-    if (e.type === 'Activity' && e['ac-category']) pairs.push(['Category', e['ac-category']]);
+  } else if (window.PRACTICE_FIELDS[e.type]) {
+    window.practiceSummaryPairs(e).forEach(function(p) { pairs.push(p); });
+  } else if (e.type === 'Activity') { // legacy
+    if (e['ac-category']) pairs.push(['Category', e['ac-category']]);
     if (e['ac-acres']) pairs.push(['Acres', e['ac-acres']]);
     if (e['ac-notes']) pairs.push(['Notes', e['ac-notes']]);
   } else if (e.type === 'Census') {
