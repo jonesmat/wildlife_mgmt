@@ -33,6 +33,25 @@
 .buck-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 .buck-actions select { padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.8rem; }
 
+/* Year-over-year comparison strip: one photo per season, side by side */
+.yoy-strip {
+  display: flex; gap: 10px; overflow-x: auto; margin-top: 14px;
+  border-top: 1px solid #eee; padding-top: 12px;
+}
+.yoy-card {
+  flex-shrink: 0; width: 132px; border: 1px solid #ddd; border-radius: 8px;
+  overflow: hidden; background: #fafcf9;
+}
+.yoy-card img { width: 100%; height: 110px; object-fit: cover; display: block; cursor: pointer; }
+.yoy-cap { padding: 6px 8px; }
+.yoy-year { font-size: 0.86rem; font-weight: 700; color: #1a4a1a; }
+.yoy-age { font-size: 0.72rem; color: #8b5a1a; font-weight: 600; }
+.yoy-line { font-size: 0.7rem; color: #777; margin-top: 2px; line-height: 1.35; }
+.yoy-label {
+  font-size: 0.74rem; font-weight: 700; color: #777; text-transform: uppercase;
+  letter-spacing: 0.04em; margin: 12px 0 0;
+}
+
 .buck-timeline { margin-top: 14px; border-top: 1px solid #eee; padding-top: 10px; }
 .bt-item {
   display: flex; align-items: center; gap: 10px; padding: 6px 0;
@@ -127,6 +146,71 @@ function buckEntries(buckId) {
   }).sort(function(a, b) { return (a.datetime || '') < (b.datetime || '') ? -1 : 1; });
 }
 
+// Whitetails drop in early summer, so a buck born in year B is (Y - B) + ½
+// in the fall of year Y — the age everyone means when they say "a 4½-year-old"
+function ageInFall(birthYear, year) {
+  var b = parseInt(birthYear, 10), y = parseInt(year, 10);
+  if (!(b > 1900) || !(y >= b)) return null;
+  return (y - b) + 0.5;
+}
+
+function ageLabel(a) {
+  return a === 0.5 ? 'fawn' : (a - 0.5) + '½';
+}
+
+function fmtEighths(v) {
+  var whole = Math.floor(v + 1e-9);
+  var eighths = Math.round((v - whole) * 8);
+  if (eighths === 8) { whole += 1; eighths = 0; }
+  return eighths ? whole + ' ' + eighths + '/8' : String(whole);
+}
+
+// One card per season: the year's best photo (the harvest's if there is one,
+// else the latest sighting photo) plus a one-line summary of that season
+function yoyStrip(b, linked) {
+  var byYear = {};
+  linked.forEach(function(e) {
+    var y = (e.datetime || '').slice(0, 4);
+    if (!y) return;
+    var g = byYear[y] = byYear[y] || { sightings: 0, harvest: null, photo: null };
+    if (e.type === 'Sighting') g.sightings++;
+    if (e.type === 'Harvest') g.harvest = e;
+    if (e.photos && e.photos.length && (e.type === 'Harvest' || !g.photoFromHarvest)) {
+      g.photo = sanFn(e.photos[0]);
+      g.photoFromHarvest = e.type === 'Harvest';
+    }
+  });
+  var years = Object.keys(byYear).sort();
+  if (years.length < 2 && !(years.length === 1 && byYear[years[0]].photo)) return '';
+
+  var cards = years.map(function(y) {
+    var g = byYear[y];
+    var a = ageInFall(b.birthYear, y);
+    var img = g.photo
+      ? '<img src="/photos/thumb-' + g.photo + '" onerror="this.onerror=null;this.src=\'/photos/' + g.photo + '\'"' +
+        ' onclick="window.open(\'/photos/' + g.photo + '\', \'_blank\')" alt="" title="Open full size">'
+      : '<div style="height:110px;display:flex;align-items:center;justify-content:center;font-size:1.8rem;background:#f0f4ee">🦌</div>';
+    var line;
+    if (g.harvest) {
+      line = '🎯 Harvested' +
+        (g.harvest['hv-points'] ? ', ' + g.harvest['hv-points'] + '-pt' : '') +
+        (parseFloat(g.harvest['hv-bc-net']) > 0 ? ', ' + fmtEighths(parseFloat(g.harvest['hv-bc-net'])) + ' B&amp;C' : '');
+    } else {
+      line = '👀 ' + g.sightings + ' sighting' + (g.sightings === 1 ? '' : 's');
+    }
+    return '<div class="yoy-card">' + img +
+      '<div class="yoy-cap">' +
+        '<span class="yoy-year">' + y + '</span>' +
+        (a !== null ? ' <span class="yoy-age">' + ageLabel(a) + '</span>' : '') +
+        '<div class="yoy-line">' + line + '</div>' +
+      '</div></div>';
+  }).join('');
+
+  return '<div class="yoy-label">Season by season' +
+    (!b.birthYear ? ' <span style="font-weight:400;text-transform:none;letter-spacing:0">— set an est. birth year (Edit) to see his age each fall</span>' : '') +
+    '</div><div class="yoy-strip">' + cards + '</div>';
+}
+
 function entryLine(e) {
   if (e.type === 'Harvest') {
     var t = 'Harvested';
@@ -176,6 +260,15 @@ function render() {
       span = (first === last) ? first : first + '–' + last;
     }
     var stats = linked.length + ' encounter' + (linked.length === 1 ? '' : 's') + (span ? ' · ' + span : '');
+    if (b.birthYear) {
+      var harvestEntry = null;
+      linked.forEach(function(e) { if (e.type === 'Harvest') harvestEntry = e; });
+      var refYear = harvestEntry ? (harvestEntry.datetime || '').slice(0, 4) : String(new Date().getFullYear());
+      var age = ageInFall(b.birthYear, refYear);
+      if (age !== null) {
+        stats += ' · ' + (harvestEntry ? ageLabel(age) + ' at harvest' : '≈ ' + ageLabel(age) + ' this fall');
+      }
+    }
 
     var timeline = linked.map(function(e) {
       var ph0 = (e.photos && e.photos.length) ? sanFn(e.photos[0]) : '';
@@ -218,8 +311,10 @@ function render() {
       '<div class="buck-edit" id="edit-' + bid + '">' +
         '<div class="form-group" style="flex:1;min-width:160px"><label>Name</label><input type="text" id="editName-' + bid + '" value="' + escAttr(b.name) + '"></div>' +
         '<div class="form-group" style="flex:2;min-width:200px"><label>Notes</label><input type="text" id="editNotes-' + bid + '" value="' + escAttr(b.notes) + '"></div>' +
+        '<div class="form-group" style="min-width:120px"><label>Est. birth year</label><input type="number" id="editBirthYear-' + bid + '" min="1990" max="2100" placeholder="e.g. 2021" value="' + escAttr(b.birthYear) + '"></div>' +
         '<button class="btn btn-primary" style="font-size:0.82rem;padding:7px 14px" onclick="saveEdit(\'' + bid + '\')">Save</button>' +
       '</div>' +
+      yoyStrip(b, linked) +
       '<div class="buck-timeline">' + timeline + '</div>' +
     '</div>';
   }).join('');
@@ -276,7 +371,8 @@ async function saveEdit(id) {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       name: document.getElementById('editName-' + id).value.trim() || 'Unnamed Buck',
-      notes: document.getElementById('editNotes-' + id).value.trim()
+      notes: document.getElementById('editNotes-' + id).value.trim(),
+      birthYear: document.getElementById('editBirthYear-' + id).value.trim()
     })
   });
   load();
