@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ranch Assets</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script src="/theme.js"></script>
+<script src="/store.js"></script>
+<script src="/dialog.js"></script>
+<link rel="stylesheet" href="/form-shared.css">
+<style>
+.asset-card {
+  background: white; border: 1px solid #ddd; border-radius: 10px;
+  padding: 16px 18px; margin-bottom: 14px;
+}
+.asset-card.highlight { box-shadow: 0 0 0 3px rgba(201,162,39,0.6); }
+.asset-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.asset-icon {
+  display: flex; align-items: center; justify-content: center; font-size: 1.7rem;
+  background: #f0f4ee; width: 58px; height: 58px; border-radius: 8px; flex-shrink: 0;
+}
+.asset-name { font-size: 1.08rem; font-weight: 700; color: #1a4a1a; }
+.asset-meta { font-size: 0.82rem; color: #777; margin-top: 3px; }
+.asset-notes { font-size: 0.85rem; color: #555; margin-top: 4px; font-style: italic; }
+.asset-badge {
+  font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 10px;
+  text-transform: uppercase; letter-spacing: 0.04em; vertical-align: middle; margin-left: 10px;
+}
+.badge-active  { background: #e8f0e8; color: #1a4a1a; }
+.badge-retired { background: #f0f0f0; color: #888; }
+.svc-chip {
+  font-size: 0.74rem; font-weight: 600; padding: 3px 10px; border-radius: 10px;
+  background: #e8f0e8; color: #1a4a1a; white-space: nowrap;
+}
+.svc-chip.stale { background: #fdf5e8; color: #8b5a1a; }
+.svc-chip.overdue { background: #fdf0ef; color: #8b1a1a; }
+.svc-chip.none { background: #f0f0f0; color: #888; }
+.asset-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.asset-actions select { padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.8rem; }
+
+.asset-history { margin-top: 12px; border-top: 1px solid #eee; padding-top: 9px; }
+.ah-item {
+  display: flex; align-items: center; gap: 10px; padding: 5px 0;
+  font-size: 0.85rem; border-bottom: 1px dashed #f0f0f0;
+}
+.ah-item:last-child { border-bottom: none; }
+.ah-date { color: #777; width: 92px; flex-shrink: 0; font-size: 0.8rem; }
+.ah-title { flex: 1; }
+.ah-link { font-size: 0.78rem; color: #1a4a1a; text-decoration: none; }
+.ah-link:hover { text-decoration: underline; }
+
+.asset-edit { display: none; margin-top: 12px; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.asset-edit .form-group { margin-bottom: 0; }
+.new-asset-box {
+  background: white; border: 2px solid #1a4a1a; border-radius: 10px;
+  padding: 16px 18px; margin-bottom: 18px; display: none;
+}
+.cat-filter { display: flex; gap: 6px; flex-wrap: wrap; margin: 16px 0 4px; }
+.cat-chip {
+  font-size: 0.76rem; font-weight: 600; padding: 4px 12px; border-radius: 12px;
+  background: white; color: #555; border: 1px solid #ddd; cursor: pointer;
+}
+.cat-chip.on { background: #1a4a1a; color: white; border-color: #1a4a1a; }
+
+/* Map-pin picker modal */
+.pin-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  z-index: 100; align-items: center; justify-content: center;
+}
+.pin-overlay.open { display: flex; }
+.pin-modal {
+  background: white; border-radius: 10px; padding: 18px; width: 720px;
+  max-width: calc(100vw - 36px); max-height: calc(100vh - 60px);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.pin-map-wrap { position: relative; overflow: auto; border: 1px solid #ddd; border-radius: 6px; }
+.pin-map-wrap img { width: 100%; display: block; cursor: crosshair; }
+.pin-mark {
+  position: absolute; transform: translate(-50%, -100%); font-size: 1.5rem;
+  pointer-events: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
+}
+</style>
+<script src="/google-sync.js"></script>
+<link rel="stylesheet" href="/mobile.css">
+</head>
+<body>
+<header>
+  <h1>🔧 Ranch Assets</h1>
+  <div class="header-actions">
+    <a href="/map" class="btn btn-white">Property Map</a>
+    <a href="/activity" class="btn btn-white">Activity Log</a>
+    <a href="/" class="btn btn-white">Home</a>
+  </div>
+</header>
+
+<div class="layout">
+  <main class="main" style="max-width:860px">
+    <div class="hint-block" style="margin-bottom:16px">
+      One card per feeder, trough, blind, camera, and machine on the place. Link Maintenance
+      entries to an asset in the Activity Log and its service history collects here — so before
+      a trip out you can see at a glance what's gone longest without attention.
+    </div>
+
+    <!-- Reminders: generic "remind me to X on date Y", optionally tied to an asset.
+         They surface on the home-page Season Calendar with a Complete action. -->
+    <div class="asset-card" id="remindersCard">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="font-weight:700;color:#1a4a1a">⏰ Reminders</div>
+        <span style="font-size:0.78rem;color:#888">show up on the home-page calendar when due</span>
+        <button class="btn btn-secondary" style="margin-left:auto;font-size:0.78rem;padding:5px 12px" onclick="showNewReminder('')">+ New Reminder</button>
+      </div>
+      <div id="newReminderBox" style="display:none;margin-top:12px;border-top:1px solid #eee;padding-top:12px">
+        <div class="form-row" style="display:flex;gap:12px;flex-wrap:wrap">
+          <div class="form-group" style="flex:2;min-width:200px"><label>Remind me to...</label><input type="text" id="remText" placeholder="e.g. Grease the feeder motor"></div>
+          <div class="form-group" style="min-width:150px"><label>On</label><input type="date" id="remDate"></div>
+          <div class="form-group" style="min-width:170px"><label>Asset (optional)</label><select id="remAssetId"><option value="">-- None --</option></select></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn btn-secondary" onclick="hideNewReminder()">Cancel</button>
+          <button class="btn btn-primary" onclick="createReminder()">Add Reminder</button>
+        </div>
+      </div>
+      <div id="remindersList" style="margin-top:10px"></div>
+    </div>
+
+    <button class="btn btn-primary" id="newAssetBtn" onclick="showNewAsset()">+ New Asset</button>
+
+    <div class="new-asset-box" id="newAssetBox">
+      <div class="form-row" style="display:flex;gap:12px;flex-wrap:wrap">
+        <div class="form-group" style="flex:1;min-width:170px"><label>Name</label><input type="text" id="newName" placeholder="e.g. North protein feeder"></div>
+        <div class="form-group" style="min-width:170px"><label>Category</label><select id="newCategory"></select></div>
+        <div class="form-group" style="flex:1;min-width:170px"><label>Location (text)</label><input type="text" id="newLocation" placeholder="e.g. NE pasture, by the tank"></div>
+      </div>
+      <div class="form-row" style="display:flex;gap:12px;flex-wrap:wrap">
+        <div class="form-group" style="min-width:150px"><label>Acquired / Installed</label><input type="date" id="newAcquired"></div>
+        <div class="form-group" style="flex:1;min-width:220px"><label>Notes</label><input type="text" id="newNotes" placeholder="Capacity, serial number, quirks..."></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+        <button class="btn btn-secondary" onclick="hideNewAsset()">Cancel</button>
+        <button class="btn btn-primary" onclick="createAsset()">Add Asset</button>
+      </div>
+    </div>
+
+    <div class="cat-filter" id="catFilter"></div>
+
+    <div id="assetsList" style="margin-top:14px">
+      <div style="color:#999;font-size:0.9rem">Loading...</div>
+    </div>
+  </main>
+</div>
+
+<!-- Map-pin picker -->
+<div class="pin-overlay" id="pinOverlay">
+  <div class="pin-modal">
+    <div style="font-weight:700;color:#1a4a1a">📍 Click the asset's spot on the map</div>
+    <div class="pin-map-wrap">
+      <img id="pinMapImg" alt="Property map" onclick="pinMapClick(event)">
+      <div class="pin-mark" id="pinMark" style="display:none">📍</div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="clearPin()">Remove Pin</button>
+      <button class="btn btn-secondary" onclick="closePinPicker()">Cancel</button>
+      <button class="btn btn-primary" id="pinSaveBtn" disabled onclick="savePin()">Save Pin</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var assets = [], entries = [], reminders = [], propImages = [], currentPropId = null;
+
+// Category → icon. Grouped: infrastructure that lives at a spot on the map,
+// then mobile equipment (no fixed location, but the same service history).
+var INFRA_CATEGORIES = {
+  'Feeder': '🌽', 'Water Trough / Guzzler': '💧', 'Blind / Stand': '🪜',
+  'Game Camera': '📷', 'Nest Box': '🐦', 'Well / Windmill': '🌀',
+  'Pond / Tank': '🏞️', 'Gate / Fence': '🚧', 'Other Structure': '🏠'
+};
+var EQUIP_CATEGORIES = {
+  'UTV / ATV': '🛻', 'Tractor': '🚜', 'Shredder / Mower': '🌾', 'Plow / Disk': '⚙️',
+  'Sprayer': '🧴', 'Trailer': '🚚', 'Chainsaw': '🪚', 'Generator / Pump': '🔌',
+  'Other Equipment': '🔧'
+};
+
+function catIcon(c) { return INFRA_CATEGORIES[c] || EQUIP_CATEGORIES[c] || '🔧'; }
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escAttr(s) {
+  if (!s) return '';
+  return String(s).replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function fmtDate(s) {
+  if (!s) return '';
+  try {
+    return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch (e) { return s; }
+}
+
+function categoryOptions(selected) {
+  function opts(map) {
+    return Object.keys(map).map(function(c) {
+      return '<option' + (c === selected ? ' selected' : '') + '>' + c + '</option>';
+    }).join('');
+  }
+  return '<optgroup label="Infrastructure">' + opts(INFRA_CATEGORIES) + '</optgroup>' +
+    '<optgroup label="Equipment">' + opts(EQUIP_CATEGORIES) + '</optgroup>';
+}
+
+async function load() {
+  try {
+    assets = await (await fetch('/api/assets')).json();
+    entries = await (await fetch('/api/log')).json();
+    reminders = await (await fetch('/api/reminders')).json();
+    var pi = await (await fetch('/api/property-images')).json();
+    propImages = pi.images || [];
+    currentPropId = pi.currentId;
+  } catch (e) { /* leave empty */ }
+  document.getElementById('newCategory').innerHTML = categoryOptions();
+  render();
+  renderReminders();
+  // Deep link from the map: /assets#asset-<id>
+  if (location.hash.indexOf('#asset-') === 0) {
+    var el = document.getElementById('asset-' + sanFn(location.hash.slice(7)));
+    if (el) {
+      el.classList.add('highlight');
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+}
+
+function assetEntries(assetId) {
+  return entries.filter(function(e) { return e['ma-assetId'] === assetId; })
+    .sort(function(a, b) { return (a.datetime || '') < (b.datetime || '') ? 1 : -1; }); // newest first
+}
+
+// Days since the most recent linked maintenance entry, or null
+function daysSinceService(assetId) {
+  var list = assetEntries(assetId);
+  if (!list.length) return null;
+  var last = list[0].datetime;
+  return Math.max(0, Math.floor((Date.now() - new Date(last).getTime()) / 86400000));
+}
+
+function serviceChip(assetId) {
+  var d = daysSinceService(assetId);
+  if (d === null) return '<span class="svc-chip none">no service logged</span>';
+  var cls = d > 365 ? ' overdue' : (d > 90 ? ' stale' : '');
+  var label = d === 0 ? 'serviced today' : 'last service ' + d + ' day' + (d === 1 ? '' : 's') + ' ago';
+  return '<span class="svc-chip' + cls + '">' + label + '</span>';
+}
+
+var activeCat = 'All';
+
+function renderCatFilter() {
+  var cats = {};
+  assets.forEach(function(a) { cats[a.category] = true; });
+  var names = Object.keys(cats).sort();
+  var el = document.getElementById('catFilter');
+  if (names.length < 2) { el.innerHTML = ''; return; }
+  // Category names round-trip through importable backups, so they're built
+  // as data attributes and read back on click — never spliced into JS.
+  el.innerHTML = ['All'].concat(names).map(function(c) {
+    return '<span class="cat-chip' + (c === activeCat ? ' on' : '') + '" data-cat="' + escAttr(c) + '">' +
+      (c === 'All' ? 'All' : catIcon(c) + ' ' + escHtml(c)) + '</span>';
+  }).join('');
+}
+
+document.getElementById('catFilter').addEventListener('click', function(ev) {
+  var chip = ev.target.closest('[data-cat]');
+  if (!chip) return;
+  activeCat = chip.getAttribute('data-cat');
+  render();
+});
+
+function render() {
+  renderCatFilter();
+  var list = document.getElementById('assetsList');
+  var shown = assets.filter(function(a) { return activeCat === 'All' || a.category === activeCat; });
+  if (!assets.length) {
+    list.innerHTML = '<div style="color:#999;font-style:italic;text-align:center;padding:30px 0">' +
+      'Nothing registered yet. Add your feeders, troughs, blinds, cameras, and equipment above.</div>';
+    return;
+  }
+
+  // Active first; within each status, longest-unserviced first so the card
+  // most in need of attention is on top
+  var sorted = shown.slice().sort(function(a, b) {
+    if ((a.status === 'Retired') !== (b.status === 'Retired')) return a.status === 'Retired' ? 1 : -1;
+    var da = daysSinceService(a.id), db = daysSinceService(b.id);
+    return (db === null ? -1 : db) - (da === null ? -1 : da);
+  });
+
+  list.innerHTML = sorted.map(function(a) {
+    var aid = sanFn(a.id);
+    var linked = assetEntries(a.id);
+    var retired = a.status === 'Retired';
+
+    var meta = escHtml(a.category) +
+      (a.location ? ' · ' + escHtml(a.location) : '') +
+      (a.loc ? ' · 📍 pinned on map' : '') +
+      (a.acquired ? ' · since ' + fmtDate(a.acquired) : '');
+
+    var history = linked.slice(0, 5).map(function(e) {
+      return '<div class="ah-item">' +
+        '<span class="ah-date">' + fmtDate(e.datetime) + '</span>' +
+        '<span class="ah-title">' + escHtml(e['ma-action'] || e['ma-item'] || 'Maintenance') +
+          (e['ma-notes'] ? ' — ' + escHtml(String(e['ma-notes']).slice(0, 80)) : '') + '</span>' +
+        '<a class="ah-link" href="/activity#entry-' + e.id + '">view</a>' +
+      '</div>';
+    }).join('');
+    if (linked.length > 5) {
+      history += '<div style="font-size:0.76rem;color:#999;padding-top:4px">+ ' + (linked.length - 5) + ' older</div>';
+    }
+    if (!history) {
+      history = '<div style="color:#999;font-size:0.82rem;font-style:italic">No maintenance logged yet — use "Log service" and the entry will show up here.</div>';
+    }
+
+    return '<div class="asset-card" id="asset-' + aid + '">' +
+      '<div class="asset-head">' +
+        '<div class="asset-icon">' + catIcon(a.category) + '</div>' +
+        '<div>' +
+          '<div class="asset-name">' + escHtml(a.name) +
+            '<span class="asset-badge ' + (retired ? 'badge-retired' : 'badge-active') + '">' + (retired ? 'Retired' : 'Active') + '</span></div>' +
+          '<div class="asset-meta">' + meta + '</div>' +
+          (a.notes ? '<div class="asset-notes">' + escHtml(a.notes) + '</div>' : '') +
+        '</div>' +
+        '<div class="asset-actions">' +
+          (retired ? '' : serviceChip(a.id)) +
+          '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px" onclick="showNewReminder(\'' + aid + '\')">⏰ Remind</button>' +
+          '<a class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px;text-decoration:none" href="/activity#maint-' + aid + '">Log service</a>' +
+          '<button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px" onclick="toggleEdit(\'' + aid + '\')">Edit</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="asset-edit" id="edit-' + aid + '">' +
+        '<div class="form-group" style="flex:1;min-width:150px"><label>Name</label><input type="text" id="editName-' + aid + '" value="' + escAttr(a.name) + '"></div>' +
+        '<div class="form-group" style="min-width:160px"><label>Category</label><select id="editCategory-' + aid + '">' + categoryOptions(a.category) + '</select></div>' +
+        '<div class="form-group" style="flex:1;min-width:150px"><label>Location</label><input type="text" id="editLocation-' + aid + '" value="' + escAttr(a.location) + '"></div>' +
+        '<div class="form-group" style="min-width:140px"><label>Acquired</label><input type="date" id="editAcquired-' + aid + '" value="' + escAttr(a.acquired) + '"></div>' +
+        '<div class="form-group" style="flex:2;min-width:180px"><label>Notes</label><input type="text" id="editNotes-' + aid + '" value="' + escAttr(a.notes) + '"></div>' +
+        '<div class="form-group" style="min-width:120px"><label>Status</label><select id="editStatus-' + aid + '">' +
+          '<option' + (retired ? '' : ' selected') + '>Active</option>' +
+          '<option' + (retired ? ' selected' : '') + '>Retired</option>' +
+        '</select></div>' +
+        '<button class="btn btn-secondary" style="font-size:0.82rem;padding:7px 14px" onclick="openPinPicker(\'' + aid + '\')">' + (a.loc ? '📍 Move pin' : '📍 Pin on map') + '</button>' +
+        '<button class="btn btn-primary" style="font-size:0.82rem;padding:7px 14px" onclick="saveEdit(\'' + aid + '\')">Save</button>' +
+        '<button class="btn btn-secondary" style="font-size:0.82rem;padding:7px 14px;color:#8b1a1a" onclick="deleteAsset(\'' + aid + '\')">Delete</button>' +
+      '</div>' +
+      '<div class="asset-history">' + history + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ── Reminders ──
+function assetNameById(id) {
+  for (var i = 0; i < assets.length; i++) if (assets[i].id === id) return assets[i].name;
+  return '';
+}
+
+function daysUntil(dateStr) {
+  var d = new Date(dateStr + 'T00:00');
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((d - today) / 86400000);
+}
+
+function renderReminders() {
+  // Asset dropdown for the add form
+  var sel = document.getElementById('remAssetId');
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">-- None --</option>';
+  assets.forEach(function(a) {
+    if (a.status === 'Retired') return;
+    var opt = document.createElement('option');
+    opt.value = a.id;
+    opt.textContent = a.name;
+    sel.appendChild(opt);
+  });
+  sel.value = cur;
+
+  var list = document.getElementById('remindersList');
+  if (!reminders.length) {
+    list.innerHTML = '<div style="color:#999;font-size:0.82rem;font-style:italic">No reminders set. Try "Refill the protein feeder" before the rut, or "Re-batter the camera" each season.</div>';
+    return;
+  }
+  var sorted = reminders.slice().sort(function(a, b) { return (a.date || '') < (b.date || '') ? -1 : 1; });
+  list.innerHTML = sorted.map(function(r) {
+    var days = r.date ? daysUntil(r.date) : null;
+    var due = '';
+    if (days !== null) {
+      if (days < 0) due = '<span class="svc-chip overdue">overdue</span>';
+      else if (days === 0) due = '<span class="svc-chip stale">today</span>';
+      else if (days <= 30) due = '<span class="svc-chip">in ' + days + ' day' + (days === 1 ? '' : 's') + '</span>';
+    }
+    var asset = assetNameById(r.assetId);
+    return '<div class="ah-item">' +
+      '<span class="ah-date">' + (r.date ? fmtDate(r.date + 'T00:00') : '—') + '</span>' +
+      '<span class="ah-title">' + escHtml(r.text) + (asset ? ' <span style="color:#999">· ' + escHtml(asset) + '</span>' : '') + '</span>' +
+      due +
+      '<button class="btn btn-secondary" style="font-size:0.74rem;padding:3px 10px;color:#8b1a1a" onclick="deleteReminder(\'' + sanFn(r.id) + '\')">✕</button>' +
+    '</div>';
+  }).join('');
+}
+
+function showNewReminder(assetId) {
+  document.getElementById('newReminderBox').style.display = '';
+  if (assetId) document.getElementById('remAssetId').value = assetId;
+  document.getElementById('remindersCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('remText').focus();
+}
+
+function hideNewReminder() {
+  document.getElementById('newReminderBox').style.display = 'none';
+}
+
+async function createReminder() {
+  var text = document.getElementById('remText').value.trim();
+  var date = document.getElementById('remDate').value;
+  if (!text || !date) {
+    appDialog('A reminder needs both a description and a date.');
+    return;
+  }
+  await fetch('/api/reminders', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: text, date: date, assetId: document.getElementById('remAssetId').value })
+  });
+  document.getElementById('remText').value = '';
+  document.getElementById('remDate').value = '';
+  document.getElementById('remAssetId').value = '';
+  hideNewReminder();
+  load();
+}
+
+async function deleteReminder(id) {
+  await fetch('/api/reminders/' + id, { method: 'DELETE' });
+  load();
+}
+
+function showNewAsset() {
+  document.getElementById('newAssetBox').style.display = 'block';
+  document.getElementById('newAssetBtn').style.display = 'none';
+  document.getElementById('newName').focus();
+}
+
+function hideNewAsset() {
+  document.getElementById('newAssetBox').style.display = 'none';
+  document.getElementById('newAssetBtn').style.display = '';
+}
+
+async function createAsset() {
+  var name = document.getElementById('newName').value.trim();
+  if (!name) return;
+  await fetch('/api/assets', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: name,
+      category: document.getElementById('newCategory').value,
+      location: document.getElementById('newLocation').value.trim(),
+      acquired: document.getElementById('newAcquired').value,
+      notes: document.getElementById('newNotes').value.trim()
+    })
+  });
+  ['newName', 'newLocation', 'newAcquired', 'newNotes'].forEach(function(id) {
+    document.getElementById(id).value = '';
+  });
+  hideNewAsset();
+  load();
+}
+
+function toggleEdit(id) {
+  var el = document.getElementById('edit-' + id);
+  el.style.display = (el.style.display === 'flex') ? 'none' : 'flex';
+}
+
+async function saveEdit(id) {
+  await fetch('/api/assets/' + id, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: document.getElementById('editName-' + id).value.trim() || 'Unnamed Asset',
+      category: document.getElementById('editCategory-' + id).value,
+      location: document.getElementById('editLocation-' + id).value.trim(),
+      acquired: document.getElementById('editAcquired-' + id).value,
+      notes: document.getElementById('editNotes-' + id).value.trim(),
+      status: document.getElementById('editStatus-' + id).value
+    })
+  });
+  load();
+}
+
+async function deleteAsset(id) {
+  if (!(await appConfirm('Linked maintenance entries are kept, just unlinked.', 'Delete this asset?', 'Delete'))) return;
+  await fetch('/api/assets/' + id, { method: 'DELETE' });
+  load();
+}
+
+// ── Map-pin picker (one click on the current property image) ──
+var pinAssetId = null, pinLoc = null, pinImgId = null;
+
+function propImgFile(id) {
+  for (var i = 0; i < propImages.length; i++) {
+    if (propImages[i].id === id) return sanFn(propImages[i].filename);
+  }
+  return null;
+}
+
+function openPinPicker(assetId) {
+  var a = assets.find(function(x) { return x.id === assetId; });
+  if (!a) return;
+  pinImgId = (a.loc && a.loc.img) || currentPropId || (propImages.length && propImages[propImages.length - 1].id);
+  var fn = propImgFile(pinImgId);
+  if (!fn) {
+    appDialog('No property image yet.\nUpload one in Settings → Property first.');
+    return;
+  }
+  pinAssetId = assetId;
+  pinLoc = a.loc ? { img: a.loc.img, x: a.loc.x, y: a.loc.y } : null;
+  document.getElementById('pinMapImg').src = '/property-images/' + fn;
+  var mark = document.getElementById('pinMark');
+  if (pinLoc) {
+    mark.style.left = (pinLoc.x * 100) + '%';
+    mark.style.top = (pinLoc.y * 100) + '%';
+    mark.style.display = '';
+  } else {
+    mark.style.display = 'none';
+  }
+  document.getElementById('pinSaveBtn').disabled = !pinLoc;
+  document.getElementById('pinOverlay').classList.add('open');
+}
+
+function pinMapClick(ev) {
+  var img = document.getElementById('pinMapImg');
+  var r = img.getBoundingClientRect();
+  var x = (ev.clientX - r.left) / r.width;
+  var y = (ev.clientY - r.top) / r.height;
+  if (x < 0 || x > 1 || y < 0 || y > 1) return;
+  pinLoc = { img: pinImgId, x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 };
+  var mark = document.getElementById('pinMark');
+  mark.style.left = (pinLoc.x * 100) + '%';
+  mark.style.top = (pinLoc.y * 100) + '%';
+  mark.style.display = '';
+  document.getElementById('pinSaveBtn').disabled = false;
+}
+
+async function savePin() {
+  await fetch('/api/assets/' + pinAssetId, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ loc: pinLoc })
+  });
+  closePinPicker();
+  load();
+}
+
+async function clearPin() {
+  await fetch('/api/assets/' + pinAssetId, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ loc: null })
+  });
+  closePinPicker();
+  load();
+}
+
+function closePinPicker() {
+  pinAssetId = null;
+  document.getElementById('pinOverlay').classList.remove('open');
+}
+
+document.getElementById('pinOverlay').addEventListener('click', function(ev) {
+  if (ev.target === this) closePinPicker();
+});
+document.addEventListener('keydown', function(ev) {
+  if (ev.key === 'Escape') closePinPicker();
+});
+
+load();
+</script>
+<script src="/help.js"></script>
+</body>
+</html>

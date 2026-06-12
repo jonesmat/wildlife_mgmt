@@ -233,6 +233,11 @@
       <div class="t-title">Buck Watch</div>
       <div class="t-sub">Track bucks over seasons</div>
     </div>
+    <div class="tile" onclick="location.href='/assets'">
+      <div class="t-icon">🔧</div>
+      <div class="t-title">Ranch Assets</div>
+      <div class="t-sub" id="tileAssetsSub">Feeders, blinds &amp; equipment</div>
+    </div>
     <div class="tile" onclick="location.href='/map'">
       <div class="t-icon">🗺️</div>
       <div class="t-title">Property Map</div>
@@ -260,6 +265,29 @@
     enable Google Drive sync.<br>
     <a href="/privacy" style="color:#888">Privacy Policy</a> &middot;
     <a href="/terms" style="color:#888">Terms of Service</a>
+  </div>
+</div>
+
+<!-- Complete reminder modal -->
+<div class="modal-overlay" id="completeModal">
+  <div class="modal">
+    <h3 style="color:#1a4a1a">✓ Done!</h3>
+    <p id="completeRemName" style="font-weight:600;color:#333"></p>
+    <div style="font-size:0.78rem;font-weight:700;color:#777;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px">Remind me again</div>
+    <div class="row" style="justify-content:flex-start;margin-bottom:14px">
+      <button class="btn btn-secondary btn-sm" onclick="completeChoice('7d')">In 7 days</button>
+      <button class="btn btn-secondary btn-sm" onclick="completeChoice('1m')">In 1 month</button>
+      <button class="btn btn-secondary btn-sm" onclick="completeChoice('6m')">In 6 months</button>
+      <button class="btn btn-secondary btn-sm" onclick="completeChoice('1y')">In 1 year</button>
+    </div>
+    <div class="row" style="justify-content:flex-start;margin-bottom:14px">
+      <input type="date" id="completeCustomDate" style="width:auto;padding:8px 12px;border:1px solid #ccc;border-radius:4px">
+      <button class="btn btn-secondary btn-sm" onclick="completeCustom()">Pick a date</button>
+    </div>
+    <div class="row" style="justify-content:space-between">
+      <button class="btn btn-secondary btn-sm" style="color:#8b1a1a" onclick="completeForever()">Don't remind again</button>
+      <button class="btn btn-secondary btn-sm" onclick="closeCompleteModal()">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -308,6 +336,17 @@
 
   function generatePDF(url) {
     window.open(url, '_blank');
+  }
+
+  async function loadAssetsTile() {
+    try {
+      const assets = await (await fetch('/api/assets')).json();
+      const active = assets.filter(a => a.status !== 'Retired').length;
+      if (active) {
+        document.getElementById('tileAssetsSub').textContent =
+          active + ' active asset' + (active === 1 ? '' : 's');
+      }
+    } catch (e) { /* default label stays */ }
   }
 
   // ── Trophy board ──
@@ -537,6 +576,8 @@
   };
 
   var calExpanded = false;
+  var calReminders = [];         // asset/general reminders shown above the events
+  var calAssets = [];            // for resolving a reminder's asset name
   var loadedCalendar = null;     // imported calendar, or null
   var calendarIsDefault = true;
   var calFilters = {};           // { hiddenEcoregions, hiddenSpecies, hiddenTypes } from Settings
@@ -756,6 +797,86 @@
     '</div>';
   }
 
+  // ── Reminders (set on the Ranch Assets page) ──
+  function calAssetName(id) {
+    for (var i = 0; i < calAssets.length; i++) if (calAssets[i].id === id) return calAssets[i].name;
+    return '';
+  }
+
+  function calReminderRow(r) {
+    var days = Math.round((calParseDate(r.date) - calTodayMid()) / 86400000);
+    var due = '';
+    if (days < 0) due = '<span class="cal-due urgent">overdue</span>';
+    else if (days === 0) due = '<span class="cal-due urgent">today!</span>';
+    else if (days <= 75) due = '<span class="cal-due">in ' + days + ' day' + (days === 1 ? '' : 's') + '</span>';
+    var assetName = calAssetName(r.assetId);
+    return '<div class="cal-row' + (days <= 0 ? ' next' : '') + '">' +
+      '<span class="cal-icon">⏰</span>' +
+      '<span class="cal-date">' + calFmtMD(calParseDate(r.date)) + '</span>' +
+      '<span class="cal-info">' +
+        '<div class="cal-title">' + escHtml(r.text) + '</div>' +
+        (assetName ? '<div class="cal-desc">' + escHtml(assetName) + '</div>' : '') +
+        '<div class="cal-tags"><span class="cal-tag">Reminder</span></div>' +
+      '</span>' +
+      due +
+      '<button class="btn btn-secondary btn-sm" style="padding:5px 12px;font-size:0.78rem" data-cal-action="complete"' +
+        ' data-rem-id="' + escAttr(r.id) + '" data-rem-name="' + escAttr(r.text) + '">✓ Complete</button>' +
+    '</div>';
+  }
+
+  var completeTarget = null;
+
+  function openCompleteModal(id, name) {
+    completeTarget = id;
+    document.getElementById('completeRemName').textContent = name;
+    document.getElementById('completeCustomDate').value = '';
+    document.getElementById('completeModal').classList.add('open');
+  }
+
+  function closeCompleteModal() {
+    completeTarget = null;
+    document.getElementById('completeModal').classList.remove('open');
+  }
+
+  function remNextDate(code) {
+    var d = calTodayMid();
+    if (code === '7d') d.setDate(d.getDate() + 7);
+    else if (code === '1m') d.setMonth(d.getMonth() + 1);
+    else if (code === '6m') d.setMonth(d.getMonth() + 6);
+    else d.setFullYear(d.getFullYear() + 1);
+    return toISODate(d);
+  }
+
+  async function rescheduleReminder(date) {
+    if (!completeTarget) return;
+    await fetch('/api/reminders/' + completeTarget, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: date })
+    });
+    closeCompleteModal();
+    await reloadReminders();
+  }
+
+  function completeChoice(code) { rescheduleReminder(remNextDate(code)); }
+
+  function completeCustom() {
+    var v = document.getElementById('completeCustomDate').value;
+    if (v) rescheduleReminder(v);
+  }
+
+  async function completeForever() {
+    if (!completeTarget) return;
+    await fetch('/api/reminders/' + completeTarget, { method: 'DELETE' });
+    closeCompleteModal();
+    await reloadReminders();
+  }
+
+  async function reloadReminders() {
+    try { calReminders = await (await fetch('/api/reminders')).json(); }
+    catch (e) { /* keep what we have */ }
+    renderSeasonCalendar();
+  }
+
   function toggleDismissed() { showDismissed = !showDismissed; renderSeasonCalendar(); }
   function toggleSnoozed() { showSnoozed = !showSnoozed; renderSeasonCalendar(); }
 
@@ -834,7 +955,16 @@
         snoozedItems.map(function(it) { return calRow(it, '', 'snoozed'); }).join('');
     }
 
-    document.getElementById('seasonCalendar').innerHTML = note + listHtml + footer + extras;
+    // Reminders pin above the events: everything overdue or coming up when
+    // collapsed, the full list when expanded
+    var remSorted = calReminders.filter(function(r) { return r.date; })
+      .sort(function(a, b) { return a.date < b.date ? -1 : 1; });
+    var remShown = calExpanded ? remSorted : remSorted.filter(function(r) {
+      return Math.round((calParseDate(r.date) - calTodayMid()) / 86400000) <= 75;
+    });
+    var remHtml = remShown.map(calReminderRow).join('');
+
+    document.getElementById('seasonCalendar').innerHTML = note + remHtml + listHtml + footer + extras;
   }
 
   async function loadCalendar() {
@@ -842,6 +972,10 @@
       loadedCalendar = await (await fetch('/api/calendar')).json();
     } catch (e) { loadedCalendar = null; }
     calendarIsDefault = !loadedCalendar;
+    try {
+      calReminders = await (await fetch('/api/reminders')).json();
+      calAssets = await (await fetch('/api/assets')).json();
+    } catch (e) { calReminders = []; calAssets = []; }
     try {
       var settings = await (await fetch('/api/settings')).json();
       calFilters = settings.calendarFilters || {};
@@ -860,6 +994,9 @@
     if (action === 'dismiss') dismissEvent(key);
     else if (action === 'restore') restoreEvent(key);
     else if (action === 'cancelSnooze') cancelSnooze(key);
+    else if (action === 'complete') {
+      openCompleteModal(btn.getAttribute('data-rem-id'), btn.getAttribute('data-rem-name'));
+    }
     else if (action === 'snooze') {
       openSnoozeModal(key, btn.getAttribute('data-cal-name'),
         parseInt(btn.getAttribute('data-cal-start'), 10) || null);
@@ -869,11 +1006,15 @@
   document.getElementById('snoozeModal').addEventListener('click', function(ev) {
     if (ev.target === this) closeSnoozeModal();
   });
+  document.getElementById('completeModal').addEventListener('click', function(ev) {
+    if (ev.target === this) closeCompleteModal();
+  });
   document.addEventListener('keydown', function(ev) {
-    if (ev.key === 'Escape') closeSnoozeModal();
+    if (ev.key === 'Escape') { closeSnoozeModal(); closeCompleteModal(); }
   });
 
   loadYears();
+  loadAssetsTile();
   loadTrophies();
   loadCalendar();
 </script>
