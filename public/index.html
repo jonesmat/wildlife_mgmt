@@ -587,7 +587,9 @@
           '<div class="trophy-title">Ranch Highlights</div>' +
           '<div class="trophy-subtitle" style="margin:2px 0 0">' + summary.join(' · ') + '</div>' +
         '</div>' +
-        '<span class="board-chev">▶</span>' +
+        '<button class="btn btn-secondary btn-sm" style="margin-left:auto;padding:5px 12px;font-size:0.78rem;flex-shrink:0"' +
+          ' onclick="event.stopPropagation();window.open(\'/yearbook/' + new Date().getFullYear() + '\', \'_blank\')">📖 Yearbook</button>' +
+        '<span class="board-chev" style="margin-left:0">▶</span>' +
       '</div>' +
       '<div id="trophyBody" style="display:none;margin-top:18px">' + body + '</div>';
   }

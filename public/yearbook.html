@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<title>Ranch Yearbook</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script src="/store.js"></script>
+<link rel="stylesheet" href="/print-shared.css">
+<style>
+/* Magazine-style annual summary — warmer than the TPWD form templates */
+body { color: #1c2417; }
+.yb-header { text-align: center; border-bottom: 3pt double #1a4a1a; padding-bottom: 14pt; margin-bottom: 16pt; }
+.yb-eyebrow { font-size: 9pt; letter-spacing: 3pt; text-transform: uppercase; color: #5a6a52; }
+.yb-title { font-size: 26pt; font-weight: 700; color: #1a4a1a; margin: 4pt 0 2pt; }
+.yb-sub { font-size: 10.5pt; color: #555; font-style: italic; }
+
+.yb-section { margin: 14pt 0; }
+.yb-section-head {
+  font-size: 12pt; font-weight: 700; color: #1a4a1a; border-bottom: 1pt solid #b8d0b8;
+  padding-bottom: 2pt; margin-bottom: 8pt;
+}
+
+.yb-facts { display: flex; flex-wrap: wrap; gap: 8pt; }
+.yb-fact {
+  border: 1pt solid #cfe0c8; border-radius: 6pt; padding: 8pt 12pt; text-align: center;
+  flex: 1; min-width: 100pt; background: #f7faf5;
+}
+.yb-fact .n { font-size: 16pt; font-weight: 700; color: #1a4a1a; }
+.yb-fact .l { font-size: 8pt; color: #5a6a52; text-transform: uppercase; letter-spacing: 0.5pt; margin-top: 1pt; }
+
+.yb-chips { display: flex; flex-wrap: wrap; gap: 5pt; }
+.yb-chip {
+  font-size: 8.5pt; font-weight: 600; border: 1pt solid #ccc; border-radius: 10pt;
+  padding: 2pt 9pt; color: #888;
+}
+.yb-chip.done { border-color: #1a4a1a; color: #1a4a1a; background: #eef5ec; }
+
+table.yb-table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+.yb-table th { background: #1a4a1a; color: white; padding: 4pt 6pt; text-align: left; font-size: 8.5pt; }
+.yb-table td { border-bottom: 0.5pt solid #d8e0d4; padding: 4pt 6pt; }
+
+.yb-gallery { display: flex; flex-wrap: wrap; gap: 10pt; }
+.yb-card { width: 160pt; border: 1pt solid #cfe0c8; border-radius: 6pt; overflow: hidden; }
+.yb-card img { width: 100%; height: 110pt; object-fit: cover; display: block; }
+.yb-card .cap { padding: 5pt 7pt; }
+.yb-card .cap .t { font-size: 9pt; font-weight: 700; color: #1a4a1a; }
+.yb-card .cap .d { font-size: 7.5pt; color: #777; margin-top: 1pt; }
+
+.yb-photos { display: flex; flex-wrap: wrap; gap: 8pt; }
+.yb-photo { width: 152pt; }
+.yb-photo img { width: 100%; height: 105pt; object-fit: cover; border-radius: 4pt; border: 1pt solid #ddd; }
+.yb-photo .cap { font-size: 7.5pt; color: #555; margin-top: 2pt; line-height: 1.3; }
+
+.yb-rain { display: flex; align-items: flex-end; gap: 4pt; height: 70pt; }
+.yb-rain .col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2pt; height: 100%; }
+.yb-rain .bar { width: 70%; background: #7aaed4; border-radius: 2pt 2pt 0 0; }
+.yb-rain .v { font-size: 6.5pt; color: #777; }
+.yb-rain .m { font-size: 7pt; color: #888; }
+
+.yb-footer { margin-top: 18pt; border-top: 1pt solid #b8d0b8; padding-top: 6pt; font-size: 8pt; color: #888; text-align: center; }
+.yb-empty { font-size: 9pt; color: #888; font-style: italic; }
+</style>
+</head><body>
+<div class="print-btn-bar no-print">
+  <button class="btn-print" onclick="window.print()">Print / Save as PDF</button>
+  <button class="btn-close" onclick="window.close()">Close</button>
+  <span style="font-size:0.85rem;opacity:0.8">Use your browser's Print dialog → Save as PDF</span>
+  <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+    <a id="prevYear" href="#" style="color:white">&larr;</a>
+    <span id="yearLabel" style="font-weight:700"></span>
+    <a id="nextYear" href="#" style="color:white">&rarr;</a>
+  </span>
+</div>
+<div class="print-spacer"></div>
+<div id="root" class="page" style="text-align:center;color:#888;padding-top:40px">Loading...</div>
+
+<script>
+function esc(v) {
+  if (!v) return '';
+  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function fmtDate(s) {
+  if (!s) return '';
+  var d = new Date(s);
+  return MONTHS[d.getMonth()] + ' ' + d.getDate();
+}
+
+function fmtEighths(v) {
+  var whole = Math.floor(v + 1e-9);
+  var eighths = Math.round((v - whole) * 8);
+  if (eighths === 8) { whole += 1; eighths = 0; }
+  return eighths ? whole + ' ' + eighths + '/8' : String(whole);
+}
+
+function fact(n, label) {
+  return '<div class="yb-fact"><div class="n">' + n + '</div><div class="l">' + label + '</div></div>';
+}
+
+// The year comes from the path (/yearbook/2026) so links and reprints work
+function yearFromPath() {
+  var m = location.pathname.match(/\/yearbook\/(\d{4})/);
+  return m ? m[1] : String(new Date().getFullYear());
+}
+
+var PRACTICES = [
+  'Habitat Control', 'Erosion Control', 'Predator Control',
+  'Census', 'Supplemental Water', 'Supplemental Food', 'Supplemental Shelter'
+];
+var PRACTICE_SHORT = {
+  'Habitat Control': 'Habitat', 'Erosion Control': 'Erosion', 'Predator Control': 'Predator',
+  'Census': 'Census', 'Supplemental Water': 'Water', 'Supplemental Food': 'Food',
+  'Supplemental Shelter': 'Shelter'
+};
+
+function entryTitle(e) {
+  if (e.type === 'General') return e.name || e['f-name'] || 'Note';
+  if (window.PRACTICE_FIELDS[e.type]) return window.practiceTitle(e);
+  if (e.type === 'Activity') return e['ac-name'] || e['ac-category'] || e.type; // legacy
+  if (e.type === 'Harvest') return (e['hv-species'] || 'Harvest') + (e['hv-points'] ? ' (' + e['hv-points'] + '-pt)' : '');
+  if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + '× ' : '') + (e['si-species'] || 'Sighting');
+  if (e.type === 'Census') return (e['ce-surveyType'] || 'Census');
+  if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control');
+  if (e.type === 'Rainfall') return (e['rf-inches'] ? e['rf-inches'] + ' in of rain' : 'Rainfall');
+  if (e.type === 'Maintenance') return e['ma-item'] || 'Maintenance';
+  if (e.type === 'Purchase') return e['pu-item'] || 'Purchase';
+  return e.type;
+}
+
+async function init() {
+  var year = yearFromPath();
+  document.title = year + ' Ranch Yearbook';
+  document.getElementById('yearLabel').textContent = year;
+  document.getElementById('prevYear').href = '/yearbook/' + (+year - 1);
+  document.getElementById('nextYear').href = '/yearbook/' + (+year + 1);
+
+  var data = {}, log = [];
+  try { data = await (await fetch('/api/data')).json(); } catch (e) { /* empty plan */ }
+  try { log = await (await fetch('/api/log')).json(); } catch (e) { /* empty log */ }
+
+  var entries = log.filter(function(e) {
+    return e.datetime && e.datetime.slice(0, 4) === year;
+  }).sort(function(a, b) { return a.datetime < b.datetime ? -1 : 1; });
+
+  var owner = (data.plan && data.plan.owner) || {};
+  var ranchName = owner.tractName || 'The Ranch';
+
+  // ── Year in numbers ──
+  var acres = 0, activities = 0, censuses = 0, predators = 0, sightings = 0,
+      harvests = 0, photos = 0, rain = 0, invested = 0;
+  var practiceCounts = {};
+  PRACTICES.forEach(function(p) { practiceCounts[p] = 0; });
+  entries.forEach(function(e) {
+    photos += (e.photos || []).length;
+    invested += (parseFloat(e['pu-cost']) || 0) + (parseFloat(e.cost) || 0);
+    if (window.PRACTICE_FIELDS[e.type] || e.type === 'Activity') {
+      activities++;
+      var af = window.PRACTICE_ACRES_FIELD[e.type];
+      acres += parseFloat(af ? e[af] : e['ac-acres']) || 0;
+    }
+    if (e.type === 'Census') censuses++;
+    if (e.type === 'Predator Control') predators += parseInt(e['pc-count'], 10) || 1;
+    if (e.type === 'Sighting') sightings++;
+    if (e.type === 'Harvest') harvests++;
+    if (e.type === 'Rainfall') rain += parseFloat(e['rf-inches']) || 0;
+    if (practiceCounts[e.type] !== undefined) practiceCounts[e.type]++;
+    if (e.type === 'Activity' && practiceCounts[e['ac-category']] !== undefined) practiceCounts[e['ac-category']]++; // legacy
+    if (e.type === 'Purchase' && practiceCounts[e['pu-practice']] !== undefined) practiceCounts[e['pu-practice']]++;
+    if (e.type === 'Harvest') practiceCounts['Census']++;
+  });
+
+  var facts = [];
+  if (entries.length) facts.push(fact(entries.length, 'log entries'));
+  if (activities) facts.push(fact(activities, 'management activities'));
+  if (acres) facts.push(fact(Math.round(acres).toLocaleString(), 'acres treated'));
+  if (censuses) facts.push(fact(censuses, 'census surveys'));
+  if (harvests) facts.push(fact(harvests, 'harvests'));
+  if (predators) facts.push(fact(predators, 'predators removed'));
+  if (sightings) facts.push(fact(sightings, 'sightings logged'));
+  if (rain) facts.push(fact(Math.round(rain * 10) / 10 + '"', 'rain in the gauge'));
+  if (invested) facts.push(fact('$' + Math.round(invested).toLocaleString(), 'invested in the land'));
+  if (photos) facts.push(fact(photos, 'photos taken'));
+
+  // ── Qualifying practices ──
+  var covered = PRACTICES.filter(function(p) { return practiceCounts[p] > 0; }).length;
+  var chips = PRACTICES.map(function(p) {
+    var n = practiceCounts[p];
+    return '<span class="yb-chip' + (n ? ' done' : '') + '">' + (n ? '✓ ' : '') +
+      PRACTICE_SHORT[p] + (n ? ' · ' + n : '') + '</span>';
+  }).join('');
+
+  // ── Harvest table ──
+  var harvestRows = entries.filter(function(e) { return e.type === 'Harvest'; }).map(function(e) {
+    var score = parseFloat(e['hv-bc-net']) > 0
+      ? fmtEighths(parseFloat(e['hv-bc-net'])) + ' ' + (e['hv-bc-mode'] === 'Non-Typical' ? 'NT' : 'T')
+      : '';
+    return '<tr><td>' + fmtDate(e.datetime) + '</td><td>' + esc(e['hv-species']) + '</td>' +
+      '<td>' + esc(e['hv-sex']) + '</td><td>' + esc(e['hv-age']) + '</td>' +
+      '<td>' + esc(e['hv-points']) + '</td><td>' + score + '</td><td>' + esc(e['hv-hunter']) + '</td></tr>';
+  }).join('');
+
+  // ── Remarkable bucks (scored harvests with a photo) ──
+  var bucks = entries.filter(function(e) {
+    return e.type === 'Harvest' && parseFloat(e['hv-bc-net']) > 0;
+  }).map(function(e) {
+    var ph = (e.photos && e.photos.length) ? sanFn(e.photos[0]) : '';
+    return '<div class="yb-card">' +
+      (ph ? '<img src="/photos/' + ph + '" alt="">' : '') +
+      '<div class="cap"><div class="t">' + (e['hv-points'] ? e['hv-points'] + '-Point ' : '') + 'Whitetail</div>' +
+      '<div class="d">' + fmtEighths(parseFloat(e['hv-bc-net'])) + ' B&amp;C ' +
+        (e['hv-bc-mode'] === 'Non-Typical' ? 'Non-Typical' : 'Typical') +
+        (e['hv-hunter'] ? ' · ' + esc(e['hv-hunter']) : '') + ' · ' + fmtDate(e.datetime) + '</div></div></div>';
+  }).join('');
+
+  // ── Photo album: first photo of each photographed entry, up to 12 ──
+  var album = entries.filter(function(e) { return e.photos && e.photos.length; })
+    .slice(0, 12).map(function(e) {
+      return '<div class="yb-photo"><img src="/photos/' + sanFn(e.photos[0]) + '" alt="">' +
+        '<div class="cap">' + esc(entryTitle(e)) + ' — ' + fmtDate(e.datetime) + '</div></div>';
+    }).join('');
+
+  // ── Census summary ──
+  var censusAgg = {};
+  entries.forEach(function(e) {
+    if (e.type !== 'Census') return;
+    var m = String(e['ce-total'] || '').match(/(\d+(\.\d+)?)/);
+    if (!m) return;
+    var k = (e['ce-route'] || 'Property') + ' — ' + (e['ce-species'] || 'wildlife');
+    (censusAgg[k] = censusAgg[k] || []).push(parseFloat(m[1]));
+  });
+  var censusLines = Object.keys(censusAgg).map(function(k) {
+    var arr = censusAgg[k];
+    var avg = arr.reduce(function(s, v) { return s + v; }, 0) / arr.length;
+    return '<tr><td>' + esc(k) + '</td><td>' + arr.length + '</td><td>' + (Math.round(avg * 10) / 10) + '</td></tr>';
+  }).join('');
+
+  // ── Monthly rainfall (gauge entries only — this is the ranch's own record) ──
+  var rainByMonth = null;
+  if (rain) {
+    rainByMonth = [0,0,0,0,0,0,0,0,0,0,0,0];
+    entries.forEach(function(e) {
+      if (e.type !== 'Rainfall') return;
+      rainByMonth[parseInt(e.datetime.slice(5, 7), 10) - 1] += parseFloat(e['rf-inches']) || 0;
+    });
+  }
+  var rainHtml = '';
+  if (rainByMonth) {
+    var maxRain = Math.max.apply(null, rainByMonth) || 1;
+    rainHtml = '<div class="yb-rain">' + rainByMonth.map(function(v, i) {
+      var h = Math.max(2, Math.round(v / maxRain * 48));
+      return '<div class="col"><span class="v">' + (v ? Math.round(v * 10) / 10 : '') + '</span>' +
+        '<div class="bar" style="height:' + h + 'pt"></div><span class="m">' + MONTHS[i] + '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  function section(title, body) {
+    return '<div class="yb-section"><div class="yb-section-head">' + title + '</div>' + body + '</div>';
+  }
+
+  var html =
+    '<div class="yb-header">' +
+      '<div class="yb-eyebrow">A year of stewardship</div>' +
+      '<div class="yb-title">' + esc(ranchName) + '</div>' +
+      '<div class="yb-sub">' + year + ' Ranch Yearbook' +
+        (owner.name ? ' · ' + esc(owner.name) : '') +
+        (owner.majorityCounty ? ' · ' + esc(owner.majorityCounty) + ' County, Texas' : '') + '</div>' +
+    '</div>';
+
+  if (!entries.length) {
+    html += '<div class="yb-empty" style="text-align:center;padding:40pt 0">Nothing logged in ' + year +
+      ' yet — the yearbook builds itself from the Activity Log.</div>';
+  } else {
+    html += section(year + ' in Numbers', '<div class="yb-facts">' + facts.join('') + '</div>');
+    html += section('Qualifying Practices — ' + covered + ' of 7 documented', '<div class="yb-chips">' + chips + '</div>');
+    if (harvestRows) {
+      html += section('Harvest Record',
+        '<table class="yb-table"><tr><th>Date</th><th>Species</th><th>Sex</th><th>Age</th><th>Points</th><th>B&amp;C</th><th>Hunter</th></tr>' +
+        harvestRows + '</table>');
+    }
+    if (bucks) html += section('Remarkable Whitetails', '<div class="yb-gallery">' + bucks + '</div>');
+    if (censusLines) {
+      html += section('Census Summary',
+        '<table class="yb-table"><tr><th>Route — Species</th><th>Surveys</th><th>Avg Observed</th></tr>' +
+        censusLines + '</table>');
+    }
+    if (rainHtml) html += section('Rainfall — ' + (Math.round(rain * 10) / 10) + ' inches on the year', rainHtml);
+    if (album) html += section('From the Field', '<div class="yb-photos">' + album + '</div>');
+  }
+
+  html += '<div class="yb-footer">Generated ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) +
+    ' from the ranch activity log · Ranch Wildlife Management Tool</div>';
+
+  var root = document.getElementById('root');
+  root.style = '';
+  root.innerHTML = html;
+}
+
+init();
+</script>
+</body></html>
