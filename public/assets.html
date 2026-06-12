@@ -118,7 +118,7 @@
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end">
           <button class="btn btn-secondary" onclick="hideNewReminder()">Cancel</button>
-          <button class="btn btn-primary" onclick="createReminder()">Add Reminder</button>
+          <button class="btn btn-primary" id="remSaveBtn" onclick="saveReminder()">Add Reminder</button>
         </div>
       </div>
       <div id="remindersList" style="margin-top:10px"></div>
@@ -402,36 +402,63 @@ function renderReminders() {
       '<span class="ah-date">' + (r.date ? fmtDate(r.date + 'T00:00') : '—') + '</span>' +
       '<span class="ah-title">' + escHtml(r.text) + (asset ? ' <span style="color:#999">· ' + escHtml(asset) + '</span>' : '') + '</span>' +
       due +
+      '<button class="btn btn-secondary" style="font-size:0.74rem;padding:3px 10px" onclick="editReminder(\'' + sanFn(r.id) + '\')">Edit</button>' +
       '<button class="btn btn-secondary" style="font-size:0.74rem;padding:3px 10px;color:#8b1a1a" onclick="deleteReminder(\'' + sanFn(r.id) + '\')">✕</button>' +
     '</div>';
   }).join('');
 }
 
+// The add box doubles as the edit form: editingReminderId decides whether
+// saving POSTs a new reminder or PUTs over the one being edited
+var editingReminderId = null;
+
 function showNewReminder(assetId) {
+  editingReminderId = null;
+  document.getElementById('remSaveBtn').textContent = 'Add Reminder';
   document.getElementById('newReminderBox').style.display = '';
   if (assetId) document.getElementById('remAssetId').value = assetId;
   document.getElementById('remindersCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
   document.getElementById('remText').focus();
 }
 
+function editReminder(id) {
+  var r = reminders.find(function(x) { return x.id === id; });
+  if (!r) return;
+  editingReminderId = id;
+  document.getElementById('remText').value = r.text || '';
+  document.getElementById('remDate').value = r.date || '';
+  document.getElementById('remAssetId').value = r.assetId || '';
+  document.getElementById('remSaveBtn').textContent = 'Save Reminder';
+  document.getElementById('newReminderBox').style.display = '';
+  document.getElementById('remindersCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('remText').focus();
+}
+
 function hideNewReminder() {
+  editingReminderId = null;
+  document.getElementById('remText').value = '';
+  document.getElementById('remDate').value = '';
+  document.getElementById('remAssetId').value = '';
   document.getElementById('newReminderBox').style.display = 'none';
 }
 
-async function createReminder() {
+async function saveReminder() {
   var text = document.getElementById('remText').value.trim();
   var date = document.getElementById('remDate').value;
   if (!text || !date) {
     appDialog('A reminder needs both a description and a date.');
     return;
   }
-  await fetch('/api/reminders', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: text, date: date, assetId: document.getElementById('remAssetId').value })
-  });
-  document.getElementById('remText').value = '';
-  document.getElementById('remDate').value = '';
-  document.getElementById('remAssetId').value = '';
+  var body = JSON.stringify({ text: text, date: date, assetId: document.getElementById('remAssetId').value });
+  if (editingReminderId) {
+    await fetch('/api/reminders/' + editingReminderId, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: body
+    });
+  } else {
+    await fetch('/api/reminders', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body
+    });
+  }
   hideNewReminder();
   load();
 }
