@@ -1056,29 +1056,55 @@
         (cal.meta.generated ? ' · generated ' + escHtml(cal.meta.generated) : '') + ' · imported calendar' +
         (hiddenCount ? ' · ' + hiddenCount + ' hidden by filters' : '') + '</div>';
 
-    // Events within the window: today through calWindowMonths months out.
-    // "Open now" events always show; once the window reaches past the last
-    // upcoming event, everything (including dateless items) is on screen.
+    // Everything shows within a rolling window: today through
+    // calWindowMonths months out. "Open now" events always show; once the
+    // window reaches past the last upcoming item, everything (including
+    // dateless events) is on screen.
     var windowEnd = calWindowEnd();
     var future = mainItems.filter(function(i) { return !i.st.dateless && !i.st.past; });
     var dateless = mainItems.filter(function(i) { return i.st.dateless; });
+
+    // Reminders (from the Ranch Assets page) flow into the same dated stream
+    // as the events, so they sit in chronological order instead of pinned in
+    // a block above everything.
+    var remSorted = calReminders.filter(function(r) { return r.date; })
+      .sort(function(a, b) { return a.date < b.date ? -1 : 1; });
+
     var lastStart = future.reduce(function(mx, i) { return Math.max(mx, i.st.sortTime); }, 0);
+    lastStart = remSorted.reduce(function(mx, r) {
+      return Math.max(mx, calParseDate(r.date).getTime());
+    }, lastStart);
     var coversAll = windowEnd >= lastStart;
 
-    var shown = future.filter(function(i) { return i.st.active || i.st.sortTime <= windowEnd; })
-      .sort(function(a, b) {
-        if (a.st.active !== b.st.active) return a.st.active ? -1 : 1;
-        return a.st.sortTime - b.st.sortTime;
-      });
-    var hiddenLater = future.length - shown.length;
+    var shownEvents = future.filter(function(i) { return i.st.active || i.st.sortTime <= windowEnd; });
+    var shownReminders = remSorted.filter(function(r) {
+      return coversAll || calParseDate(r.date).getTime() <= windowEnd;
+    });
+    var hiddenLater = (future.length - shownEvents.length) + (remSorted.length - shownReminders.length);
 
-    var listHtml = shown.map(function(it, i) {
-      return calRow(it, (i === 0 || it.st.active) ? ' next' : '', it.mode);
+    // Merge events and reminders into one chronological feed; "open now"
+    // events still float to the front.
+    var feed = shownEvents.map(function(it) {
+      return { active: it.st.active, sortTime: it.st.sortTime, event: it };
+    }).concat(shownReminders.map(function(r) {
+      return { active: false, sortTime: calParseDate(r.date).getTime(), reminder: r };
+    }));
+    feed.sort(function(a, b) {
+      if (a.active !== b.active) return a.active ? -1 : 1;
+      return a.sortTime - b.sortTime;
+    });
+
+    var highlighted = false;
+    var listHtml = feed.map(function(f) {
+      if (f.reminder) return calReminderRow(f.reminder);
+      var isNext = !highlighted || f.event.st.active; // first/soonest event + any open-now event
+      highlighted = true;
+      return calRow(f.event, isNext ? ' next' : '', f.event.mode);
     }).join('');
     if (coversAll && dateless.length) {
       listHtml += dateless.map(function(it) { return calRow(it, '', it.mode); }).join('');
     }
-    if (!shown.length) {
+    if (!feed.length) {
       listHtml += '<div style="color:#999;font-size:0.85rem;font-style:italic;padding:8px 0">' +
         'Nothing on the calendar in the next ' + calWindowMonths + ' months.</div>';
     }
@@ -1110,16 +1136,7 @@
         snoozedItems.map(function(it) { return calRow(it, '', 'snoozed'); }).join('');
     }
 
-    // Reminders pin above the events: everything overdue plus anything due
-    // inside the same window as the events
-    var remSorted = calReminders.filter(function(r) { return r.date; })
-      .sort(function(a, b) { return a.date < b.date ? -1 : 1; });
-    var remShown = coversAll ? remSorted : remSorted.filter(function(r) {
-      return calParseDate(r.date).getTime() <= windowEnd;
-    });
-    var remHtml = remShown.map(calReminderRow).join('');
-
-    document.getElementById('seasonCalendar').innerHTML = note + remHtml + listHtml + footer + extras;
+    document.getElementById('seasonCalendar').innerHTML = note + listHtml + footer + extras;
   }
 
   async function loadCalendar() {
