@@ -250,6 +250,10 @@
     '.help-chips{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin:2px 0 8px}' +
     '.help-chip{font-size:0.76rem;font-weight:600;color:#1a4a1a;background:#eef4ec;' +
       'border:1px solid #c4d8bc;border-radius:14px;padding:4px 12px;white-space:nowrap}' +
+    '.help-link-wrap{text-align:center;margin:4px 0 8px}' +
+    '.help-link{display:inline-block;font-size:0.84rem;font-weight:600;color:white;' +
+      'background:#1a4a1a;border-radius:7px;padding:8px 16px;text-decoration:none}' +
+    '.help-link:hover{background:#256325}' +
     '.help-foot{display:flex;align-items:center;padding:12px 18px 16px;gap:10px}' +
     '.help-dots{display:flex;gap:7px;margin:0 auto}' +
     '.help-dot{width:9px;height:9px;border-radius:50%;background:#d4ddd0;border:none;' +
@@ -314,7 +318,11 @@
         }).join('') + '</ul>' : '') +
         (s.chips ? '<div class="help-chips">' + s.chips.map(function(c) {
           return '<span class="help-chip">' + esc(c) + '</span>';
-        }).join('') + '</div>' : '');
+        }).join('') + '</div>' : '') +
+        // Optional call-to-action link ({ href, label }). Opens in a new tab so
+        // the wizard stays put — handy for pointing at a reference page.
+        (s.link ? '<div class="help-link-wrap"><a class="help-link" href="' + esc(s.link.href) +
+          '" target="_blank" rel="noopener">' + esc(s.link.label) + '</a></div>' : '');
 
       dotsEl.innerHTML = topic.slides.map(function(_, i) {
         return '<button class="help-dot' + (i === idx ? ' on' : '') + '" data-i="' + i +

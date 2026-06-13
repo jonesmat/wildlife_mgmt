@@ -23,7 +23,7 @@
 
   // Routes that are NOT part of the SPA (full standalone documents). Links to
   // these always do a normal load.
-  var HARD = [/^\/plan-print\b/, /^\/report-print\b/, /^\/yearbook\b/, /^\/privacy\b/, /^\/terms\b/];
+  var HARD = [/^\/plan-print\b/, /^\/report-print\b/, /^\/yearbook\b/, /^\/privacy\b/, /^\/terms\b/, /^\/leopold\b/];
 
   // Page-specific <style> blocks (the ones written into each page's HTML) get
   // swapped on navigation. Runtime styles injected by shared scripts — dark
