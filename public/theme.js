@@ -9,6 +9,7 @@
   var KEY = 'ui-theme';
 
   var style = document.createElement('style');
+  style.id = 'theme-style'; // id marks it as a persistent runtime style the SPA router won't swap out
   style.textContent =
     'html.dark-mode { filter: invert(0.92) hue-rotate(180deg); background: #f0f2f5; }' +
     'html.dark-mode img, html.dark-mode video { filter: invert(1) hue-rotate(180deg); }' +

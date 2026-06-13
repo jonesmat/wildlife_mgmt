@@ -25,10 +25,12 @@
   // these always do a normal load.
   var HARD = [/^\/plan-print\b/, /^\/report-print\b/, /^\/yearbook\b/, /^\/privacy\b/, /^\/terms\b/];
 
-  // Tag the initial page's inline <style> blocks so the first navigation can
-  // clear them (later pages' styles are tagged as they're swapped in).
+  // Page-specific <style> blocks (the ones written into each page's HTML) get
+  // swapped on navigation. Runtime styles injected by shared scripts — dark
+  // mode (theme.js), the sync pill, the help popup — carry an id and must
+  // persist, so only id-less styles are tagged for swapping.
   function tagStyles(root) {
-    (root || document.head).querySelectorAll('style:not([data-spa])').forEach(function(s) {
+    (root || document.head).querySelectorAll('style:not([id]):not([data-spa])').forEach(function(s) {
       s.setAttribute('data-spa', '');
     });
   }
@@ -39,6 +41,7 @@
   function progress(on) {
     if (!bar) {
       var st = document.createElement('style');
+      st.id = 'spa-bar-style';
       st.textContent =
         '#spa-bar{position:fixed;top:0;left:0;height:3px;width:0;z-index:2000;' +
           'background:#3a7a3a;box-shadow:0 0 8px rgba(58,122,58,0.6);' +
@@ -122,9 +125,10 @@
 
   function mergeHead(doc) {
     document.title = doc.title || document.title;
-    // Replace page-specific inline styles.
+    // Replace page-specific inline styles, leaving id'd runtime styles (dark
+    // mode, sync pill, help) in place.
     document.head.querySelectorAll('style[data-spa]').forEach(function(n) { n.remove(); });
-    doc.head.querySelectorAll('style').forEach(function(st) {
+    doc.head.querySelectorAll('style:not([id])').forEach(function(st) {
       var c = document.createElement('style');
       c.setAttribute('data-spa', '');
       c.textContent = st.textContent;
@@ -183,6 +187,12 @@
     return runScripts(injected);
   }
 
+  // The hard page load already ran a sync check; soft navigations happen far
+  // more often, so throttle the per-navigation check to avoid a Drive request
+  // on every single click.
+  var lastSyncCheck = Date.now();
+  var SYNC_CHECK_MIN_GAP = 60 * 1000;
+
   function afterNavigate(url) {
     var u = new URL(url, location.href);
     // Honor a deep-link hash now that the new page has rendered.
@@ -190,7 +200,10 @@
       var el = document.getElementById(u.hash.slice(1));
       if (el && el.scrollIntoView) el.scrollIntoView();
     }
-    // Re-run the lightweight Drive sync check for the "new page".
-    if (window.gsync && typeof gsync.syncCheck === 'function') gsync.syncCheck();
+    if (window.gsync && typeof gsync.syncCheck === 'function' &&
+        Date.now() - lastSyncCheck > SYNC_CHECK_MIN_GAP) {
+      lastSyncCheck = Date.now();
+      gsync.syncCheck();
+    }
   }
 })();
