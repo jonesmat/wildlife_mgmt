@@ -204,19 +204,19 @@
     return HELP.hasOwnProperty(k) ? k : null;
   }
 
-  var key = pageKey();
-  // Under the SPA router this script re-runs on every soft navigation, so
-  // clear any button/styles left from the previous page first.
-  var oldFab = document.querySelector('.help-fab');
-  if (oldFab) oldFab.parentNode.removeChild(oldFab);
-  if (!key) return;
-  var topic = HELP[key];
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
 
-  // Inject the stylesheet once per page load (it's shared across navigations).
-  if (document.getElementById('help-style')) { addButton(); return; }
-  var style = document.createElement('style');
-  style.id = 'help-style';
-  style.textContent =
+  // Inject the shared wizard stylesheet once (it carries an id so the SPA
+  // router keeps it across soft navigations). Used by the page-help button and
+  // by the first-run welcome tour (welcome.js), which reuses these classes.
+  function ensureStyle() {
+    if (document.getElementById('help-style')) return;
+    var style = document.createElement('style');
+    style.id = 'help-style';
+    style.textContent =
     '.help-fab{position:fixed;right:18px;bottom:18px;z-index:90;width:44px;height:44px;' +
       'border-radius:50%;border:none;background:#1a4a1a;color:white;font-size:1.25rem;' +
       'font-weight:700;font-family:Arial,sans-serif;cursor:pointer;' +
@@ -265,14 +265,13 @@
     '@media print{.help-fab,.help-overlay{display:none !important}}' +
     '@media (max-width:720px){.help-fab{right:12px;bottom:12px;width:40px;height:40px;font-size:1.1rem}' +
       '.help-slide{padding:20px 18px 6px;min-height:240px}}';
-  document.head.appendChild(style);
-
-  function esc(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    document.head.appendChild(style);
   }
 
-  function openPopup() {
+  // Open a wizard popup for any topic ({ title, slides:[...] }). Optional
+  // onClose fires once the popup is dismissed, however it ends.
+  function openWizard(topic, onClose) {
+    ensureStyle();
     var idx = 0;
     var lastIdx = 0;
     var n = topic.slides.length;
@@ -280,7 +279,7 @@
     var overlay = document.createElement('div');
     overlay.className = 'help-overlay';
     overlay.innerHTML =
-      '<div class="help-popup" role="dialog" aria-modal="true" aria-label="Page help">' +
+      '<div class="help-popup" role="dialog" aria-modal="true" aria-label="' + esc(topic.title) + '">' +
         '<div class="help-head"><span>❓</span><span class="ht">' + esc(topic.title) + '</span>' +
           '<span class="hstep"></span></div>' +
         '<div class="help-slide"></div>' +
@@ -338,6 +337,7 @@
     function close() {
       document.removeEventListener('keydown', onKey);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (typeof onClose === 'function') onClose();
     }
 
     function onKey(ev) {
@@ -359,6 +359,19 @@
     nextBtn.focus();
   }
 
+  // Expose the wizard so other shared scripts (welcome.js) can render the same
+  // style of popup for their own content.
+  window.appWizard = openWizard;
+
+  // ── Page-help "?" button ──
+  var key = pageKey();
+  // Under the SPA router this script re-runs on every soft navigation, so
+  // clear any button left from the previous page first.
+  var oldFab = document.querySelector('.help-fab');
+  if (oldFab) oldFab.parentNode.removeChild(oldFab);
+  if (!key) return;
+  var topic = HELP[key];
+
   function addButton() {
     var btn = document.createElement('button');
     btn.className = 'help-fab';
@@ -366,7 +379,7 @@
     btn.textContent = '?';
     btn.title = 'Help: how this page is used';
     btn.setAttribute('aria-label', 'Help: how this page is used');
-    btn.addEventListener('click', openPopup);
+    btn.addEventListener('click', function() { openWizard(topic); });
     document.body.appendChild(btn);
   }
 

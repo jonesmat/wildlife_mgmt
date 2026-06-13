@@ -9,7 +9,7 @@
 // the optional Google Drive sync (/oauth/* and *.googleapis.com) is always
 // network-only.
 
-var CACHE = 'wm-shell-v3';
+var CACHE = 'wm-shell-v4';
 
 // Core shell precached on install so the app opens offline even on a page the
 // user hasn't visited yet. Parameterized routes (/report/:year, /yearbook/:year)
@@ -18,7 +18,7 @@ var SHELL = [
   '/', '/activity', '/plan', '/reports', '/settings', '/bucks', '/assets',
   '/map', '/trends', '/privacy', '/terms', '/plan-print',
   '/theme.js', '/store.js', '/dialog.js', '/google-sync.js', '/spa.js',
-  '/photo-source.js', '/help.js', '/version.js', '/activities-form.js',
+  '/photo-source.js', '/help.js', '/welcome.js', '/version.js', '/activities-form.js',
   '/print-helpers.js', '/form-shared.css', '/print-shared.css', '/mobile.css',
   '/favicon.svg'
 ];
