@@ -96,6 +96,16 @@ function fmtEdited(iso) {
   } catch (e) { return ''; }
 }
 
+// Report "years" are object keys and can come from an imported backup, so
+// treat them as untrusted: escape for HTML, encode for URLs, and pass them to
+// handlers via data attributes (below) rather than interpolating into inline
+// onclick JS, where HTML-escaping wouldn't stop a breakout.
+function escHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 async function loadYears() {
   const res = await (await fetch('/api/years')).json();
   const years = res.years || [];
@@ -104,19 +114,23 @@ async function loadYears() {
     list.innerHTML = '<div style="color:#999;font-size:0.9rem">No annual reports yet. Create one above.</div>';
     return;
   }
-  list.innerHTML = years.map(item => `
+  list.innerHTML = years.map(item => {
+    const yHtml = escHtml(item.year);
+    const yUrl = encodeURIComponent(item.year);
+    return `
     <div class="year-item">
       <span>
-        <span class="year-label">${item.year} Annual Report</span>
-        <div class="last-edited">${fmtEdited(item.updatedAt)}</div>
+        <span class="year-label">${yHtml} Annual Report</span>
+        <div class="last-edited">${escHtml(fmtEdited(item.updatedAt))}</div>
       </span>
       <div class="row">
-        <a href="/report/${item.year}" class="btn btn-primary btn-sm">Edit</a>
-        <button class="btn btn-secondary btn-sm" onclick="window.open('/report-print/${item.year}', '_blank')">Generate PDF</button>
-        <button class="btn-danger btn-sm" onclick="openDeleteModal('${item.year}')">Delete</button>
+        <a href="/report/${yUrl}" class="btn btn-primary btn-sm">Edit</a>
+        <button class="btn btn-secondary btn-sm" data-action="print" data-year="${yHtml}">Generate PDF</button>
+        <button class="btn-danger btn-sm" data-action="delete" data-year="${yHtml}">Delete</button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 async function createReport() {
@@ -132,7 +146,7 @@ async function createReport() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(reportData)
   });
-  window.location.href = `/report/${year}`;
+  window.location.href = `/report/${encodeURIComponent(year)}`;
 }
 
 // ── Delete report (type-to-confirm) ──
@@ -159,11 +173,24 @@ function deleteConfirmChanged() {
 
 async function confirmDeleteReport() {
   if (!deleteTargetYear) return;
-  var resp = await fetch('/api/reports/' + deleteTargetYear, { method: 'DELETE' });
+  var resp = await fetch('/api/reports/' + encodeURIComponent(deleteTargetYear), { method: 'DELETE' });
   if (!resp.ok) appDialog('Failed to delete report (HTTP ' + resp.status + ')');
   closeDeleteModal();
   loadYears();
 }
+
+// Print/Delete are wired by delegation (years are untrusted, so they're carried
+// in data-year rather than baked into inline onclick code).
+document.getElementById('yearsList').addEventListener('click', function(ev) {
+  const btn = ev.target.closest('[data-action]');
+  if (!btn) return;
+  const year = btn.getAttribute('data-year');
+  if (btn.getAttribute('data-action') === 'print') {
+    window.open('/report-print/' + encodeURIComponent(year), '_blank');
+  } else if (btn.getAttribute('data-action') === 'delete') {
+    openDeleteModal(year);
+  }
+});
 
 document.getElementById('deleteModal').addEventListener('click', function(ev) {
   if (ev.target === this) closeDeleteModal();
