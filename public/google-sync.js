@@ -363,6 +363,7 @@
         '.gsync-pill.show{display:flex}' +
         '.gsync-pill.error{background:#8b1a1a;cursor:pointer}' +
         '.gsync-pill.paused{background:#8b5a1a;cursor:pointer}' +
+        '.gsync-pill.offline{background:#5a6270}' +
         '.gsync-spinner{width:13px;height:13px;border:2px solid rgba(255,255,255,0.35);' +
           'border-top-color:white;border-radius:50%;animation:gsyncSpin 0.8s linear infinite;flex-shrink:0}' +
         '@keyframes gsyncSpin{to{transform:rotate(360deg)}}' +
@@ -390,6 +391,7 @@
     if (!state) { indicatorEl.classList.remove('show'); return; }
     indicatorEl.classList.toggle('error', state === 'error');
     indicatorEl.classList.toggle('paused', state === 'paused');
+    indicatorEl.classList.toggle('offline', state === 'offline');
     indicatorEl.innerHTML = (state === 'syncing' ? '<span class="gsync-spinner"></span>' : '') + esc(text);
     indicatorEl.title = state === 'error' ? text + ' — tap to open Settings'
       : state === 'paused' ? 'Google needs a quick sign-in to keep syncing — tap to reconnect'
@@ -983,9 +985,10 @@
       localStorage.setItem('gsync-auto', on ? '1' : '0');
     },
     // Lightweight, silent change check — used on each hard load and (via the
-    // SPA router) on each soft navigation. No-op until sync is set up.
+    // SPA router) on each soft navigation. No-op until sync is set up, or while
+    // offline (the 'online' handler below resumes it).
     syncCheck: function() {
-      if (autoSyncReady()) syncNow(false).catch(function() { /* silent by design */ });
+      if (autoSyncReady() && navigator.onLine) syncNow(false).catch(function() { /* silent by design */ });
     }
   };
 
@@ -999,11 +1002,25 @@
   var DEBOUNCE_MS = 5000;
   var debounceTimer = null;
   window.addEventListener('wm-data-changed', function() {
-    if (syncing || !autoSyncReady()) return;
+    // While offline the edit is safe in IndexedDB; it pushes when the
+    // 'online' handler fires the check below.
+    if (syncing || !autoSyncReady() || !navigator.onLine) return;
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(function() {
       syncNow(false).catch(function() { /* silent by design */ });
     }, DEBOUNCE_MS);
+  });
+
+  // Coming back online: flush any edits made offline and pull remote changes.
+  window.addEventListener('online', function() {
+    if (autoSyncReady()) {
+      indicator('ok', '✓ Back online');
+      window.gsync.syncCheck();
+    }
+  });
+  // Going offline: a quick, reassuring note that edits are still being saved.
+  window.addEventListener('offline', function() {
+    if (autoSyncReady()) indicator('offline', '⊘ Offline — changes saved on this device');
   });
 
   // Lightweight check on every page load: compares the local change stamp and
