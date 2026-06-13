@@ -62,6 +62,7 @@
     if (stylesAdded) return;
     stylesAdded = true;
     var style = document.createElement('style');
+    style.id = 'photo-source-style'; // id marks it persistent so the SPA router won't swap it out
     style.textContent =
       '.ps-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1100;' +
         'display:flex;align-items:flex-end;justify-content:center}' +
