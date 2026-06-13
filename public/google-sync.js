@@ -352,8 +352,9 @@
   var indicatorTimer = null;
   function indicator(state, text) {
     if (!document.body) return;
-    if (!indicatorEl) {
+    if (!document.getElementById('gsync-pill-style')) {
       var style = document.createElement('style');
+      style.id = 'gsync-pill-style';
       style.textContent =
         '.gsync-pill{position:fixed;left:14px;bottom:14px;z-index:96;display:none;' +
           'align-items:center;gap:8px;background:#1a4a1a;color:white;border-radius:18px;' +
@@ -367,6 +368,10 @@
         '@keyframes gsyncSpin{to{transform:rotate(360deg)}}' +
         '@media print{.gsync-pill{display:none !important}}';
       document.head.appendChild(style);
+    }
+    // The SPA router replaces the body on navigation, detaching the pill; if
+    // it's missing or orphaned, (re)create it.
+    if (!indicatorEl || !indicatorEl.isConnected) {
       indicatorEl = document.createElement('div');
       indicatorEl.className = 'gsync-pill';
       indicatorEl.setAttribute('role', 'status');
@@ -976,6 +981,11 @@
     autoEnabled: function() { return localStorage.getItem('gsync-auto') !== '0'; },
     setAuto: function(on) {
       localStorage.setItem('gsync-auto', on ? '1' : '0');
+    },
+    // Lightweight, silent change check — used on each hard load and (via the
+    // SPA router) on each soft navigation. No-op until sync is set up.
+    syncCheck: function() {
+      if (autoSyncReady()) syncNow(false).catch(function() { /* silent by design */ });
     }
   };
 
@@ -1002,8 +1012,6 @@
   // up-to-date load stays completely silent. (Local edits are still pushed
   // promptly by the debounced change sync above.)
   if (autoSyncReady()) {
-    setTimeout(function() {
-      syncNow(false).catch(function() { /* silent by design */ });
-    }, 1500);
+    setTimeout(function() { window.gsync.syncCheck(); }, 1500);
   }
 })();

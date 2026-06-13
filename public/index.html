@@ -10,6 +10,7 @@
 <script src="/store.js"></script>
 <script src="/dialog.js"></script>
 <script src="/google-sync.js"></script>
+<script src="/spa.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; background: #f0f2f5; color: #222; }
@@ -212,38 +213,38 @@
 
   <!-- Primary navigation -->
   <div class="tiles">
-    <div class="tile" onclick="location.href='/activity'">
+    <div class="tile" onclick="spaGo('/activity')">
       <div class="t-icon">📓</div>
       <div class="t-title">Activity Log</div>
       <div class="t-sub" id="tileLogSub">&nbsp;</div>
     </div>
-    <div class="tile" onclick="location.href='/plan'">
+    <div class="tile" onclick="spaGo('/plan')">
       <button class="t-action" title="Generate Plan PDF" onclick="event.stopPropagation();generatePDF('/plan-print')">🖨️</button>
       <div class="t-icon">📋</div>
       <div class="t-title">Management Plan</div>
       <div class="t-sub" id="planUpdated">PWD 885</div>
     </div>
-    <div class="tile" onclick="location.href='/reports'">
+    <div class="tile" onclick="spaGo('/reports')">
       <div class="t-icon">🗓️</div>
       <div class="t-title">Annual Reports</div>
       <div class="t-sub" id="tileReportsSub">PWD 888</div>
     </div>
-    <div class="tile" onclick="location.href='/bucks'">
+    <div class="tile" onclick="spaGo('/bucks')">
       <div class="t-icon">🦌</div>
       <div class="t-title">Buck Watch</div>
       <div class="t-sub">Track bucks over seasons</div>
     </div>
-    <div class="tile" onclick="location.href='/assets'">
+    <div class="tile" onclick="spaGo('/assets')">
       <div class="t-icon">🔧</div>
       <div class="t-title">Ranch Assets</div>
       <div class="t-sub" id="tileAssetsSub">Feeders, blinds &amp; equipment</div>
     </div>
-    <div class="tile" onclick="location.href='/map'">
+    <div class="tile" onclick="spaGo('/map')">
       <div class="t-icon">🗺️</div>
       <div class="t-title">Property Map</div>
       <div class="t-sub">Activity by location</div>
     </div>
-    <div class="tile" onclick="location.href='/trends'">
+    <div class="tile" onclick="spaGo('/trends')">
       <div class="t-icon">📈</div>
       <div class="t-title">Census Trends</div>
       <div class="t-sub">Counts &amp; moon phases</div>
@@ -462,7 +463,7 @@
           ' <span class="chip-count">· ' + s.count + '</span></span>';
       }
       return '<span class="practice-chip todo" title="Nothing logged in ' + year + ' — click to start an entry"' +
-        ' onclick="location.href=\'/activity#log-' + encodeURIComponent(p) + '\'">+ ' + PRACTICE_LABELS[p] + '</span>';
+        ' onclick="spaGo(\'/activity#log-' + encodeURIComponent(p) + '\')">+ ' + PRACTICE_LABELS[p] + '</span>';
     }).join('');
 
     // As the year runs out, nudge harder: a gentle heads-up from October, an
@@ -562,7 +563,7 @@
         var name = (e['hv-points'] ? e['hv-points'] + '-Point ' : '') + 'Whitetail';
         var detail = fmtEighths(net) + ' B&amp;C ' + mode + '<br>' + (e.datetime || '').slice(0, 4) +
           (e['hv-hunter'] ? ' &middot; Taken by ' + escHtml(e['hv-hunter']) : '');
-        return '<div class="trophy-card" onclick="location.href=\'/activity#entry-' + e.id + '\'">' +
+        return '<div class="trophy-card" onclick="spaGo(\'/activity#entry-' + e.id + '\')">' +
           photo +
           '<div class="trophy-body">' +
             '<div class="trophy-name">' + escHtml(name) + '</div>' +
