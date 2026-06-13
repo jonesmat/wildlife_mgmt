@@ -13,14 +13,18 @@ if (nodeMajor < 18) {
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = 3000;
 app.disable('x-powered-by');
 
 // All app data lives in the browser (IndexedDB via public/store.js and
-// public/sw.js). This server only hosts static files and page routes —
-// it reads and writes nothing on disk.
+// public/sw.js). This server only hosts static files and page routes.
+// The one thing it persists on disk is Google Drive sync refresh tokens
+// (data/oauth-tokens.json, gitignored), so sync survives server restarts
+// without the browser ever holding the long-lived token.
 
 // Loopback-only single-user server, so the ceiling is generous — this just
 // caps runaway request loops while keeping every route rate-limited.
@@ -60,23 +64,79 @@ app.use(express.static(path.join(__dirname, 'public')));
 // provided:  GOOGLE_CLIENT_SECRET=... node server.js
 const GOOGLE_CLIENT_ID = '462623472338-k5r76knldtvror94mvcfv417j2q6d9o0.apps.googleusercontent.com';
 
+// Refresh tokens are kept here (not in the browser) keyed by an opaque
+// device id, so sync keeps working across server restarts. The file lives
+// in the gitignored data/ folder that's also excluded when sharing the app.
+const TOKENS_FILE = path.join(__dirname, 'data', 'oauth-tokens.json');
+
+function readTokens() {
+  try {
+    // strip a UTF-8 BOM in case the file was ever edited/saved by hand
+    return JSON.parse(fs.readFileSync(TOKENS_FILE, 'utf8').replace(/^\uFEFF/, '')) || {};
+  } catch (e) { return {}; }
+}
+
+function writeTokens(tokens) {
+  try {
+    fs.mkdirSync(path.dirname(TOKENS_FILE), { recursive: true });
+    fs.writeFileSync(TOKENS_FILE, JSON.stringify(tokens, null, 2));
+  } catch (e) {
+    console.error('Could not persist sync tokens to ' + TOKENS_FILE + ': ' + e.message);
+  }
+}
+
 async function handleOauth(req, res, op) {
   if (!process.env.GOOGLE_CLIENT_SECRET) {
     return res.status(501).json({ error: 'Sync backend not configured: set the GOOGLE_CLIENT_SECRET environment variable.' });
   }
   const body = req.body || {};
+
+  // Disconnect: kill the grant at Google and forget the stored token.
+  if (op === 'revoke') {
+    let rt = body.refresh_token || '';
+    if (!rt && body.device_id) {
+      const tokens = readTokens();
+      rt = (tokens[body.device_id] || {}).refresh_token || '';
+      if (tokens[body.device_id]) {
+        delete tokens[body.device_id];
+        writeTokens(tokens);
+      }
+    }
+    if (rt) {
+      await fetch('https://oauth2.googleapis.com/revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'token=' + encodeURIComponent(rt)
+      }).catch(() => { /* best effort */ });
+    }
+    return res.json({ ok: true });
+  }
+
   const params = new URLSearchParams();
   params.set('client_id', GOOGLE_CLIENT_ID);
   params.set('client_secret', process.env.GOOGLE_CLIENT_SECRET);
+  let deviceId = '';
   if (op === 'exchange') {
     if (!body.code) return res.status(400).json({ error: 'code required' });
     params.set('grant_type', 'authorization_code');
     params.set('code', body.code);
     params.set('redirect_uri', 'postmessage');
   } else {
-    if (!body.refresh_token) return res.status(400).json({ error: 'refresh_token required' });
-    params.set('grant_type', 'refresh_token');
-    params.set('refresh_token', body.refresh_token);
+    if (body.device_id) {
+      deviceId = String(body.device_id);
+      const stored = readTokens()[deviceId];
+      if (!stored || !stored.refresh_token) {
+        return res.status(401).json({ error: 'Unknown device — sign in again.' });
+      }
+      params.set('grant_type', 'refresh_token');
+      params.set('refresh_token', stored.refresh_token);
+    } else if (body.refresh_token) {
+      // Legacy mode: the browser still holds its own refresh token.
+      params.set('grant_type', 'refresh_token');
+      params.set('refresh_token', body.refresh_token);
+    } else {
+      return res.status(400).json({ error: 'refresh_token required' });
+    }
   }
   try {
     const r = await fetch('https://oauth2.googleapis.com/token', {
@@ -87,8 +147,32 @@ async function handleOauth(req, res, op) {
     const tok = await r.json().catch(() => ({}));
     if (!r.ok || !tok.access_token) {
       const status = r.status === 400 || r.status === 401 ? 401 : 502;
+      if (status === 401 && deviceId) {
+        const tokens = readTokens();
+        delete tokens[deviceId];
+        writeTokens(tokens);
+      }
       return res.status(status).json({ error: tok.error_description || tok.error || 'Google token request failed' });
     }
+
+    if (op === 'exchange' && tok.refresh_token) {
+      // Keep the refresh token here; the browser gets an opaque device id.
+      deviceId = crypto.randomUUID();
+      const tokens = readTokens();
+      tokens[deviceId] = { refresh_token: tok.refresh_token, createdAt: new Date().toISOString() };
+      writeTokens(tokens);
+      return res.json({ access_token: tok.access_token, expires_in: tok.expires_in, device_id: deviceId });
+    }
+    if (deviceId) {
+      // Google occasionally rotates refresh tokens; keep the newest.
+      if (tok.refresh_token) {
+        const tokens = readTokens();
+        tokens[deviceId] = { refresh_token: tok.refresh_token, createdAt: new Date().toISOString() };
+        writeTokens(tokens);
+      }
+      return res.json({ access_token: tok.access_token, expires_in: tok.expires_in });
+    }
+    // Stateless fallback (legacy refresh / no refresh token returned).
     res.json({ access_token: tok.access_token, expires_in: tok.expires_in, refresh_token: tok.refresh_token });
   } catch (e) {
     res.status(502).json({ error: 'Could not reach Google: ' + e.message });
@@ -97,6 +181,7 @@ async function handleOauth(req, res, op) {
 
 app.post('/oauth/exchange', express.json(), (req, res) => handleOauth(req, res, 'exchange'));
 app.post('/oauth/refresh', express.json(), (req, res) => handleOauth(req, res, 'refresh'));
+app.post('/oauth/revoke', express.json(), (req, res) => handleOauth(req, res, 'revoke'));
 
 // Page routes
 app.get('/activity', (req, res) => {

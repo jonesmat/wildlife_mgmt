@@ -130,13 +130,27 @@ refreshes tokens server-side; it never sees your data):
    `npx wrangler secret put GOOGLE_CLIENT_SECRET` and paste it, or in the
    dashboard: **Workers & Pages → wildlife-mgmt → Settings → Variables and
    Secrets → Add** (type **Secret**, name `GOOGLE_CLIENT_SECRET`).
-3. Deploy. On each device, open **Settings → Data Management → Google Sync**,
+3. **Recommended — persistent token storage.** Give the Worker a KV namespace
+   so refresh tokens are stored server-side (they survive redeploys, and the
+   browser only holds an opaque device id):
+   - CLI: run `npx wrangler kv namespace create TOKENS`, paste the printed id
+     into the commented `kv_namespaces` block in `wrangler.jsonc`, and
+     uncomment it.
+   - Or dashboard: **Storage & Databases → KV → Create namespace** (name it
+     anything, e.g. `wildlife-mgmt-tokens`), then **Workers & Pages →
+     wildlife-mgmt → Settings → Bindings → Add → KV namespace**, variable
+     name `TOKENS`, select the namespace.
+   Without the binding, sync still works the old way (the refresh token is
+   stored in each browser).
+4. Deploy. On each device, open **Settings → Data Management → Google Sync**,
    click **Disconnect** (if previously connected), then **Sync Now** and
    approve the consent popup one final time.
 
 For the local server, the same works with
 `GOOGLE_CLIENT_SECRET=... node server.js` (without it, local falls back to
-the hourly tap-to-sign-in mode).
+the hourly tap-to-sign-in mode). The local server keeps refresh tokens in
+`data/oauth-tokens.json` automatically — they survive restarts, and `data/`
+is excluded from version control and from shared zips.
 
 ### Day-to-day behavior
 

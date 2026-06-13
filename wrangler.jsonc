@@ -17,6 +17,14 @@
   "vars": {
     "GOOGLE_CLIENT_ID": "462623472338-k5r76knldtvror94mvcfv417j2q6d9o0.apps.googleusercontent.com"
   },
+  // Optional but recommended: persistent server-side storage for Google
+  // refresh tokens, so sync survives Worker redeploys and the browser never
+  // holds the long-lived token. Create the namespace, paste its id below,
+  // and uncomment:
+  //   npx wrangler kv namespace create TOKENS
+  // "kv_namespaces": [
+  //   { "binding": "TOKENS", "id": "<paste the id from the command above>" }
+  // ],
   "compatibility_flags": [
     "nodejs_compat"
   ]

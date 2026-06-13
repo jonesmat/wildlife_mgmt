@@ -4,10 +4,14 @@
 //
 // Auth: sign-in uses the GIS authorization-code flow; the same-origin
 // backend (worker.mjs on Cloudflare, server.js locally) exchanges the code
-// using the client secret and hands back access + refresh tokens. The
-// refresh token lets background syncs renew access silently forever — no
-// popups after the one-time sign-in. If the backend isn't configured, the
-// client falls back to the popup token flow with an hourly tap-to-sign-in.
+// using the client secret. When the backend has persistent storage (the
+// TOKENS KV namespace on Cloudflare; data/oauth-tokens.json locally), it
+// keeps the long-lived refresh token itself and this browser stores only an
+// opaque device id — sync survives server restarts and redeploys, and the
+// refresh token never sits in localStorage. Older sign-ins that stored the
+// refresh token in the browser keep working until the user reconnects. If
+// the backend isn't configured at all, the client falls back to the popup
+// token flow with an hourly tap-to-sign-in.
 //
 // Requires a Google OAuth Client ID (Web application). Either hardcode it in
 // DEFAULT_CLIENT_ID below for your deployment, or paste it in
@@ -86,25 +90,33 @@
     return accessToken;
   }
 
-  // ── Refresh token (long-lived; renews access silently via the backend) ──
+  // ── Refresh credentials (renew access silently via the backend) ──
+  // Preferred: the backend keeps the long-lived Google refresh token in its
+  // own persistent storage and this browser holds only an opaque device id.
+  // Legacy: older sign-ins stored the raw refresh token in localStorage; that
+  // path keeps working until the user reconnects.
+  var DEVICE_KEY = 'gsync-device';
   var REFRESH_KEY = 'gsync-refresh';
 
+  function deviceId() { return localStorage.getItem(DEVICE_KEY) || ''; }
+  function clearDeviceId() { localStorage.removeItem(DEVICE_KEY); }
   function refreshToken() { return localStorage.getItem(REFRESH_KEY) || ''; }
   function clearRefreshToken() { localStorage.removeItem(REFRESH_KEY); }
 
   // Resolves to a fresh access token, or null when the backend is absent,
-  // the refresh token is missing, or the grant was revoked. Never shows UI.
+  // there are no stored credentials, or the grant was revoked. Never shows UI.
   function refreshAccessToken() {
+    var dev = deviceId();
     var rt = refreshToken();
-    if (!rt) return Promise.resolve(null);
+    if (!dev && !rt) return Promise.resolve(null);
     return fetch('/oauth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: rt })
+      body: JSON.stringify(dev ? { device_id: dev } : { refresh_token: rt })
     }).then(function(r) {
       if (r.status === 404 || r.status === 501) return null; // backend not available
       return r.json().then(function(t) {
-        if (r.status === 401) { clearRefreshToken(); return null; } // grant revoked
+        if (r.status === 401) { clearDeviceId(); clearRefreshToken(); return null; } // grant revoked
         if (!r.ok || !t.access_token) return null;                  // transient failure
         return cacheToken(t.access_token, t.expires_in);
       });
@@ -207,7 +219,7 @@
 
   var backendProbe = null;
   function backendAvailable() {
-    if (refreshToken()) return Promise.resolve(true); // it worked before
+    if (deviceId() || refreshToken()) return Promise.resolve(true); // it worked before
     if (backendProbe) return backendProbe;
     backendProbe = fetch('/oauth/refresh', {
       method: 'POST',
@@ -240,7 +252,13 @@
                 reject(new Error(res.t.error || 'Sign-in could not be completed.'));
                 return;
               }
-              if (res.t.refresh_token) localStorage.setItem(REFRESH_KEY, res.t.refresh_token);
+              if (res.t.device_id) {
+                // The backend stored the refresh token; we keep only the id
+                localStorage.setItem(DEVICE_KEY, res.t.device_id);
+                clearRefreshToken();
+              } else if (res.t.refresh_token) {
+                localStorage.setItem(REFRESH_KEY, res.t.refresh_token);
+              }
               resolve(cacheToken(res.t.access_token, res.t.expires_in));
             }, reject);
         },
@@ -883,15 +901,26 @@
   }
 
   function disconnect() {
+    var dev = deviceId();
+    if (dev) {
+      // The backend holds the refresh token: it revokes the grant at Google
+      // and deletes its stored copy.
+      fetch('/oauth/revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_id: dev })
+      }).catch(function() { /* best effort */ });
+    }
     var rt = refreshToken();
     if (rt) {
-      // Revoking the refresh token kills the whole grant server-side, so a
+      // Legacy browser-held token: revoking it kills the whole grant, so a
       // future reconnect gets a fresh consent (and a fresh refresh token).
       fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(rt), { method: 'POST' })
         .catch(function() { /* best effort */ });
     }
     var done = function() {
       clearCachedToken();
+      clearDeviceId();
       clearRefreshToken();
       localStorage.removeItem('gsync-meta');
       localStorage.removeItem('gsync-auto');
