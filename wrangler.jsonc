@@ -17,6 +17,13 @@
   "vars": {
     "GOOGLE_CLIENT_ID": "462623472338-k5r76knldtvror94mvcfv417j2q6d9o0.apps.googleusercontent.com"
   },
+  // Persistent server-side storage for Google refresh tokens, so sync
+  // survives Worker redeploys and the browser never holds the long-lived
+  // token. The id is the wildlife_mgmt_google_sync_refresh_tokens KV
+  // namespace (npx wrangler kv namespace list).
+  "kv_namespaces": [
+    { "binding": "TOKENS", "id": "f2387d894b8f4e6ab8352a9750969cc3" }
+  ],
   "compatibility_flags": [
     "nodejs_compat"
   ]
