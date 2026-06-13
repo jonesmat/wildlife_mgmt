@@ -666,6 +666,15 @@ Rules:
         or stored on a server. Use Data Export &amp; Restore to back up and move your data between
         devices.
       </div>
+
+      <div style="margin-top:18px">
+        <div style="font-weight:600;color:#1a4a1a;margin-bottom:4px">Welcome tour</div>
+        <div class="hint-block" style="margin-bottom:10px">
+          New to the app, or want a refresher? Replay the first-run welcome tour — the overview and
+          getting-started walkthrough that appears the first time you open the Home page.
+        </div>
+        <button class="btn btn-secondary" onclick="replayWelcomeTour()">▶ Replay welcome tour</button>
+      </div>
     </div>
   </main>
 </div>
@@ -1481,6 +1490,13 @@ async function gsyncDisconnect() {
 }
 
 renderGsyncPane();
+
+// Re-arm the first-run welcome tour and head to the Home page, where
+// welcome.js shows it in context. The flag key is owned by welcome.js.
+function replayWelcomeTour() {
+  try { localStorage.removeItem('wm-welcome-seen'); } catch (e) { /* ignore */ }
+  spaGo('/');
+}
 
 document.getElementById('appVersion').textContent = window.APP_VERSION || 'dev';
 document.getElementById('darkModeToggle').checked = appTheme.isDark();

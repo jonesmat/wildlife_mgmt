@@ -125,20 +125,25 @@
 
   function mergeHead(doc) {
     document.title = doc.title || document.title;
-    // Replace page-specific inline styles, leaving id'd runtime styles (dark
-    // mode, sync pill, help) in place.
+    // Drop the previous page's swapped-in inline styles (id'd runtime styles
+    // for dark mode, the sync pill, help, etc. are left alone).
     document.head.querySelectorAll('style[data-spa]').forEach(function(n) { n.remove(); });
-    doc.head.querySelectorAll('style:not([id])').forEach(function(st) {
-      var c = document.createElement('style');
-      c.setAttribute('data-spa', '');
-      c.textContent = st.textContent;
-      document.head.appendChild(c);
-    });
-    // Add any stylesheet the new page needs that isn't already loaded.
-    doc.head.querySelectorAll('link[rel="stylesheet"]').forEach(function(l) {
-      var href = l.getAttribute('href');
-      if (href && !document.head.querySelector('link[rel="stylesheet"][href="' + CSS.escape(href) + '"]')) {
-        document.head.appendChild(l.cloneNode(true));
+    // Re-apply the new page's <style> blocks and stylesheets in their authored
+    // order: each is appended to the end of <head> as we walk the source, and
+    // existing stylesheets are *moved* there too, so the cascade is preserved —
+    // e.g. mobile.css must stay after the page's own styles to keep overriding
+    // them on small screens.
+    doc.head.querySelectorAll('style:not([id]), link[rel="stylesheet"]').forEach(function(node) {
+      if (node.tagName === 'LINK') {
+        var href = node.getAttribute('href');
+        if (!href) return;
+        var existing = document.head.querySelector('link[rel="stylesheet"][href="' + CSS.escape(href) + '"]');
+        document.head.appendChild(existing || node.cloneNode(true)); // move existing, or add new
+      } else {
+        var c = document.createElement('style');
+        c.setAttribute('data-spa', '');
+        c.textContent = node.textContent;
+        document.head.appendChild(c);
       }
     });
   }
