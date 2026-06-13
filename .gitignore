@@ -45,6 +45,9 @@ jspm_packages/
 # Property data and uploaded photos
 data/
 
+# Minified build output (generated from public/ by build-static.js)
+dist/
+
 # Portable Node.js runtime (download separately; see README)
 _runtime/
 

@@ -5,15 +5,18 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "build": "node build-version.js",
+    "build": "node build-version.js && node build-static.js",
     "deploy": "npm run build && wrangler deploy",
-    "preview": "wrangler dev"
+    "preview": "npm run build && wrangler dev"
   },
   "dependencies": {
     "express": "^4.18.2",
     "express-rate-limit": "^8.5.2"
   },
   "devDependencies": {
+    "clean-css": "^5.3.3",
+    "html-minifier-terser": "^7.2.0",
+    "terser": "^5.48.0",
     "wrangler": "^4.99.0"
   }
 }
