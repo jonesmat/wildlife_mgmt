@@ -210,5 +210,10 @@
       lastSyncCheck = Date.now();
       gsync.syncCheck();
     }
+    // Re-evaluate the backup reminder (and re-attach it if the body swap
+    // detached it). Cheap and silent for people already using Drive sync.
+    if (window.gsync && typeof gsync.exportReminderCheck === 'function') {
+      gsync.exportReminderCheck();
+    }
   }
 })();

@@ -563,63 +563,77 @@ Rules:
     <div class="section" id="data" style="display:none">
       <div class="section-title">Data Management</div>
 
+      <!-- Lead: the single most important thing for the average user. -->
       <div class="hint-block" style="border-color:#b8d0b8;background:#f0f7ee">
-        🔒 <strong>Your data stays in this browser</strong> unless you enable Google Sync.
-        Everything — the plan, reports, log entries, photos, and maps — is stored locally on
-        this device and is never sent to this site's server. Regular exports (or Google Sync)
-        are your only backup: if this browser's site data is cleared or the device is lost, the
-        data is gone. Another browser or device starts empty until you import a backup there or
-        sync it from Google Drive.
+        🔒 <strong>Your data lives only in this browser.</strong> Nothing is sent to this site's
+        server. If the browser's data is cleared or the device is lost and you have no backup,
+        it's gone for good — so back it up regularly with one of the options below.
       </div>
 
+      <!-- 1. Primary action: back up. -->
       <div class="sub-section" style="margin-top:20px">
-        <div class="section-subtitle">Export</div>
-        <div class="hint-block">
+        <div class="section-subtitle">Back up your data</div>
+        <div class="hint">
           Saves everything — plan, reports, activity log, photos, property images, and routes —
-          to a single backup file. Your browser will ask where to save it (or use your Downloads
-          folder). Keep backups somewhere safe, like a cloud drive.
+          to a single file you keep somewhere safe (a cloud drive, USB stick, etc.).
         </div>
-        <button class="btn btn-primary" style="margin-top:10px" onclick="exportData()">Export All Data</button>
-        <span id="exportStatus" style="margin-left:10px;font-size:0.85rem;color:#777"></span>
+        <div style="margin-top:10px">
+          <button class="btn btn-primary" onclick="exportData()">Export All Data</button>
+          <span id="exportStatus" style="margin-left:10px;font-size:0.85rem;color:#777"></span>
+        </div>
+        <div id="lastBackupStatus" style="margin-top:8px;font-size:0.82rem;color:#777"></div>
       </div>
 
+      <!-- 2. The complement: restore. -->
       <div class="sub-section" style="margin-top:26px">
-        <div class="section-subtitle">Import</div>
-        <div class="hint-block">
-          Restore from a backup file created by this app. You'll choose whether to clear the
-          current data first or add the backup's contents alongside it.
+        <div class="section-subtitle">Restore from a backup</div>
+        <div class="hint">
+          Load a backup file created by this app. You'll choose whether to replace the current
+          data or merge the backup in alongside it.
         </div>
-        <button class="btn btn-primary" style="margin-top:10px" onclick="document.getElementById('importFileInput').click()">Import from File</button>
-        <input type="file" id="importFileInput" accept=".json,application/json" style="display:none" onchange="importFilePicked(this)">
-        <span id="importStatus" style="margin-left:10px;font-size:0.85rem;color:#777"></span>
+        <div style="margin-top:10px">
+          <button class="btn btn-primary" onclick="document.getElementById('importFileInput').click()">Import from File</button>
+          <input type="file" id="importFileInput" accept=".json,application/json" style="display:none" onchange="importFilePicked(this)">
+          <span id="importStatus" style="margin-left:10px;font-size:0.85rem;color:#777"></span>
+        </div>
       </div>
 
-      <div class="hint-block" style="border-color:#b8d0b8;background:#f0f7ee">
-        Optional: keep a copy of your data in <strong>your own Google Drive</strong> and sync it
-        between devices. The backup goes to Drive's hidden app-data area that only this app can
-        see. Turning this on means your data (including the PII in your plan) leaves this browser
-        and is stored in your Google account — leave it off if you prefer strictly local storage.
+      <!-- 3. Advanced/optional: automatic sync across devices. -->
+      <div class="sub-section" style="margin-top:26px">
+        <div class="section-subtitle">Sync across devices (optional)</div>
+        <div class="hint">
+          Keep a copy in <strong>your own Google Drive</strong> and sync it automatically between
+          devices, so you don't have to remember manual backups. Your data (including the personal
+          details in your plan) leaves this browser and is stored in your Google account — leave
+          this off if you prefer strictly local storage.
+        </div>
       </div>
 
-      <div class="sub-section" id="gsyncSetup" style="margin-top:20px;display:none">
-        <div class="section-subtitle">Google Sync &mdash; one-time setup</div>
-        <div class="hint-block">
-          Sync needs a (free) Google OAuth Client ID so Google knows this app is yours.
-          In <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a>:
-          create a project &rarr; enable the <strong>Google Drive API</strong> &rarr; configure the
-          OAuth consent screen (External, just yourself as test user is fine) &rarr; create an
-          <strong>OAuth client ID</strong> of type <strong>Web application</strong> with this
-          site's address as an authorized JavaScript origin. Paste the client ID here.
+      <div class="sub-section" id="gsyncSetup" style="margin-top:14px;display:none">
+        <div class="section-subtitle" style="font-size:0.95rem">First-time setup</div>
+        <div class="hint">
+          Sync needs a free Google OAuth Client ID so Google knows this app is yours. Paste it
+          below — it's stored only in this browser.
         </div>
-        <div class="form-group" style="max-width:440px;margin-top:10px">
+        <details style="margin:8px 0 4px">
+          <summary style="cursor:pointer;font-size:0.85rem;color:#1a6a1a">How to get a Client ID</summary>
+          <div class="hint-block" style="margin-top:8px">
+            In <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a>:
+            create a project &rarr; enable the <strong>Google Drive API</strong> &rarr; configure the
+            OAuth consent screen (External, with just yourself as a test user is fine) &rarr; create an
+            <strong>OAuth client ID</strong> of type <strong>Web application</strong> with this
+            site's address as an authorized JavaScript origin.
+          </div>
+        </details>
+        <div class="form-group" style="max-width:440px;margin-top:6px">
           <label>Google OAuth Client ID</label>
           <input type="text" id="gsyncClientId" placeholder="1234567890-xxxx.apps.googleusercontent.com">
         </div>
         <button class="btn btn-primary" onclick="gsyncSaveClientId()">Save Client ID</button>
       </div>
 
-      <div class="sub-section" id="gsyncMain" style="margin-top:20px;display:none">
-        <div class="section-subtitle">Google Sync</div>
+      <div class="sub-section" id="gsyncMain" style="margin-top:14px;display:none">
+        <div class="section-subtitle" style="font-size:0.95rem">Google Sync</div>
         <div id="gsyncAccount" style="font-size:0.9rem;color:#555;margin-bottom:10px"></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-primary" id="gsyncNowBtn" onclick="gsyncNow()">Sync Now</button>
@@ -629,14 +643,6 @@ Rules:
           </label>
         </div>
         <div id="gsyncStatus" style="font-size:0.85rem;color:#777;margin-top:10px"></div>
-        <div style="margin-top:14px">
-          <button class="btn btn-secondary" id="gsyncCopyLogBtn" onclick="gsyncCopyDebugLog()">Copy Debug Sync Logs</button>
-          <div class="hint" style="margin-top:6px">
-            Copies a diagnostic record of recent sync events to your clipboard. If sync gets stuck
-            on &ldquo;Sync paused,&rdquo; paste this when reporting the problem &mdash; it contains no
-            personal data or credentials.
-          </div>
-        </div>
         <div style="margin-top:18px">
           <button class="btn btn-secondary" id="gsyncDisconnectBtn" style="color:#8b1a1a" onclick="gsyncDisconnect()">Disconnect &amp; forget sync state</button>
           <div class="hint" style="margin-top:6px">
@@ -645,6 +651,17 @@ Rules:
             Settings &rarr; Manage apps.
           </div>
         </div>
+        <details style="margin-top:16px">
+          <summary style="cursor:pointer;font-size:0.82rem;color:#888">Troubleshooting</summary>
+          <div style="margin-top:8px">
+            <button class="btn btn-secondary" id="gsyncCopyLogBtn" onclick="gsyncCopyDebugLog()">Copy Debug Sync Logs</button>
+            <div class="hint" style="margin-top:6px">
+              Copies a diagnostic record of recent sync events to your clipboard. If sync gets stuck
+              on &ldquo;Sync paused,&rdquo; paste this when reporting the problem &mdash; it contains no
+              personal data or credentials.
+            </div>
+          </div>
+        </details>
       </div>
 
       <div class="sub-section" style="margin-top:26px">
@@ -873,6 +890,7 @@ function showPane(p) {
   });
   // Remember the open pane in the URL so a refresh (or bookmark) returns to it
   if (location.hash !== '#' + p) history.replaceState(null, '', '#' + p);
+  if (p === 'data' && typeof renderBackupStatus === 'function') renderBackupStatus();
   // On mobile the sidebar is a horizontally scrolling bar — keep the
   // highlighted item centered in it (no-op on desktop, where the list
   // doesn't overflow horizontally).
@@ -1171,9 +1189,32 @@ async function exportData() {
     document.body.removeChild(a);
     setTimeout(function() { URL.revokeObjectURL(a.href); }, 5000);
     status.textContent = '';
+    // Reset the backup-reminder clock and refresh the "Last backup" line.
+    if (window.gsync && gsync.recordExport) gsync.recordExport();
+    renderBackupStatus();
   } catch (err) {
     status.textContent = '';
     appDialog('Export failed: ' + err.message);
+  }
+}
+
+// "Last backup" line under the Export button. Reads the timestamp recorded by
+// gsync.recordExport(); when sync is in use, the off-device copy is the backup.
+function renderBackupStatus() {
+  var el = document.getElementById('lastBackupStatus');
+  if (!el) return;
+  if (window.gsync && gsync.meta && gsync.meta().lastSyncAt) {
+    el.textContent = 'Backed up via Google Drive sync (see below).';
+    el.style.color = '#1a6a1a';
+    return;
+  }
+  var last = (window.gsync && gsync.lastExport && gsync.lastExport()) || '';
+  if (!last) {
+    el.textContent = 'No file backup yet on this device.';
+    el.style.color = '#8b5a1a';
+  } else {
+    el.textContent = 'Last backup: ' + new Date(last).toLocaleString();
+    el.style.color = '#777';
   }
 }
 
@@ -1440,6 +1481,7 @@ var createRouteReturn = new URLSearchParams(location.search).get('createRoute') 
 // ── Google Sync pane ──
 
 function renderGsyncPane() {
+  if (typeof renderBackupStatus === 'function') renderBackupStatus();
   var configured = gsync.isConfigured();
   document.getElementById('gsyncSetup').style.display = configured ? 'none' : '';
   document.getElementById('gsyncMain').style.display = configured ? '' : 'none';

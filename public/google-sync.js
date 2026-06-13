@@ -1011,6 +1011,164 @@
     return Promise.resolve();
   }
 
+  // ── Backup reminder ──
+  // A gentle, dismissible nudge to back up (export a file, or set up Drive
+  // sync) when this device has unsaved local changes that haven't been
+  // exported in over a month. Never shown to people already using Google
+  // Drive sync — their data is already backed up off-device. A successful
+  // export (here or from Settings) resets the clock via recordExport(); the
+  // user can snooze it for 4h / 1d / 1w, or dismiss it for a month.
+  var EXPORT_KEY = 'wm-last-export';          // ISO of the last file backup
+  var REMIND_UNTIL_KEY = 'wm-export-remind-until'; // suppress reminder until this ISO
+  var REMIND_BASE_KEY = 'wm-export-baseline'; // when we first saw unsaved data (never-exported users)
+  var MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+
+  function lastExportAt() { return localStorage.getItem(EXPORT_KEY) || ''; }
+
+  // "Using Drive sync" = a client id is configured AND there's an actual sync
+  // relationship (a prior sync, or stored credentials). Such users are backed
+  // up off-device, so they never get the reminder.
+  function usingSync() {
+    return !!clientId() && (!!meta().lastSyncAt || !!deviceId() || !!refreshToken());
+  }
+
+  var reminderEl = null;
+  function removeReminder() {
+    if (reminderEl && reminderEl.parentNode) reminderEl.parentNode.removeChild(reminderEl);
+    reminderEl = null;
+  }
+  function snoozeReminder(ms) {
+    try { localStorage.setItem(REMIND_UNTIL_KEY, new Date(Date.now() + ms).toISOString()); } catch (e) {}
+    removeReminder();
+  }
+  // Called whenever a file backup completes (this banner, or Settings → Export).
+  // Resets the clock: no reminder until there are fresh changes AND a month
+  // passes again.
+  function recordExport() {
+    try {
+      localStorage.setItem(EXPORT_KEY, new Date().toISOString());
+      localStorage.removeItem(REMIND_UNTIL_KEY);
+    } catch (e) {}
+    removeReminder();
+  }
+
+  function backupFromBanner(btn) {
+    btn.disabled = true;
+    var orig = btn.textContent;
+    btn.textContent = 'Backing up…';
+    fetch('/api/export').then(function(r) { return r.json(); }).then(function(archive) {
+      var blob = new Blob([JSON.stringify(archive)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'wildlife-mgmt-backup-v' + archive.version + '-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(a.href); }, 5000);
+      recordExport();
+      indicator('ok', '✓ Backup saved');
+    }).catch(function() {
+      btn.disabled = false;
+      btn.textContent = orig;
+      indicator('error', 'Backup failed — try Settings → Export');
+    });
+  }
+
+  function showReminder() {
+    if (reminderEl && reminderEl.isConnected) return;
+    if (!document.body) return;
+    if (!document.getElementById('wm-remind-style')) {
+      var style = document.createElement('style');
+      style.id = 'wm-remind-style'; // id'd so the SPA router keeps it across navigations
+      style.textContent =
+        '.wm-remind{position:fixed;right:14px;bottom:14px;z-index:97;width:330px;max-width:calc(100vw - 28px);' +
+          'background:#fff;border:1px solid #e0d8c0;border-left:4px solid #8b5a1a;border-radius:10px;' +
+          'padding:14px 16px 14px;box-shadow:0 6px 20px rgba(0,0,0,0.18);font-family:Arial,sans-serif;' +
+          'animation:wmRemindIn 0.2s ease}' +
+        '@keyframes wmRemindIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}' +
+        '.wm-remind-x{position:absolute;top:8px;right:10px;border:none;background:none;color:#999;' +
+          'font-size:1.3rem;line-height:1;cursor:pointer;padding:2px 4px}' +
+        '.wm-remind-x:hover{color:#555}' +
+        '.wm-remind-row{display:flex;gap:10px;align-items:flex-start}' +
+        '.wm-remind-icon{font-size:1.4rem;flex-shrink:0;line-height:1.2}' +
+        '.wm-remind-text strong{display:block;color:#7a4e16;font-size:0.95rem;margin-bottom:3px}' +
+        '.wm-remind-text span{display:block;font-size:0.82rem;color:#555;line-height:1.5}' +
+        '.wm-remind-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 2px}' +
+        '.wm-remind-btn{border:none;border-radius:6px;padding:8px 14px;font-size:0.85rem;font-weight:600;' +
+          'cursor:pointer;background:#1a4a1a;color:#fff;font-family:Arial,sans-serif}' +
+        '.wm-remind-btn:hover{background:#256325}' +
+        '.wm-remind-btn:disabled{opacity:0.6;cursor:default}' +
+        '.wm-remind-link{font-size:0.82rem;color:#1a6a1a;text-decoration:underline;cursor:pointer}' +
+        '.wm-remind-snooze{font-size:0.76rem;color:#888;margin-top:8px}' +
+        '.wm-remind-snooze button{border:none;background:none;color:#1a6a1a;font-size:0.76rem;' +
+          'cursor:pointer;padding:2px 4px;text-decoration:underline;font-family:Arial,sans-serif}' +
+        '.wm-remind-snooze button:hover{color:#0f4a0f}' +
+        '@media print{.wm-remind{display:none !important}}';
+      document.head.appendChild(style);
+    }
+    var el = document.createElement('div');
+    el.className = 'wm-remind';
+    el.setAttribute('role', 'region');
+    el.setAttribute('aria-label', 'Backup reminder');
+    el.innerHTML =
+      '<button class="wm-remind-x" aria-label="Dismiss — remind me next month" title="Not now — remind me next month">×</button>' +
+      '<div class="wm-remind-row">' +
+        '<span class="wm-remind-icon" aria-hidden="true">🗄️</span>' +
+        '<div class="wm-remind-text">' +
+          '<strong>Time to back up your data</strong>' +
+          '<span>This device has changes that haven’t been backed up in over a month. ' +
+          'A quick export keeps them safe if the browser data is ever cleared.</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="wm-remind-actions">' +
+        '<button class="wm-remind-btn wm-remind-export">Export backup</button>' +
+        '<a class="wm-remind-link" href="/settings#data">Set up Drive sync</a>' +
+      '</div>' +
+      '<div class="wm-remind-snooze">Remind me later: ' +
+        '<button data-ms="' + (4 * 60 * 60 * 1000) + '">4 hours</button> · ' +
+        '<button data-ms="' + (24 * 60 * 60 * 1000) + '">1 day</button> · ' +
+        '<button data-ms="' + (7 * 24 * 60 * 60 * 1000) + '">1 week</button>' +
+      '</div>';
+    el.querySelector('.wm-remind-x').addEventListener('click', function() { snoozeReminder(MONTH_MS); });
+    el.querySelector('.wm-remind-export').addEventListener('click', function() { backupFromBanner(this); });
+    el.querySelectorAll('.wm-remind-snooze button').forEach(function(b) {
+      b.addEventListener('click', function() { snoozeReminder(parseInt(b.getAttribute('data-ms'), 10)); });
+    });
+    document.body.appendChild(el);
+    reminderEl = el;
+  }
+
+  // Decide whether to nudge. Cheap and silent: reads localStorage and the
+  // local /api/data stamp (served from IndexedDB). Safe to call on every page
+  // load and SPA navigation.
+  function exportReminderCheck() {
+    if (usingSync()) { removeReminder(); return; }
+    // Already decided to show this session — just keep it attached (the SPA
+    // router wipes the body on navigation).
+    if (reminderEl) {
+      if (!reminderEl.isConnected && document.body) document.body.appendChild(reminderEl);
+      return;
+    }
+    var until = localStorage.getItem(REMIND_UNTIL_KEY);
+    if (until && Date.now() < new Date(until).getTime()) return; // snoozed/dismissed
+    fetch('/api/data').then(function(r) { return r.json(); }).then(function(d) {
+      var lastMod = d && d.lastModifiedAt;
+      if (!lastMod) return;            // nothing saved on this device yet
+      if (usingSync()) return;         // re-check: client id may have loaded late
+      var exp = lastExportAt();
+      if (exp && lastMod <= exp) return; // already backed up since the last change
+      // Month timer runs from the last export, or from the first time we saw
+      // unsaved data (so brand-new users aren't nagged on day one).
+      var ref = exp || localStorage.getItem(REMIND_BASE_KEY);
+      if (!ref) {
+        try { localStorage.setItem(REMIND_BASE_KEY, new Date().toISOString()); } catch (e) {}
+        return; // start the clock; come back in a month
+      }
+      if (Date.now() - new Date(ref).getTime() < MONTH_MS) return; // not due yet
+      showReminder();
+    }).catch(function() { /* offline / store not ready — try again next load */ });
+  }
+
   window.gsync = {
     isConfigured: function() { return !!clientId(); },
     clientId: clientId,
@@ -1044,7 +1202,13 @@
     // offline (the 'online' handler below resumes it).
     syncCheck: function() {
       if (autoSyncReady() && navigator.onLine) syncNow(false).catch(function() { /* silent by design */ });
-    }
+    },
+    // Backup-reminder hooks. recordExport() resets the nudge clock after a
+    // file backup; exportReminderCheck() re-evaluates (called on load and on
+    // each SPA navigation); lastExport() backs the "Last backup" status line.
+    recordExport: recordExport,
+    exportReminderCheck: exportReminderCheck,
+    lastExport: lastExportAt
   };
 
   function autoSyncReady() {
@@ -1086,4 +1250,8 @@
   if (autoSyncReady()) {
     setTimeout(function() { window.gsync.syncCheck(); }, 1500);
   }
+
+  // Backup reminder for people not using Drive sync — checked a moment after
+  // load so it doesn't compete with first paint or the sync check above.
+  setTimeout(exportReminderCheck, 2500);
 })();
