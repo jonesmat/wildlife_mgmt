@@ -622,7 +622,7 @@
     ]
   };
 
-  var calExpanded = false;
+  var calWindowMonths = 2;       // how far ahead the calendar shows; +2 per click
   var customEvents = [];         // user-created calendar events (data.customEvents)
   var calReminders = [];         // asset/general reminders shown above the events
   var calAssets = [];            // for resolving a reminder's asset name
@@ -635,9 +635,21 @@
   var showSnoozed = false;
   var snoozeTarget = null;       // { key, name, startTime } while the snooze dialog is open
 
-  function toggleCalendar() {
-    calExpanded = !calExpanded;
+  function extendCalendar() {
+    calWindowMonths += 2;
     renderSeasonCalendar();
+  }
+
+  function resetCalendarWindow() {
+    calWindowMonths = 2;
+    renderSeasonCalendar();
+  }
+
+  // End of the visible window: today + calWindowMonths months (midnight)
+  function calWindowEnd() {
+    var d = calTodayMid();
+    d.setMonth(d.getMonth() + calWindowMonths);
+    return d.getTime();
   }
 
   function calParseDate(s) {
@@ -1044,35 +1056,48 @@
         (cal.meta.generated ? ' · generated ' + escHtml(cal.meta.generated) : '') + ' · imported calendar' +
         (hiddenCount ? ' · ' + hiddenCount + ' hidden by filters' : '') + '</div>';
 
-    var listHtml;
-    if (!calExpanded) {
-      var upcoming = mainItems.filter(function(i) { return !i.st.dateless && !i.st.past; })
-        .sort(function(a, b) {
-          return (a.st.active ? -1 : a.st.days) - (b.st.active ? -1 : b.st.days);
-        }).slice(0, 3);
-      listHtml = upcoming.map(function(it, i) {
-        return calRow(it, (i === 0 || it.st.active) ? ' next' : '', it.mode);
-      }).join('');
-    } else {
-      // One flat chronological list — no group sections; dateless items last
-      var sorted = mainItems.slice().sort(function(a, b) {
-        var ka = a.st.dateless ? Infinity : a.st.sortTime;
-        var kb = b.st.dateless ? Infinity : b.st.sortTime;
-        return ka - kb;
+    // Events within the window: today through calWindowMonths months out.
+    // "Open now" events always show; once the window reaches past the last
+    // upcoming event, everything (including dateless items) is on screen.
+    var windowEnd = calWindowEnd();
+    var future = mainItems.filter(function(i) { return !i.st.dateless && !i.st.past; });
+    var dateless = mainItems.filter(function(i) { return i.st.dateless; });
+    var lastStart = future.reduce(function(mx, i) { return Math.max(mx, i.st.sortTime); }, 0);
+    var coversAll = windowEnd >= lastStart;
+
+    var shown = future.filter(function(i) { return i.st.active || i.st.sortTime <= windowEnd; })
+      .sort(function(a, b) {
+        if (a.st.active !== b.st.active) return a.st.active ? -1 : 1;
+        return a.st.sortTime - b.st.sortTime;
       });
-      listHtml = sorted.map(function(it) {
-        return calRow(it, it.st.active ? ' next' : '', it.mode);
-      }).join('');
+    var hiddenLater = future.length - shown.length;
+
+    var listHtml = shown.map(function(it, i) {
+      return calRow(it, (i === 0 || it.st.active) ? ' next' : '', it.mode);
+    }).join('');
+    if (coversAll && dateless.length) {
+      listHtml += dateless.map(function(it) { return calRow(it, '', it.mode); }).join('');
+    }
+    if (!shown.length) {
+      listHtml += '<div style="color:#999;font-size:0.85rem;font-style:italic;padding:8px 0">' +
+        'Nothing on the calendar in the next ' + calWindowMonths + ' months.</div>';
     }
 
+    var windowLabel = '<span style="font-size:0.76rem;color:#888;align-self:center">' +
+      (coversAll ? 'showing all events' : 'showing through ' + calFmtMD(new Date(windowEnd))) + '</span>';
+
     var footer = '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
-      '<button class="btn btn-secondary btn-sm" onclick="toggleCalendar()">' +
-        (calExpanded ? 'Show next 3 only' : 'Show full calendar (' + mainItems.length + ' events)') + '</button>' +
+      (!coversAll
+        ? '<button class="btn btn-secondary btn-sm" onclick="extendCalendar()">Show next two months of events' +
+          (hiddenLater ? ' (' + hiddenLater + ' more)' : '') + '</button>' : '') +
+      (calWindowMonths > 2
+        ? '<button class="btn btn-secondary btn-sm" onclick="resetCalendarWindow()">Show next 2 months only</button>' : '') +
       '<button class="btn btn-secondary btn-sm" onclick="openEventModal(null)">+ Add Event</button>' +
       (dismissedItems.length
         ? '<button class="btn btn-secondary btn-sm" onclick="toggleDismissed()">' + (showDismissed ? 'Hide' : 'Show') + ' dismissed (' + dismissedItems.length + ')</button>' : '') +
       (snoozedItems.length
         ? '<button class="btn btn-secondary btn-sm" onclick="toggleSnoozed()">' + (showSnoozed ? 'Hide' : 'Show') + ' snoozed (' + snoozedItems.length + ')</button>' : '') +
+      windowLabel +
     '</div>';
 
     var extras = '';
@@ -1085,12 +1110,12 @@
         snoozedItems.map(function(it) { return calRow(it, '', 'snoozed'); }).join('');
     }
 
-    // Reminders pin above the events: everything overdue or coming up when
-    // collapsed, the full list when expanded
+    // Reminders pin above the events: everything overdue plus anything due
+    // inside the same window as the events
     var remSorted = calReminders.filter(function(r) { return r.date; })
       .sort(function(a, b) { return a.date < b.date ? -1 : 1; });
-    var remShown = calExpanded ? remSorted : remSorted.filter(function(r) {
-      return Math.round((calParseDate(r.date) - calTodayMid()) / 86400000) <= 75;
+    var remShown = coversAll ? remSorted : remSorted.filter(function(r) {
+      return calParseDate(r.date).getTime() <= windowEnd;
     });
     var remHtml = remShown.map(calReminderRow).join('');
 
