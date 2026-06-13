@@ -752,19 +752,33 @@
 
   var syncing = false;
 
-  // Public entry: wraps the sync with the activity indicator. Silent-mode
+  // Set the moment a real upload/download/merge begins, so the pill (with its
+  // direction arrow) only appears when data is actually transferred \u2014 the
+  // lightweight up-to-date check that runs on every page load stays silent.
+  var transferStarted = false, transferArrow = '', transferDone = '';
+  function beginTransfer(arrow, ing, done) {
+    transferStarted = true;
+    transferArrow = arrow;
+    transferDone = done;
+    indicator('syncing', arrow + ' ' + ing);
+  }
+
+  // Public entry. No pill is shown up front: the change check runs silently,
+  // and only a branch that transfers data raises the pill. Silent-mode
   // failures (e.g. Google can't mint a token without user interaction) hide
   // the indicator instead of flashing an error on every page load.
   function syncNow(interactive) {
     if (syncing) return Promise.resolve('Sync already in progress.');
     syncing = true;
+    transferStarted = false;
     return getToken(interactive).then(function() {
-      indicator('syncing', 'Syncing\u2026');
       return performSync(interactive);
     }).then(function(status) {
       syncing = false;
       if (/conflict/i.test(status)) indicator('error', 'Sync conflict');
-      else indicator('ok', '\u2713 ' + (/up to date/i.test(status) ? 'Up to date' : 'Synced'));
+      else if (transferStarted) indicator('ok', '\u2713 ' + transferArrow + ' ' + transferDone);
+      else if (interactive) indicator('ok', '\u2713 Up to date'); // explicit click gets feedback
+      else indicator(null);                                       // silent check, nothing moved
       return status;
     }, function(err) {
       syncing = false;
@@ -845,6 +859,7 @@
     });
 
     function doUpload() {
+      beginTransfer('↑', 'Uploading…', 'Uploaded');
       return uploadRemote(remote && remote.id, JSON.stringify(archive)).then(function(f) {
         return saveBase(archive, f.modifiedTime).then(function() {
           return finish('Uploaded to Google Drive.', f.id, f.modifiedTime, localStamp);
@@ -852,9 +867,11 @@
       });
     }
     function doDownload() {
+      beginTransfer('↓', 'Downloading…', 'Downloaded');
       return downloadRemote(remote.id).then(doImport);
     }
     function doImport(remoteArchive) {
+      beginTransfer('↓', 'Downloading…', 'Downloaded');
       return importArchive(remoteArchive).then(currentLocalStamp).then(function(stamp) {
         return saveBase(remoteArchive, remote.modifiedTime).then(function() {
           // The page rendered from the pre-import data; refresh to show what
@@ -865,6 +882,7 @@
       });
     }
     function doMerge(mergedArchive) {
+      beginTransfer('↕', 'Merging…', 'Merged');
       // Converge both sides on the merged result: import it here, upload it
       // to Drive, and make it the new base snapshot.
       return importArchive(mergedArchive).then(function() {
@@ -978,18 +996,14 @@
     }, DEBOUNCE_MS);
   });
 
-  // Auto-sync on open: pulls remote changes when the app starts, silently
-  // (no popups). Every in-app navigation is a fresh page load, so without a
-  // staleness threshold this would sync on every page change — only sync if
-  // the last one is older than ON_OPEN_MIN_AGE_MS. (Local edits are still
-  // pushed promptly by the debounced change sync above.)
-  var ON_OPEN_MIN_AGE_MS = 5 * 60 * 1000;
+  // Lightweight check on every page load: compares the local change stamp and
+  // the Drive file's modifiedTime (one small metadata request) and only
+  // transfers — and only then shows the pill — when they differ. An
+  // up-to-date load stays completely silent. (Local edits are still pushed
+  // promptly by the debounced change sync above.)
   if (autoSyncReady()) {
-    var last = Date.parse(meta().lastSyncAt) || 0;
-    if (Date.now() - last > ON_OPEN_MIN_AGE_MS) {
-      setTimeout(function() {
-        syncNow(false).catch(function() { /* silent by design */ });
-      }, 1500);
-    }
+    setTimeout(function() {
+      syncNow(false).catch(function() { /* silent by design */ });
+    }, 1500);
   }
 })();
