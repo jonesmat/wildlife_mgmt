@@ -3,6 +3,7 @@
 // appConfirm('message', 'Title'?, 'Confirm label'?) -> Promise<boolean>
 (function() {
   var style = document.createElement('style');
+  style.id = 'app-dialog-style'; // id marks it persistent so the SPA router won't swap it out
   style.textContent =
     '.app-dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;' +
       'display:flex;align-items:center;justify-content:center}' +
