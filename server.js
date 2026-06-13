@@ -238,6 +238,11 @@ app.get('/terms', (req, res) => {
   res.sendFile(path.join(STATIC_DIR,'terms.html'));
 });
 
+// Educational reference: Leopold's Five Tools of Wildlife Management
+app.get('/leopold', (req, res) => {
+  res.sendFile(path.join(STATIC_DIR,'leopold.html'));
+});
+
 app.get('/yearbook/:year?', (req, res) => {
   res.sendFile(path.join(STATIC_DIR,'yearbook.html'));
 });
