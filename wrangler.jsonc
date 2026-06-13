@@ -10,8 +10,11 @@
   "observability": {
     "enabled": true
   },
+  // Deploys the minified build, not the source. `npm run build` (the Worker's
+  // Build command) generates dist/ from public/ via build-static.js; run it
+  // before `wrangler deploy`.
   "assets": {
-    "directory": "public",
+    "directory": "dist",
     "binding": "ASSETS"
   },
   "vars": {

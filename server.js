@@ -57,7 +57,11 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+// Static files come from public/ (editable source) by default; set
+// WM_STATIC_DIR=dist to serve the minified build instead (what Cloudflare
+// deploys). Page routes below resolve their HTML from the same directory.
+const STATIC_DIR = path.join(__dirname, process.env.WM_STATIC_DIR || 'public');
+app.use(express.static(STATIC_DIR));
 
 // OAuth token endpoints for Google Drive sync — mirrors worker.mjs so sync
 // works the same against the local server. Enabled only when the secret is
@@ -185,7 +189,7 @@ app.post('/oauth/revoke', express.json(), (req, res) => handleOauth(req, res, 'r
 
 // Page routes
 app.get('/activity', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'activity.html'));
+  res.sendFile(path.join(STATIC_DIR,'activity.html'));
 });
 
 // Old path; renamed because Safe Browsing flagged the login-lookalike /log
@@ -194,57 +198,57 @@ app.get('/log', (req, res) => {
 });
 
 app.get('/plan', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'plan.html'));
+  res.sendFile(path.join(STATIC_DIR,'plan.html'));
 });
 
 app.get('/report/:year', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'report.html'));
+  res.sendFile(path.join(STATIC_DIR,'report.html'));
 });
 
 app.get('/reports', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'reports.html'));
+  res.sendFile(path.join(STATIC_DIR,'reports.html'));
 });
 
 app.get('/settings', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'settings.html'));
+  res.sendFile(path.join(STATIC_DIR,'settings.html'));
 });
 
 app.get('/bucks', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'bucks.html'));
+  res.sendFile(path.join(STATIC_DIR,'bucks.html'));
 });
 
 app.get('/assets', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'assets.html'));
+  res.sendFile(path.join(STATIC_DIR,'assets.html'));
 });
 
 app.get('/map', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'map.html'));
+  res.sendFile(path.join(STATIC_DIR,'map.html'));
 });
 
 app.get('/trends', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'trends.html'));
+  res.sendFile(path.join(STATIC_DIR,'trends.html'));
 });
 
 // Trust pages (Cloudflare serves these as clean URLs natively)
 app.get('/privacy', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+  res.sendFile(path.join(STATIC_DIR,'privacy.html'));
 });
 
 app.get('/terms', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'terms.html'));
+  res.sendFile(path.join(STATIC_DIR,'terms.html'));
 });
 
 app.get('/yearbook/:year?', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'yearbook.html'));
+  res.sendFile(path.join(STATIC_DIR,'yearbook.html'));
 });
 
 // Print views are client-rendered from local storage
 app.get('/plan-print', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'plan-print.html'));
+  res.sendFile(path.join(STATIC_DIR,'plan-print.html'));
 });
 
 app.get('/report-print/:year', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'report-print.html'));
+  res.sendFile(path.join(STATIC_DIR,'report-print.html'));
 });
 
 // Bind to loopback only: this is a single-user local tool, and the browser
