@@ -629,7 +629,7 @@ Rules:
         </div>
         <div id="gsyncStatus" style="font-size:0.85rem;color:#777;margin-top:10px"></div>
         <div style="margin-top:18px">
-          <button class="btn btn-secondary" style="color:#8b1a1a" onclick="gsyncDisconnect()">Disconnect &amp; forget sync state</button>
+          <button class="btn btn-secondary" id="gsyncDisconnectBtn" style="color:#8b1a1a" onclick="gsyncDisconnect()">Disconnect &amp; forget sync state</button>
           <div class="hint" style="margin-top:6px">
             Disconnecting stops syncing from this browser and revokes its access. The copy already
             in your Google Drive is not deleted &mdash; manage it under Google Drive &rarr;
@@ -1422,6 +1422,7 @@ function renderGsyncPane() {
     : 'Not connected yet \u2014 Sync Now will ask you to sign in with Google.';
   document.getElementById('gsyncAuto').checked = gsync.autoEnabled();
   var s = document.getElementById('gsyncStatus');
+  s.style.color = '#777';
   s.textContent = m.lastSyncAt
     ? (m.lastStatus || 'Synced') + ' \u2014 last sync ' + new Date(m.lastSyncAt).toLocaleString()
     : '';
@@ -1455,8 +1456,24 @@ async function gsyncDisconnect() {
     'Stop syncing from this browser and revoke its Google access?\n\nYour local data and the copy in Google Drive are both kept.',
     'Disconnect Google Sync', 'Disconnect');
   if (!ok) return;
+  var btn = document.getElementById('gsyncDisconnectBtn');
+  var s = document.getElementById('gsyncStatus');
+  btn.disabled = true;
+  btn.textContent = 'Disconnecting…';
+  s.style.color = '#777';
+  s.textContent = 'Disconnecting…';
   await gsync.disconnect();
   renderGsyncPane();
+  // renderGsyncPane resets the pane to its not-connected state and blanks the
+  // status line; spell out that the action succeeded so it doesn't look inert.
+  btn.disabled = false;
+  btn.innerHTML = 'Disconnect &amp; forget sync state';
+  s.style.color = '#1a6a1a';
+  s.textContent = '✓ Disconnected — this browser is no longer syncing with Google Drive.';
+  await appDialog(
+    'This browser is no longer syncing with Google Drive, and its access has been revoked.\n\n' +
+    'Your local data and the copy already in Drive are untouched. Use Sync Now to reconnect.',
+    'Disconnected from Google Sync');
 }
 
 renderGsyncPane();
