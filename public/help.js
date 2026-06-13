@@ -205,10 +205,17 @@
   }
 
   var key = pageKey();
+  // Under the SPA router this script re-runs on every soft navigation, so
+  // clear any button/styles left from the previous page first.
+  var oldFab = document.querySelector('.help-fab');
+  if (oldFab) oldFab.parentNode.removeChild(oldFab);
   if (!key) return;
   var topic = HELP[key];
 
+  // Inject the stylesheet once per page load (it's shared across navigations).
+  if (document.getElementById('help-style')) { addButton(); return; }
   var style = document.createElement('style');
+  style.id = 'help-style';
   style.textContent =
     '.help-fab{position:fixed;right:18px;bottom:18px;z-index:90;width:44px;height:44px;' +
       'border-radius:50%;border:none;background:#1a4a1a;color:white;font-size:1.25rem;' +

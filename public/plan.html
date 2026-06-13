@@ -9,6 +9,7 @@
 <script src="/store.js"></script>
 <link rel="stylesheet" href="/form-shared.css">
 <script src="/google-sync.js"></script>
+<script src="/spa.js"></script>
 <link rel="stylesheet" href="/mobile.css">
 </head>
 <body>
@@ -216,7 +217,7 @@
 
 <script src="/activities-form.js"></script>
 <script>
-let appData = {};
+var appData = {};
 
 async function init() {
   const res = await fetch('/api/data');
