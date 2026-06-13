@@ -629,6 +629,14 @@ Rules:
           </label>
         </div>
         <div id="gsyncStatus" style="font-size:0.85rem;color:#777;margin-top:10px"></div>
+        <div style="margin-top:14px">
+          <button class="btn btn-secondary" id="gsyncCopyLogBtn" onclick="gsyncCopyDebugLog()">Copy Debug Sync Logs</button>
+          <div class="hint" style="margin-top:6px">
+            Copies a diagnostic record of recent sync events to your clipboard. If sync gets stuck
+            on &ldquo;Sync paused,&rdquo; paste this when reporting the problem &mdash; it contains no
+            personal data or credentials.
+          </div>
+        </div>
         <div style="margin-top:18px">
           <button class="btn btn-secondary" id="gsyncDisconnectBtn" style="color:#8b1a1a" onclick="gsyncDisconnect()">Disconnect &amp; forget sync state</button>
           <div class="hint" style="margin-top:6px">
@@ -1494,6 +1502,37 @@ async function gsyncDisconnect() {
     'This browser is no longer syncing with Google Drive, and its access has been revoked.\n\n' +
     'Your local data and the copy already in Drive are untouched. Use Sync Now to reconnect.',
     'Disconnected from Google Sync');
+}
+
+async function gsyncCopyDebugLog() {
+  var btn = document.getElementById('gsyncCopyLogBtn');
+  var s = document.getElementById('gsyncStatus');
+  var text = (gsync.debugLog && gsync.debugLog()) || '[]';
+  var copied = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    copied = true;
+  } catch (e) {
+    // Clipboard API unavailable (older browser, or non-secure context):
+    // fall back to a hidden textarea + execCommand.
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      copied = document.execCommand('copy');
+      document.body.removeChild(ta);
+    } catch (e2) { copied = false; }
+  }
+  s.style.color = copied ? '#1a6a1a' : '#8b1a1a';
+  s.textContent = copied
+    ? '✓ Debug sync logs copied to your clipboard.'
+    : 'Could not copy automatically — opening the logs so you can copy them manually.';
+  if (!copied) {
+    await appDialog(text, 'Debug Sync Logs');
+  }
 }
 
 renderGsyncPane();

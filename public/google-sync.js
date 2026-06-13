@@ -24,6 +24,24 @@
   var SYNC_FILENAME = 'wildlife-mgmt-sync.json';
   var GSI_SRC = 'https://accounts.google.com/gsi/client';
 
+  // ── Sync diagnostics ──
+  // A lightweight, always-on event log that records the credential lifecycle
+  // (what got stored at sign-in, which credential a refresh used, the HTTP
+  // status it got back, and the exact reason a sync paused). Kept in a small
+  // ring buffer in page memory and mirrored to the console with a [gsync]
+  // prefix so it's easy to filter. To capture a pause when it next happens,
+  // open the browser console and run:  copy(gsync.debugLog())
+  // then paste the result. No tokens or personal data are recorded.
+  var SYNC_LOG = [];
+  function slog(event, detail) {
+    var entry = { t: new Date().toISOString(), event: event };
+    if (detail !== undefined) entry.detail = detail;
+    SYNC_LOG.push(entry);
+    if (SYNC_LOG.length > 80) SYNC_LOG.shift();
+    try { console.info('[gsync]', event, detail !== undefined ? detail : ''); } catch (e) {}
+    return detail;
+  }
+
   // Per-device sync bookkeeping (not secret): which Drive file revision and
   // local change stamp we last reconciled, and the connected account email.
   function meta() {
@@ -108,19 +126,38 @@
   function refreshAccessToken() {
     var dev = deviceId();
     var rt = refreshToken();
-    if (!dev && !rt) return Promise.resolve(null);
+    var cred = dev ? 'device' : (rt ? 'legacy-refresh-token' : 'none');
+    if (!dev && !rt) {
+      slog('refresh:no-credential', 'nothing stored — sign-in never yielded a device id or refresh token');
+      return Promise.resolve(null);
+    }
+    slog('refresh:start', { credential: cred });
     return fetch('/oauth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(dev ? { device_id: dev } : { refresh_token: rt })
     }).then(function(r) {
-      if (r.status === 404 || r.status === 501) return null; // backend not available
+      if (r.status === 404 || r.status === 501) {
+        slog('refresh:backend-unavailable', { status: r.status }); // backend not available
+        return null;
+      }
       return r.json().then(function(t) {
-        if (r.status === 401) { clearDeviceId(); clearRefreshToken(); return null; } // grant revoked
-        if (!r.ok || !t.access_token) return null;                  // transient failure
+        if (r.status === 401) { // grant revoked
+          slog('refresh:revoked', { status: 401, error: t && t.error, clearing: cred });
+          clearDeviceId(); clearRefreshToken();
+          return null;
+        }
+        if (!r.ok || !t.access_token) {
+          slog('refresh:failed', { status: r.status, ok: r.ok, hasToken: !!(t && t.access_token), error: t && t.error });
+          return null; // transient failure
+        }
+        slog('refresh:ok', { expiresIn: t.expires_in });
         return cacheToken(t.access_token, t.expires_in);
       });
-    }).catch(function() { return null; }); // offline etc. — treat as transient
+    }).catch(function(e) {
+      slog('refresh:network-error', String(e && e.message || e));
+      return null; // offline etc. — treat as transient
+    });
   }
 
   // ── Last-synced base snapshot (for three-way merges) ──
@@ -184,24 +221,31 @@
   // interactive=false must never show UI: it only succeeds when Google can
   // mint a token from an existing session + prior grant.
   function getToken(interactive) {
-    if (accessToken && Date.now() < tokenExpires - 60000) return Promise.resolve(accessToken);
+    if (accessToken && Date.now() < tokenExpires - 60000) {
+      slog('token:memory-hit', { msLeft: tokenExpires - Date.now() });
+      return Promise.resolve(accessToken);
+    }
     var cached = loadCachedToken();
     if (cached) {
+      slog('token:cache-hit', { msLeft: cached.expiresAt - Date.now() });
       accessToken = cached.token;
       tokenExpires = cached.expiresAt;
       return Promise.resolve(accessToken);
     }
     if (!clientId()) return Promise.reject(new Error('No Google Client ID configured.'));
+    slog('token:need-refresh', { interactive: !!interactive });
     return refreshAccessToken().then(function(tok) {
       if (tok) return tok;
       if (!interactive) {
         // No silent path left (no refresh token, or backend unavailable).
         // The GIS popup must never open from a background sync — pause and
         // let the pill's tap (a user gesture) re-authenticate instead.
+        slog('token:paused', 'silent refresh failed and no interactive gesture — raising Sync paused');
         var pauseErr = new Error('Sync paused — needs a quick sign-in.');
         pauseErr.needsInteraction = true;
         throw pauseErr;
       }
+      slog('token:interactive-signin');
       return interactiveSignIn();
     });
   }
@@ -256,8 +300,15 @@
                 // The backend stored the refresh token; we keep only the id
                 localStorage.setItem(DEVICE_KEY, res.t.device_id);
                 clearRefreshToken();
+                slog('signin:stored-device-id', 'backend holds the refresh token — silent renewal available');
               } else if (res.t.refresh_token) {
                 localStorage.setItem(REFRESH_KEY, res.t.refresh_token);
+                slog('signin:stored-legacy-refresh-token', 'browser holds the refresh token — silent renewal available');
+              } else {
+                // Neither came back: Google issued no refresh token (typically a
+                // re-consent without prompt=consent/access_type=offline). Sync
+                // will work for ~1h, then pause with nothing to renew from.
+                slog('signin:no-refresh-credential', 'exchange returned access token only — sync WILL pause in ~1h (no refresh token issued by Google)');
               }
               resolve(cacheToken(res.t.access_token, res.t.expires_in));
             }, reject);
@@ -973,6 +1024,10 @@
     meta: meta,
     syncNow: syncNow,
     disconnect: disconnect,
+    // Diagnostics: returns the sync event log as a pretty JSON string (also
+    // logged to the console live with a [gsync] prefix). When sync next pauses,
+    // run  copy(gsync.debugLog())  in the console and paste the result.
+    debugLog: function() { return JSON.stringify(SYNC_LOG, null, 2); },
     _indicator: indicator,
     _conflictDialog: showConflictDialog,
     _diffArchives: diffArchives,
