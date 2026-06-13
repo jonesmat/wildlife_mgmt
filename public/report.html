@@ -177,6 +177,9 @@ function getNestedValue(obj, path) {
 
 function setNestedValue(obj, path, value) {
   const keys = path.split('.');
+  // Never walk or write through prototype keys — guards against prototype
+  // pollution if a path ever contains __proto__/constructor/prototype.
+  if (keys.some(k => k === '__proto__' || k === 'constructor' || k === 'prototype')) return;
   let cur = obj;
   for (let i = 0; i < keys.length - 1; i++) {
     if (cur[keys[i]] === undefined) cur[keys[i]] = {};

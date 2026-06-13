@@ -373,6 +373,11 @@
   var topic = HELP[key];
 
   function addButton() {
+    // Inject the stylesheet up front so the button is styled the moment it's
+    // placed — not lazily on first click (which left the "?" unstyled on pages
+    // that don't open a wizard on load, and the id'd style is what survives SPA
+    // navigations).
+    ensureStyle();
     var btn = document.createElement('button');
     btn.className = 'help-fab';
     btn.type = 'button';
