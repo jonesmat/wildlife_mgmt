@@ -8,6 +8,7 @@
 <script src="/theme.js"></script>
 <script src="/store.js"></script>
 <script src="/dialog.js"></script>
+<script src="/photo-source.js"></script>
 <script src="/version.js"></script>
 <link rel="stylesheet" href="/form-shared.css">
 <style>
@@ -84,8 +85,7 @@
         </div>
 
         <div style="margin-top:14px">
-          <button class="btn btn-primary" onclick="document.getElementById('imageFileInput').click()">Upload New Image</button>
-          <input type="file" id="imageFileInput" accept="image/*" style="display:none" onchange="uploadImage(this)">
+          <button class="btn btn-primary" onclick="pickPhoto({}, uploadImage)">Upload New Image</button>
           <span id="uploadStatus" style="margin-left:10px;font-size:0.85rem;color:#777"></span>
         </div>
 
@@ -792,8 +792,8 @@ async function downscaleForUpload(dataUrl) {
   return (out.length < dataUrl.length) ? out : dataUrl;
 }
 
-function uploadImage(input) {
-  var file = input.files && input.files[0];
+function uploadImage(fileList) {
+  var file = fileList && fileList[0];
   if (!file) return;
   var status = document.getElementById('uploadStatus');
   status.textContent = 'Uploading...';
@@ -815,7 +815,6 @@ function uploadImage(input) {
       status.textContent = '';
       appDialog('Upload failed: ' + err.message);
     }
-    input.value = '';
   };
   reader.readAsDataURL(file);
 }

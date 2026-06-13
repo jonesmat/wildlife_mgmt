@@ -8,6 +8,7 @@
 <script src="/theme.js"></script>
 <script src="/store.js"></script>
 <script src="/dialog.js"></script>
+<script src="/photo-source.js"></script>
 <link rel="stylesheet" href="/form-shared.css">
 <style>
 /* ── log-specific ── */
@@ -712,11 +713,10 @@
       <div class="entry-photos-section">
         <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px">Photos</label>
         <div class="photo-grid" id="formPhotoGrid">
-          <button type="button" class="photo-add-btn" onclick="document.getElementById('photoFileInput').click()">
+          <button type="button" class="photo-add-btn" onclick="pickPhoto({ multiple: true }, handlePhotoFiles)">
             <span class="photo-add-icon">+</span><span>Add Photo</span>
           </button>
         </div>
-        <input type="file" id="photoFileInput" accept="image/*" multiple style="display:none" onchange="handlePhotoFiles(this)">
       </div>
 
       <div class="entry-actions">
@@ -2163,8 +2163,8 @@ async function deleteEntry() {
 }
 
 // ── Photos ──
-async function handlePhotoFiles(input) {
-  var files = Array.from(input.files);
+async function handlePhotoFiles(fileList) {
+  var files = Array.from(fileList || []);
   for (var i = 0; i < files.length; i++) {
     var file = files[i];
     var dataUrl = await readFileAsDataUrl(file);
@@ -2195,7 +2195,6 @@ async function handlePhotoFiles(input) {
     }
     renderFormPhotos();
   }
-  input.value = '';
 }
 
 function readFileAsDataUrl(file) {
@@ -2274,7 +2273,7 @@ function renderFormPhotos() {
       '<button class="photo-remove" onclick="removeFormPhoto(' + i + ')" title="Remove">&#10005;</button>' +
     '</div>';
   }).join('');
-  html += '<button type="button" class="photo-add-btn" onclick="document.getElementById(\'photoFileInput\').click()">' +
+  html += '<button type="button" class="photo-add-btn" onclick="pickPhoto({ multiple: true }, handlePhotoFiles)">' +
     '<span class="photo-add-icon">+</span><span>Add Photo</span>' +
   '</button>';
   grid.innerHTML = html;
