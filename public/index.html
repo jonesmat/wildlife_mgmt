@@ -131,6 +131,7 @@
     font-size: 0.8rem; color: #8b1a1a; background: #fdf0ef; border: 1px solid #e8c2bd;
     border-radius: 6px; padding: 7px 11px; margin-bottom: 10px;
   }
+  .cal-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
   .cal-act {
     border: none; background: none; cursor: pointer; font-size: 0.82rem;
     opacity: 0.35; padding: 2px 4px; flex-shrink: 0;
@@ -863,7 +864,7 @@
         (ev.details ? '<div class="cal-desc">' + escHtml(ev.details) + '</div>' : '') +
         '<div class="cal-tags">' + tags + '</div>' +
       '</span>' +
-      right +
+      (right ? '<span class="cal-right">' + right + '</span>' : '') +
     '</div>';
   }
 
@@ -888,9 +889,11 @@
         (assetName ? '<div class="cal-desc">' + escHtml(assetName) + '</div>' : '') +
         '<div class="cal-tags"><span class="cal-tag">Reminder</span></div>' +
       '</span>' +
-      due +
-      '<button class="btn btn-secondary btn-sm" style="padding:5px 12px;font-size:0.78rem" data-cal-action="complete"' +
-        ' data-rem-id="' + escAttr(r.id) + '" data-rem-name="' + escAttr(r.text) + '">✓ Complete</button>' +
+      '<span class="cal-right">' +
+        due +
+        '<button class="btn btn-secondary btn-sm" style="padding:5px 12px;font-size:0.78rem" data-cal-action="complete"' +
+          ' data-rem-id="' + escAttr(r.id) + '" data-rem-name="' + escAttr(r.text) + '">✓ Complete</button>' +
+      '</span>' +
     '</div>';
   }
 
