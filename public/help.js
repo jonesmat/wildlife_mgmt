@@ -267,7 +267,8 @@
     '.help-btn.back:hover{background:#dde2da}' +
     '.help-btn.back.hidden{visibility:hidden}' +
     '@media print{.help-fab,.help-overlay{display:none !important}}' +
-    '@media (max-width:720px){.help-fab{right:12px;bottom:12px;width:40px;height:40px;font-size:1.1rem}' +
+    // Bottom-left on phones: bottom-right belongs to the add-activity FAB there.
+    '@media (max-width:720px){.help-fab{right:auto;left:12px;bottom:12px;width:40px;height:40px;font-size:1.1rem}' +
       '.help-slide{padding:20px 18px 6px;min-height:240px}}';
     document.head.appendChild(style);
   }
