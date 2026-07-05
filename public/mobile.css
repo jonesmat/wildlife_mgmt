@@ -21,6 +21,10 @@
     -webkit-tap-highlight-color: transparent; touch-action: manipulation;
   }
   .fab:active { background: #256325; }
+  /* Hide the FAB while the entry form is open: it's redundant there (and a
+     stray tap would reset the form), and when little content follows the
+     form it can pin itself over the Save Entry button at max scroll. */
+  body:has(#newEntrySection[style*="block"]) .fab { display: none; }
 
   /* ── Page chrome ─────────────────────────────────────────────── */
   /* Header scrolls away on phones (vertical space is scarce); the
