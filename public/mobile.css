@@ -2,7 +2,30 @@
    Loaded LAST in each page's <head>, after form-shared.css and the page's
    own <style> block, so equal-specificity rules here win on small screens. */
 
+/* Floating "add activity" button (Home and Activity Log). Desktop already
+   has the header "+ New Entry" button, so the FAB is phone-only. */
+.fab { display: none; }
+
 @media (max-width: 720px) {
+  .fab {
+    position: fixed; right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: #1a4a1a; color: white; border: none; cursor: pointer;
+    font-size: 1.9rem; line-height: 1; padding: 0 0 3px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    /* above page content and the sticky section bar (95), below
+       modal overlays (100+) and the lightbox (999) */
+    z-index: 96;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .fab:active { background: #256325; }
+  /* Hide the FAB while the entry form is open: it's redundant there (and a
+     stray tap would reset the form), and when little content follows the
+     form it can pin itself over the Save Entry button at max scroll. */
+  body:has(#newEntrySection[style*="block"]) .fab { display: none; }
+
   /* ── Page chrome ─────────────────────────────────────────────── */
   /* Header scrolls away on phones (vertical space is scarce); the
      sidebar-turned-section-bar below takes over as the sticky element. */
