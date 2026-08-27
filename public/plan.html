@@ -222,8 +222,11 @@ var appData = {};
 async function init() {
   const res = await fetch('/api/data');
   appData = await res.json();
-  populateForm(appData);
+  // Render Part VIII first so its fields exist in the DOM before we populate —
+  // otherwise those fields load blank and the next autosave writes the blanks
+  // back over the saved values.
   renderActivities('activities', appData.activities);
+  populateForm(appData);
   setupHighFence();
   setupAutoSave();
   setupScrollSpy();
