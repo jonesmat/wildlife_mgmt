@@ -16,6 +16,13 @@
 (function() {
   'use strict';
 
+  // Defined once per realm. This script lives in each page's <body> so the SPA
+  // router (spa.js) re-runs it on soft-navigation — but it only executes head
+  // <script>s, so a <head> placement would leave pickPhoto undefined after a
+  // soft nav. The body placement means the script node is re-added on every
+  // navigation to a photo page, so bail out if pickPhoto already exists.
+  if (window.pickPhoto) return;
+
   // True when the primary input is touch (phone/tablet) — desktops with a
   // mouse report a fine pointer even if they also have a touchscreen.
   function prefersChooser() {
