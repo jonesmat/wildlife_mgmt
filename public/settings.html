@@ -49,6 +49,11 @@
 <link rel="stylesheet" href="/mobile.css">
 </head>
 <body>
+<!-- In <body> (not <head>) so the SPA router re-runs it on soft-navigation;
+     must precede the page script below that reads window.APP_VERSION. -->
+<script src="/version.js"></script>
+<!-- In <body> (not <head>) so the SPA router re-runs it on soft-navigation. -->
+<script src="/photo-source.js"></script>
 <header>
   <h1>Settings</h1>
   <div class="header-actions">
