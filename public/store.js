@@ -58,6 +58,7 @@
   function defaultData() {
     return {
       plan: {
+        years: '',
         owner: {
           accountNumber: '', name: '', address: '', cityStateZip: '',
           phone: '', tractName: '', majorityCounty: '', additionalCounties: ''
