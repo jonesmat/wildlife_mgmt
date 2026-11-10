@@ -118,6 +118,22 @@
           chips: ['“Crabclaw”', '“Tall Tines”'] }
       ]
     },
+    aging: {
+      title: 'Deer Aging',
+      slides: [
+        { icon: '🦌', title: 'Buck or doe, hoof or jaw',
+          text: 'Pick the deer and the method. On the Hoof estimates age from body shape before the shot; Jawbone ages a harvested deer by tooth replacement and wear.',
+          chips: ['♂ Buck', '♀ Doe', '👁 On the Hoof', '🦷 Jawbone'] },
+        { icon: '👁', title: 'Judge the body, not the rack',
+          text: 'Tap the description that fits each trait you can see. The estimate weighs every answer, and the bars show how well the cues agree.',
+          points: ['Three or more traits give a useful estimate', 'Antlers count for less: big racks fool people', 'Tap a choice again to clear it'] },
+        { icon: '🦷', title: 'Confirm with the jawbone',
+          text: 'Count the cheek teeth, check the cusps on tooth 3, then match the molar wear. This follows the TPWD tooth-wear guide, from Fawn to 8½+.' },
+        { icon: '🎯', title: 'Straight into the log',
+          text: 'Log harvest opens a new whitetail Harvest entry with the sex and age class already filled in.',
+          chips: ['🎯 Log harvest as 3.5 yrs'] }
+      ]
+    },
     map: {
       title: 'Property Map',
       slides: [

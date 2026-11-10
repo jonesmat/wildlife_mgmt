@@ -217,6 +217,10 @@ app.get('/bucks', (req, res) => {
   res.sendFile(path.join(STATIC_DIR,'bucks.html'));
 });
 
+app.get('/aging', (req, res) => {
+  res.sendFile(path.join(STATIC_DIR,'aging.html'));
+});
+
 app.get('/assets', (req, res) => {
   res.sendFile(path.join(STATIC_DIR,'assets.html'));
 });

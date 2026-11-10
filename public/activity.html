@@ -844,6 +844,20 @@ async function init() {
       switchType();
     }
   }
+  // Deep link from the Deer Aging tool: /activity#harvest-<Male|Female>-<age>
+  // opens a new whitetail Harvest entry with sex and age class prefilled
+  var hvMatch = /^#harvest-(Male|Female)-(.+)$/.exec(location.hash);
+  if (hvMatch) {
+    var hvAge = decodeURIComponent(hvMatch[2]);
+    showNewForm();
+    document.getElementById('fType').value = 'Harvest';
+    switchType();
+    populateSpeciesField('hv', 'White-tailed Deer');
+    document.getElementById('hv-sex').value = hvMatch[1];
+    var ageSel = document.getElementById('hv-age');
+    if (Array.prototype.some.call(ageSel.options, function(o) { return o.value === hvAge; })) ageSel.value = hvAge;
+    updateHarvestFields();
+  }
   // Deep link from the Asset Registry: /activity#maint-<assetId> opens a new
   // Maintenance entry pre-linked to that asset
   if (location.hash.indexOf('#maint-') === 0) {
