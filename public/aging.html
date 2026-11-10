@@ -126,6 +126,8 @@
       </div>
     </div>
 
+    <div class="callout" id="agReturnNote" style="display:none;margin-top:4px">Aging a deer for an Activity Log entry in progress — <strong>Use this age</strong> takes you back to it with Age Class filled in.</div>
+
     <div class="ag-wrap" style="margin-top:6px">
       <div class="ag-main" id="agMain"></div>
       <aside class="ag-side"><div class="result" id="agResult"></div></aside>
@@ -280,6 +282,21 @@ try {
   if (agSaved && AG_HOOF[agSaved.sex]) agState.sex = agSaved.sex;
   if (agSaved && (agSaved.method === 'hoof' || agSaved.method === 'jaw')) agState.method = agSaved.method;
 } catch (e) {}
+// Opened from an Activity Log entry's "age it" link: preset the deer and
+// method, and offer "Use this age" (back to that entry) instead of starting
+// a new log entry.
+var agReturn = null;
+(function() {
+  var q = new URLSearchParams(location.search);
+  if (q.get('from') !== 'hv' && q.get('from') !== 'si') return;
+  agReturn = q.get('from');
+  if (AG_HOOF[q.get('sex')]) agState.sex = q.get('sex');
+  if (q.get('method') === 'hoof' || q.get('method') === 'jaw') agState.method = q.get('method');
+})();
+
+function agBack(age) {
+  spaGo('/activity?restoreForm=1' + (age ? '&age=' + encodeURIComponent(age) : ''));
+}
 
 function agSet(key, val) {
   agState[key] = val;
@@ -465,6 +482,7 @@ function agRenderResult() {
     h += '<div class="res-empty" style="margin-top:6px">' + (agState.method === 'hoof'
       ? 'Tap the description that best fits each trait you can see. Skip anything you can\'t judge — three or more traits give a useful estimate.'
       : 'Work through the jawbone steps — each answer narrows the age class.') + '</div>';
+    if (agReturn) h += '<div class="res-actions"><button class="btn btn-secondary" onclick="agBack()">↩ Back to my entry</button></div>';
     return h;
   }
   var c = est.cls;
@@ -482,6 +500,13 @@ function agRenderResult() {
   }
   h += '<div class="res-note">' + c.note + '</div>';
   h += '<div class="res-actions">';
+  if (agReturn) {
+    if (c.log) h += '<button class="btn btn-primary" onclick="agBack(\'' + c.log + '\')">↩ Use this age (' + c.log + ')</button>';
+    else if (agState.method === 'hoof') h += '<button class="btn btn-primary" onclick="agSet(\'method\',\'jaw\')">🦷 Age her by the jawbone</button>';
+    h += '<button class="btn btn-secondary" onclick="agBack()">↩ Back without an age</button>';
+    h += '<button class="btn btn-secondary" onclick="agReset()">Start over</button></div>';
+    return h;
+  }
   var sex = agState.sex === 'buck' ? 'Male' : 'Female';
   if (c.log) {
     h += '<button class="btn btn-primary" onclick="spaGo(\'/activity#harvest-' + sex + '-' + encodeURIComponent(c.log) + '\')">🎯 Log harvest as ' + c.log + (c.log === 'Fawn' ? '' : ' yrs') + '</button>';
@@ -508,6 +533,7 @@ function agLogSighting() {
 
 function agRender() {
   agSegs();
+  document.getElementById('agReturnNote').style.display = agReturn ? '' : 'none';
   document.getElementById('agMain').innerHTML = agState.method === 'hoof' ? agRenderHoof() : agRenderJaw();
   document.getElementById('agResult').innerHTML = agRenderResult();
 }

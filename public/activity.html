@@ -348,8 +348,9 @@
           <div class="form-group"><label>Sex</label>
             <select id="hv-sex" onchange="updateHarvestFields()"><option value="">--</option><option>Male</option><option>Female</option><option>Unknown</option></select>
           </div>
-          <div class="form-group"><label>Age Class</label>
+          <div class="form-group" id="hv-ageGroup" style="display:none"><label>Age Class</label>
             <select id="hv-age"><option value="">--</option><option>Fawn</option><option>1.5</option><option>2.5</option><option>3.5</option><option>4.5</option><option>5.5+</option><option>Unknown</option></select>
+            <a href="#" onclick="ageIt('hv');return false" style="font-size:0.78rem;display:inline-block;margin-top:4px;color:#1a4a1a">age it</a>
           </div>
           <div class="form-group"><label>Weight (lbs)</label><input type="number" id="hv-weight"></div>
         </div>
@@ -511,7 +512,7 @@
           <div class="form-group" id="si-sexAgeGroup" style="display:none"><label>Sex / Group Breakdown</label><input type="text" id="si-sexAge" placeholder="2 bucks, 3 does, 1 fawn"></div>
           <div class="form-group" id="si-ageGroup" style="display:none"><label>Age Class</label>
             <select id="si-age"><option value="">--</option><option>Fawn</option><option>1.5</option><option>2.5</option><option>3.5</option><option>4.5</option><option>5.5+</option><option>Unknown</option></select>
-            <a href="/aging" style="font-size:0.78rem;display:inline-block;margin-top:4px;color:#1a4a1a">age it</a>
+            <a href="#" onclick="ageIt('si');return false" style="font-size:0.78rem;display:inline-block;margin-top:4px;color:#1a4a1a">age it</a>
           </div>
           <div class="form-group" id="si-buckGroup" style="display:none">
             <label>Watched Buck</label>
@@ -897,6 +898,11 @@ async function init() {
   if (savedState && (params.get('newRoute') || params.get('restoreForm'))) {
     localStorage.removeItem('censusFormState');
     try { restoreFormState(JSON.parse(savedState), params.get('newRoute')); } catch (e) { /* corrupt state — start fresh */ }
+    // Returning from Deer Aging's "Use this age": fill the entry's Age Class
+    // (only with one of the select's own options)
+    var agedValue = params.get('age');
+    var ageSel = document.getElementById(document.getElementById('fType').value === 'Sighting' ? 'si-age' : 'hv-age');
+    if (agedValue && Array.prototype.some.call(ageSel.options, function(o) { return o.value === agedValue; })) ageSel.value = agedValue;
   }
 }
 
@@ -1372,6 +1378,9 @@ function updateHarvestFields() {
   if (antlerSection) antlerSection.style.display = isBuck ? '' : 'none';
   var tagGroup = document.getElementById('hv-tagGroup');
   if (tagGroup) tagGroup.style.display = isWTD ? '' : 'none';
+  // Age classes (Fawn, 1.5 … 5.5+) are whitetail-specific
+  var ageGroup = document.getElementById('hv-ageGroup');
+  if (ageGroup) ageGroup.style.display = isWTD ? '' : 'none';
 }
 
 // ── Boone & Crockett scoring ──
@@ -1830,6 +1839,7 @@ function restoreFormState(state, newRouteId) {
     populateSpeciesField(p, (state.fields || {})[p + '-species']);
   });
   updateHarvestFields();
+  updateSightingFields();
   pendingPhotos = (state.photos || []).map(function(p) {
     // Older saved states stored plain filename strings
     var f = (typeof p === 'string') ? p : p.filename;
@@ -1843,6 +1853,18 @@ function restoreFormState(state, newRouteId) {
   updateMoonUI();
   if (newRouteId) document.getElementById('ce-routeId').value = newRouteId;
   scrollToForm();
+}
+
+// "age it" on a Harvest or Sighting: save the in-progress entry, open the
+// Deer Aging tool (jawbone for a harvest, on-the-hoof for a sighting), and
+// come back via its "Use this age" button with the age filled in.
+function ageIt(prefix) {
+  localStorage.setItem('censusFormState', JSON.stringify(captureFormState()));
+  var q = 'from=' + prefix + '&method=' + (prefix === 'hv' ? 'jaw' : 'hoof');
+  var sex = prefix === 'hv' ? document.getElementById('hv-sex').value : '';
+  if (sex === 'Male') q += '&sex=buck';
+  if (sex === 'Female') q += '&sex=doe';
+  spaGo('/aging?' + q);
 }
 
 function createRouteFromCensus() {
@@ -2153,6 +2175,7 @@ async function saveEntry() {
       if (el) entry[f] = el.value;
     });
     if (type === 'Sighting' && (entry['si-species'] !== 'White-tailed Deer' || sightingCount() > 1)) entry['si-age'] = '';
+    if (type === 'Harvest' && entry['hv-species'] !== 'White-tailed Deer') entry['hv-age'] = '';
     if (type === 'Census') {
       // Keep ce-route as the route NAME so cards, reports, and the PDF
       // keep working; preserve legacy free-text on entries without a route
