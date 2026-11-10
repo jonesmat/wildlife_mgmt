@@ -130,8 +130,8 @@
         { icon: '🦷', title: 'Confirm with the jawbone',
           text: 'Count the cheek teeth, check the cusps on tooth 3, then match the molar wear. This follows the TPWD tooth-wear guide, from Fawn to 8½+.' },
         { icon: '🎯', title: 'Straight into the log',
-          text: 'Log harvest opens a new whitetail Harvest entry with the sex and age class already filled in.',
-          chips: ['🎯 Log harvest as 3.5 yrs'] }
+          text: 'Log harvest opens a new whitetail Harvest entry with the sex and age class already filled in. Log sighting does the same for a Sighting — the age class is filled in and a note records the estimate.',
+          chips: ['🎯 Log harvest as 3.5 yrs', '👀 Log sighting'] }
       ]
     },
     map: {

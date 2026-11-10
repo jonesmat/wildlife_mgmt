@@ -684,6 +684,7 @@ function entryDetailLines(e) {
     if (e['hv-notes']) pairs.push(['Notes', e['hv-notes']]);
   } else if (e.type === 'Sighting') {
     if (e['si-sexAge']) pairs.push(['Detail', e['si-sexAge']]);
+    if (e['si-age']) pairs.push(['Age Class', e['si-age']]);
     if (e['si-location']) pairs.push(['Location', e['si-location']]);
     if (e['si-notes']) pairs.push(['Notes', e['si-notes']]);
   } else if (window.PRACTICE_FIELDS[e.type]) {

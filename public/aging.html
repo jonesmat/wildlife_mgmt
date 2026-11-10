@@ -488,8 +488,22 @@ function agRenderResult() {
   } else {
     h += '<button class="btn btn-primary" onclick="agSet(\'method\',\'jaw\')">🦷 Age her by the jawbone</button>';
   }
+  // Sightings are live deer, so only offer it for an on-the-hoof estimate
+  if (agState.method === 'hoof') h += '<button class="btn btn-secondary" onclick="agLogSighting()">👀 Log sighting</button>';
   h += '<button class="btn btn-secondary" onclick="agReset()">Start over</button></div>';
   return h;
+}
+
+// Open a new whitetail Sighting of one deer: the age class goes in Age Class
+// and a note records the sex and estimate, e.g.
+// "Buck, 4½ yrs (Mature) — aged on the hoof with Deer Aging"
+function agLogSighting() {
+  var est = agHoofEstimate();
+  if (!est) return;
+  var c = est.cls;
+  var age = /^[0-9]/.test(c.label) ? c.label + ' yrs' : c.label;
+  var desc = (agState.sex === 'buck' ? 'Buck' : 'Doe') + ', ' + age + ' (' + c.sub + ') — aged on the hoof with Deer Aging';
+  spaGo('/activity#sighting-' + encodeURIComponent(c.log || '') + '-' + encodeURIComponent(desc));
 }
 
 function agRender() {

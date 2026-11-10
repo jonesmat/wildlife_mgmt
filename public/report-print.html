@@ -91,6 +91,7 @@ function renderLogEntries(entries, propertyImages, routes) {
       if (e['hv-notes']) pairs.push(['Notes', e['hv-notes']]);
     } else if (e.type === 'Sighting') {
       if (e['si-sexAge']) pairs.push(['Detail', e['si-sexAge']]);
+      if (e['si-age']) pairs.push(['Age Class', e['si-age']]);
       if (e['si-location']) pairs.push(['Location', e['si-location']]);
       if (e['si-method']) pairs.push(['Method', e['si-method']]);
       if (e['si-notes']) pairs.push(['Notes', e['si-notes']]);
