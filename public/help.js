@@ -11,7 +11,7 @@
       title: 'Home Dashboard',
       slides: [
         { icon: '🌿', title: 'Your launch pad',
-          text: 'The tiles open each tool, and the cards below give you the state of the ranch at a glance. Most days, everything starts here.',
+          text: 'The big tiles are the core workflow — log, plan, report. The ranch tools sit just below, and the cards under them give you the state of the ranch at a glance.',
           chips: ['📓 Activity Log', '📋 Plan', '🗓️ Reports', '🦌 Buck Watch', '🔧 Assets', '🗺️ Map', '📈 Trends'] },
         { icon: '🎯', title: 'Stay qualified',
           text: 'The ring tracks the qualifying practices documented this year — the annual report needs at least 3 of 7.',
