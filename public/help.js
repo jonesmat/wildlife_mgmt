@@ -11,7 +11,7 @@
       title: 'Home Dashboard',
       slides: [
         { icon: '🌿', title: 'Your launch pad',
-          text: 'The tiles open each tool, and the cards below give you the state of the ranch at a glance. Most days, everything starts here.',
+          text: 'The big tiles are the core workflow — log, plan, report. The ranch tools sit just below, and the cards under them give you the state of the ranch at a glance.',
           chips: ['📓 Activity Log', '📋 Plan', '🗓️ Reports', '🦌 Buck Watch', '🔧 Assets', '🗺️ Map', '📈 Trends'] },
         { icon: '🎯', title: 'Stay qualified',
           text: 'The ring tracks the qualifying practices documented this year — the annual report needs at least 3 of 7.',
@@ -116,6 +116,22 @@
         { icon: '💡', title: 'Make it stick',
           text: 'Give bucks memorable names, and link a sighting every time he shows up on camera. Buck Watch is your own record — it never touches the plan or reports.',
           chips: ['“Crabclaw”', '“Tall Tines”'] }
+      ]
+    },
+    aging: {
+      title: 'Deer Aging',
+      slides: [
+        { icon: '🦌', title: 'Buck or doe, hoof or jaw',
+          text: 'Pick the deer and the method. On the Hoof estimates age from body shape before the shot; Jawbone ages a harvested deer by tooth replacement and wear.',
+          chips: ['♂ Buck', '♀ Doe', '👁 On the Hoof', '🦷 Jawbone'] },
+        { icon: '👁', title: 'Judge the body, not the rack',
+          text: 'Tap the description that fits each trait you can see. The estimate weighs every answer, and the bars show how well the cues agree.',
+          points: ['Three or more traits give a useful estimate', 'Antlers count for less: big racks fool people', 'Tap a choice again to clear it'] },
+        { icon: '🦷', title: 'Confirm with the jawbone',
+          text: 'Count the cheek teeth, check the cusps on tooth 3, then match the molar wear. This follows the TPWD tooth-wear guide, from Fawn to 8½+.' },
+        { icon: '🎯', title: 'Straight into the log',
+          text: 'Log harvest opens a new whitetail Harvest entry with the sex and age class already filled in. Log sighting does the same for a Sighting — the age class is filled in and a note records the estimate.',
+          chips: ['🎯 Log harvest as 3.5 yrs', '👀 Log sighting'] }
       ]
     },
     map: {

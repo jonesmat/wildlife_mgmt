@@ -223,6 +223,7 @@ function entryLine(e) {
   var s = 'Sighted';
   if (e['si-method']) s += ' (' + e['si-method'] + ')';
   if (e['si-sexAge']) s += ' — ' + e['si-sexAge'];
+  if (e['si-age']) s += ' (age ' + e['si-age'] + ')';
   return s;
 }
 

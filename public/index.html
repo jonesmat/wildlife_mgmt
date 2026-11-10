@@ -49,6 +49,38 @@
     background: none; border: none; cursor: pointer; padding: 2px;
   }
   .tile .t-action:hover { opacity: 1; }
+  /* Primary actions: the core 1-D-1 workflow, larger tiles */
+  .tiles-primary { grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+  .tiles-primary .tile { padding: 20px 20px 18px; border-top: 4px solid #1a4a1a; }
+  .tiles-primary .t-icon { font-size: 2rem; }
+  .tiles-primary .t-title { font-size: 1.08rem; margin-top: 10px; }
+  .tiles-primary .t-sub { font-size: 0.8rem; margin-top: 3px; }
+  /* Secondary actions: ranch tools, compact icon-beside-label tiles */
+  .tiles-label {
+    font-size: 0.72rem; font-weight: 700; color: #777; text-transform: uppercase;
+    letter-spacing: 0.05em; margin: 4px 2px 6px;
+  }
+  /* Flex-wrap (not grid) so a short last row stretches instead of leaving an orphan */
+  .tiles-secondary { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tiles-secondary .tile {
+    flex: 1 1 160px;
+    display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center;
+    padding: 10px 12px; box-shadow: 0 1px 5px rgba(0,0,0,0.07);
+  }
+  .tiles-secondary .t-icon { grid-row: span 2; font-size: 1.2rem; }
+  .tiles-secondary .t-title { margin-top: 0; font-size: 0.86rem; }
+  .tiles-secondary .t-sub { margin-top: 1px; }
+  @media (max-width: 560px) {
+    /* Phones: primary tiles become full-width rows, secondary go two-up */
+    .tiles-primary { grid-template-columns: 1fr; gap: 8px; }
+    .tiles-primary .tile {
+      display: grid; grid-template-columns: auto 1fr; column-gap: 14px; align-items: center;
+      padding: 14px 16px; border-top: none; border-left: 4px solid #1a4a1a;
+    }
+    .tiles-primary .t-icon { grid-row: span 2; font-size: 1.7rem; }
+    .tiles-primary .t-title { margin-top: 0; }
+    .tiles-secondary .tile { flex-basis: calc(50% - 4px); }
+  }
   /* ── Collapsible board header ── */
   .board-head { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
   .board-chev { margin-left: auto; color: #c9b97e; font-size: 0.85rem; transition: transform 0.2s; }
@@ -214,8 +246,8 @@
   <!-- Qualifying practices progress (1-D-1 requires 3 of 7) -->
   <div class="card practice-card" id="practiceCard" style="display:none"></div>
 
-  <!-- Primary navigation -->
-  <div class="tiles">
+  <!-- Primary actions: the 1-D-1 paperwork workflow -->
+  <div class="tiles tiles-primary">
     <div class="tile" onclick="spaGo('/activity')">
       <div class="t-icon">📓</div>
       <div class="t-title">Activity Log</div>
@@ -232,10 +264,20 @@
       <div class="t-title">Annual Reports</div>
       <div class="t-sub" id="tileReportsSub">PWD 888</div>
     </div>
+  </div>
+
+  <!-- Secondary actions: ranch tools -->
+  <div class="tiles-label">Ranch tools</div>
+  <div class="tiles tiles-secondary">
     <div class="tile" onclick="spaGo('/bucks')">
       <div class="t-icon">🦌</div>
       <div class="t-title">Buck Watch</div>
       <div class="t-sub">Track bucks over seasons</div>
+    </div>
+    <div class="tile" onclick="spaGo('/aging')">
+      <div class="t-icon">🦷</div>
+      <div class="t-title">Deer Aging</div>
+      <div class="t-sub">Age bucks &amp; does</div>
     </div>
     <div class="tile" onclick="spaGo('/assets')">
       <div class="t-icon">🔧</div>

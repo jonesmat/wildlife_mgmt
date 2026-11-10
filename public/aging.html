@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deer Aging</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script src="/theme.js"></script>
+<script src="/store.js"></script>
+<script src="/dialog.js"></script>
+<link rel="stylesheet" href="/form-shared.css">
+<style>
+.ag-wrap { display: flex; gap: 20px; align-items: flex-start; }
+.ag-main { flex: 1; min-width: 0; }
+.ag-side { width: 300px; flex-shrink: 0; position: sticky; top: 16px; }
+
+.seg { display: inline-flex; border: 1px solid #1a4a1a; border-radius: 8px; overflow: hidden; margin: 0 10px 10px 0; }
+.seg button {
+  background: white; color: #1a4a1a; border: none; padding: 9px 16px; font-size: 0.9rem;
+  font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.seg button + button { border-left: 1px solid #1a4a1a; }
+.seg button.on { background: #1a4a1a; color: white; }
+.ag-label { font-size: 0.72rem; font-weight: 700; color: #777; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+
+.trait {
+  background: white; border: 1px solid #ddd; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;
+}
+.trait-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.trait-title { font-weight: 700; color: #1a4a1a; font-size: 0.98rem; }
+.trait-q { font-size: 0.84rem; color: #666; }
+.trait-weak { font-size: 0.68rem; font-weight: 700; color: #8b5a1a; background: #fbf1e3; border-radius: 8px; padding: 2px 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+.opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.opt {
+  text-align: left; background: #fafcf9; border: 1px solid #d5ddd2; border-radius: 8px; padding: 9px 11px;
+  font-size: 0.84rem; color: #333; cursor: pointer; line-height: 1.35; font-family: inherit;
+}
+.opt:hover { border-color: #1a4a1a; }
+.opt.on { background: #e8f0e8; border-color: #1a4a1a; box-shadow: inset 0 0 0 1px #1a4a1a; }
+.opt-pic {
+  display: block; height: 120px; margin: -2px -2px 8px; background: #eef3ea; border-radius: 6px; overflow: hidden;
+}
+.opt-pic svg { width: 100%; height: 100%; display: block; }
+.opt.on .opt-pic { background: #dce9d6; }
+.opt-age { display: block; font-size: 0.7rem; font-weight: 700; color: #8b5a1a; margin-top: 4px; }
+
+.result {
+  background: white; border: 2px solid #1a4a1a; border-radius: 12px; padding: 16px 18px;
+}
+.res-k { font-size: 0.72rem; font-weight: 700; color: #777; text-transform: uppercase; letter-spacing: 0.05em; }
+.res-age { font-size: 2.1rem; font-weight: 800; color: #1a4a1a; line-height: 1.1; margin: 4px 0 2px; }
+.res-sub { font-size: 0.82rem; color: #555; }
+.res-conf { display: inline-block; margin-top: 8px; font-size: 0.74rem; font-weight: 700; border-radius: 10px; padding: 3px 10px; }
+.conf-hi { background: #e3f1e0; color: #1a5a1a; }
+.conf-mid { background: #fbf1e3; color: #8b5a1a; }
+.conf-lo { background: #fde8e8; color: #8b1a1a; }
+.res-empty { color: #888; font-size: 0.88rem; line-height: 1.5; }
+.dist { margin-top: 12px; }
+.dist-row { display: flex; align-items: center; gap: 8px; font-size: 0.76rem; color: #555; margin-bottom: 4px; }
+.dist-lab { width: 58px; flex-shrink: 0; text-align: right; }
+.dist-bar { flex: 1; height: 9px; background: #eef1ec; border-radius: 5px; overflow: hidden; }
+.dist-fill { height: 100%; background: #5a8a4a; border-radius: 5px; }
+.dist-row.top .dist-fill { background: #1a4a1a; }
+.dist-row.top .dist-lab { font-weight: 700; color: #1a4a1a; }
+.res-note { font-size: 0.82rem; color: #444; background: #f4f8f1; border-left: 3px solid #5a8a4a; padding: 8px 10px; border-radius: 0 6px 6px 0; margin-top: 12px; line-height: 1.45; }
+.res-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.res-actions .btn { text-align: center; }
+
+.callout { background: #fffaf0; border: 1px solid #ecd9b5; border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; font-size: 0.86rem; color: #4a3a1a; line-height: 1.5; }
+.callout strong { color: #6a4a10; }
+.callout ul { margin: 6px 0 0 18px; }
+.callout li { margin-bottom: 3px; }
+
+.jaw-fig { background: white; border: 1px solid #ddd; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+.jaw-fig svg { width: 100%; height: auto; display: block; }
+.jaw-legend { font-size: 0.78rem; color: #666; margin-top: 6px; line-height: 1.5; }
+.tooth { fill: #fbfaf5; stroke: #8a8270; stroke-width: 1.5; }
+.tooth.hl { fill: #f6e7b8; stroke: #8b5a1a; stroke-width: 2.2; }
+.step-done { opacity: 0.75; }
+.step-num { display: inline-flex; width: 22px; height: 22px; border-radius: 50%; background: #1a4a1a; color: white; font-size: 0.75rem; font-weight: 700; align-items: center; justify-content: center; }
+
+.sources { font-size: 0.76rem; color: #777; margin-top: 22px; line-height: 1.6; border-top: 1px solid #e3e3e3; padding-top: 12px; }
+.sources a { color: #1a4a1a; }
+
+@media (max-width: 860px) {
+  .ag-wrap { flex-direction: column; }
+  .ag-side { width: 100%; position: static; order: -1; }
+  .opts { grid-template-columns: 1fr; }
+}
+</style>
+<script src="/google-sync.js"></script>
+<script src="/spa.js"></script>
+<link rel="stylesheet" href="/mobile.css">
+</head>
+<body>
+<header>
+  <h1>🦷 Deer Aging</h1>
+  <div class="header-actions">
+    <a href="/bucks" class="btn btn-white">Buck Watch</a>
+    <a href="/" class="btn btn-white">Home</a>
+  </div>
+</header>
+
+<div class="layout">
+  <main class="main" style="max-width:1080px;width:100%">
+    <div class="hint-block" style="margin-bottom:14px">
+      Estimate a whitetail's age class two ways: <strong>on the hoof</strong> from body shape before the shot,
+      or from the <strong>jawbone</strong> (tooth replacement and wear) after harvest. Pick buck or doe, then answer
+      what you can see — the estimate updates as you go.
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;align-items:flex-end">
+      <div>
+        <div class="ag-label">Deer</div>
+        <div class="seg" id="segSex">
+          <button data-v="buck" onclick="agSet('sex','buck')">♂ Buck</button>
+          <button data-v="doe" onclick="agSet('sex','doe')">♀ Doe</button>
+        </div>
+      </div>
+      <div>
+        <div class="ag-label">Method</div>
+        <div class="seg" id="segMethod">
+          <button data-v="hoof" onclick="agSet('method','hoof')">👁 On the Hoof</button>
+          <button data-v="jaw" onclick="agSet('method','jaw')">🦷 Jawbone</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout" id="agReturnNote" style="display:none;margin-top:4px">Aging a deer for an Activity Log entry in progress — <strong>Use this age</strong> takes you back to it with Age Class filled in.</div>
+
+    <div class="ag-wrap" style="margin-top:6px">
+      <div class="ag-main" id="agMain"></div>
+      <aside class="ag-side"><div class="result" id="agResult"></div></aside>
+    </div>
+
+    <div class="sources">
+      <strong>Sources.</strong> On-the-hoof cues are adapted from E. R. Fuchs, <em>Aging on the Hoof</em>
+      (Kerr Wildlife Management Area, Texas Parks and Wildlife) and S. Demarais, D. Stewart &amp; R. N. Griffin,
+      <a href="https://extension.msstate.edu/publications/hunters-guide-aging-and-judging-live-white-tailed-deer-the-southeast" target="_blank" rel="noopener noreferrer"><em>Hunter's Guide to Aging and Judging Live White-Tailed Deer in the Southeast</em></a>
+      (Mississippi State University Extension P2206). The jawbone key follows A. Cain &amp; M. Wallace,
+      <em>A Guide to Age Determination of White-tailed Deer</em> (Texas Parks and Wildlife, PWD BK W7000-755).
+      Aging on the hoof is an art, not a science — body condition, time of year, protein supplements and region
+      all shift the look, and no two deer are alike. Tooth wear varies with soil and diet; check both sides of the jaw.
+    </div>
+  </main>
+</div>
+
+<script src="/aging-art.js"></script>
+<script>
+var A = window.agArt; // illustrations (aging-art.js)
+
+// ── Data ──────────────────────────────────────────────────────────────
+// Each trait option lists the age-class indices it fits (`a`). An option
+// spanning several classes splits its weight evenly across them. Traits
+// with w < 1 are weak signals (antlers, behavior) and count for less.
+var AG_HOOF = {
+  buck: {
+    classes: [
+      { label: '1½', log: '1.5', sub: 'Yearling',
+        note: 'A yearling — most of his body and antler growth is still ahead. Both guides recommend letting yearlings grow at least another year; in the Southeast a ~13″ minimum inside spread protects nearly all of them.' },
+      { label: '2½', log: '2.5', sub: 'Immature',
+        note: 'Still young — a 2½-year-old carries roughly 60% of the rack he\'ll grow at 5½–6½. Good-quality yearlings can look like average 2½s, so be careful. The MSU guide recommends letting him walk another year.' },
+      { label: '3½', log: '3.5', sub: 'Immature',
+        note: 'About 75% of his antler potential. On good habitat a 3½ can carry an impressive rack and is easily mistaken for a mature buck — check the neck/brisket junction and skin under the jaw before deciding.' },
+      { label: '4½', log: '4.5', sub: 'Mature',
+        note: 'Physiologically mature, with about 90% of his antler size. A common harvest target in programs managing for mature bucks.' },
+      { label: '5½+', log: '5.5+', sub: 'Mature / prime',
+        note: 'Prime of life — antlers typically peak at 5½–6½ and can decline after. Very old bucks (7½+) may lose neck muscle and start to look younger again: watch for a swayed back, potbelly and loose skin.' }
+    ],
+    traits: [
+      { id: 'neck', title: 'Neck & brisket', q: 'Where does the neck meet the chest?',
+        opts: [
+          { t: 'Slender neck that meets the body at mid-chest', a: [0], pic: function() { return A.deer(A.BUCK[0], 'neck'); } },
+          { t: 'Full but not swollen; meets the body just above the brisket swirl', a: [1, 2], pic: function() { return A.deer(A.BUCK[2], 'neck'); } },
+          { t: 'Swollen and muscled, blending into the brisket and shoulders', a: [3, 4], pic: function() { return A.deer(A.BUCK[3], 'neck'); } }
+        ] },
+      { id: 'head', title: 'Head & jaw', q: 'Look at the face from the front and side.',
+        opts: [
+          { t: 'Slender, tight-skinned head; ears look large', a: [0], pic: function() { return A.deer(A.BUCK[0], 'jaw', 'head'); } },
+          { t: 'Skin tight under the jaw; head still fairly narrow', a: [1, 2], pic: function() { return A.deer(A.BUCK[2], 'jaw', 'head'); } },
+          { t: 'Thick head from forehead to jaw, broad forehead; loose skin under the jaw', a: [3, 4], pic: function() { return A.deer(A.BUCK[4], 'jaw', 'head'); } }
+        ] },
+      { id: 'chest', title: 'Chest vs. hindquarters', q: 'Compare the depth of the chest to the hams.',
+        opts: [
+          { t: 'Thin hindquarters, slight on mass and muscle', a: [0], pic: function() { return A.deer(A.BUCK[0], 'chest'); } },
+          { t: 'Chest and hindquarters about the same depth', a: [1, 2], pic: function() { return A.deer(A.BUCK[2], 'chest'); } },
+          { t: 'Chest clearly deeper than the hindquarters; muscle defined in neck, shoulders and hams', a: [2, 3, 4], pic: function() { return A.deer(A.BUCK[3], 'chest'); } }
+        ] },
+      { id: 'legs', title: 'Legs', q: 'How long do the legs look against the body?',
+        opts: [
+          { t: 'Long — he looks "all legs"', a: [0, 1], pic: function() { return A.deer(A.BUCK[0], 'legs'); } },
+          { t: 'In proportion to the body', a: [2], pic: function() { return A.deer(A.BUCK[2], 'legs'); } },
+          { t: 'Short compared to the depth of the body', a: [3, 4], pic: function() { return A.deer(A.BUCK[4], 'legs'); } }
+        ] },
+      { id: 'belly', title: 'Waist & belly', q: 'Look at the line from brisket to hind legs.',
+        opts: [
+          { t: 'Thin waist, belly tucked up', a: [0, 1], pic: function() { return A.deer(A.BUCK[0], 'belly'); } },
+          { t: 'Belly not obvious; back straight', a: [2, 3], pic: function() { return A.deer(A.BUCK[2], 'belly'); } },
+          { t: 'Waist as deep as the chest, or belly sagging', a: [3, 4], pic: function() { return A.deer(A.BUCK[4], 'belly'); } }
+        ] },
+      { id: 'overall', title: 'Overall look', q: 'If you had to describe him in one phrase…',
+        opts: [
+          { t: 'A doe with antlers — a gangly teenager', a: [0], pic: function() { return A.deer(A.BUCK[0], ''); } },
+          { t: 'Lean and lanky, hindquarters filling out', a: [1], pic: function() { return A.deer(A.BUCK[1], ''); } },
+          { t: 'A well-conditioned racehorse', a: [2], pic: function() { return A.deer(A.BUCK[2], ''); } },
+          { t: 'Lost the racehorse look — heavy, the front end reads as one mass', a: [3, 4], pic: function() { return A.deer(A.BUCK[4], ''); } }
+        ] },
+      { id: 'antler', title: 'Antler spread', q: 'Facing you: ear tips are ~15″ apart relaxed, ~12″ alert.', w: 0.5, weak: 'Weak signal',
+        opts: [
+          { t: 'Inside the ear tips', a: [0, 1], pic: function() { return A.front(74, false); } },
+          { t: 'At or just outside the ears', a: [1, 2, 3], pic: function() { return A.front(132, false); } },
+          { t: 'Well outside the ears, with heavy mass', a: [2, 3, 4], pic: function() { return A.front(160, true); } }
+        ] }
+    ],
+    callout: '<strong>Antlers lie.</strong> Antler size is not a reliable indicator of age — a 1½-year-old at the Kerr WMA research facility carried 12 points and a 20¼″ spread. Judge the body first. Expect bucks to look different during the rut, when the neck swells and mature bucks can drop up to a quarter of their weight. And not all yearlings are spikes, but most spikes are yearlings.'
+  },
+  doe: {
+    classes: [
+      { label: 'Fawn', log: 'Fawn', sub: '½ year',
+        note: 'Minimize fawn harvest during doe harvest. Check for button-buck pedicles before you\'re ready to shoot — buck fawns are the most common mistake in antlerless harvests.' },
+      { label: '1½', log: '1.5', sub: 'Yearling',
+        note: 'A yearling doe — slightly larger than a buck fawn, with a more rounded head. Confirm with the jawbone after harvest.' },
+      { label: 'Adult', log: '', sub: '2½ years or older',
+        note: 'An adult doe. Exact age on the hoof isn\'t reliable past this point — age her by the jawbone after harvest. When doe harvest is needed to balance the herd, adult does are the intended target.' },
+      { label: 'Old', log: '', sub: 'Likely 5½+',
+        note: 'Signs of wear and age. Age her by the jawbone after harvest to confirm.' }
+    ],
+    traits: [
+      { id: 'snout', title: 'Face & snout', q: 'How long is the face?',
+        opts: [
+          { t: 'Short snout and forehead', a: [0], pic: function() { return A.deer(A.DOE[0], 'snout', 'head'); } },
+          { t: 'Snout lengthening; head rounded on top', a: [1], pic: function() { return A.deer(A.DOE[1], 'snout', 'head'); } },
+          { t: 'Long snout; the ears look short for the head', a: [2, 3], pic: function() { return A.deer(A.DOE[2], 'snout', 'head'); } }
+        ] },
+      { id: 'body', title: 'Body shape', q: 'Picture her body in a box.',
+        opts: [
+          { t: 'Square — about as long as it is tall', a: [0], pic: function() { return A.deer(A.DOE[0], 'box'); } },
+          { t: 'Lean, starting to lengthen', a: [1], pic: function() { return A.deer(A.DOE[1], 'box'); } },
+          { t: 'Rectangular — clearly longer than tall', a: [2, 3], pic: function() { return A.deer(A.DOE[2], 'box'); } }
+        ] },
+      { id: 'size', title: 'Size in the group', q: 'Compare her to the deer around her.',
+        opts: [
+          { t: 'Smallest in the group', a: [0], pic: function() { return A.group([{ p: A.DOE[2], s: 0.55 }, { p: A.DOE[1], s: 0.55 }, { p: A.DOE[0], s: 0.55 }], 2); } },
+          { t: 'Mid-sized — bigger than the fawns, smaller than the big does', a: [1], pic: function() { return A.group([{ p: A.DOE[2], s: 0.55 }, { p: A.DOE[1], s: 0.55 }, { p: A.DOE[0], s: 0.55 }], 1); } },
+          { t: 'Among the largest; leads the group', a: [2, 3], pic: function() { return A.group([{ p: A.DOE[2], s: 0.55 }, { p: A.DOE[1], s: 0.55 }, { p: A.DOE[0], s: 0.55 }], 0); } }
+        ] },
+      { id: 'back', title: 'Belly & back', q: 'Look at the topline and underline.',
+        opts: [
+          { t: 'Tight belly, straight back', a: [0, 1, 2], pic: function() { return A.deer(A.DOE[2], 'back'); } },
+          { t: 'Sagging belly and/or swayed back', a: [3], pic: function() { return A.deer(A.DOE[3], 'back'); } }
+        ] },
+      { id: 'behavior', title: 'Coat & behavior', q: 'Anything that gives her away?', w: 0.5, weak: 'Supporting',
+        opts: [
+          { t: 'Spots still showing, or playful, naive and inquisitive', a: [0], pic: function() { return A.deer(A.DOE[0], ''); } },
+          { t: 'Alert and wary, traveling with a family group', a: [1, 2, 3], pic: function() { return A.group([{ p: A.DOE[2], s: 0.55 }, { p: A.DOE[1], s: 0.55 }, { p: A.DOE[0], s: 0.55 }], -1); } }
+        ] }
+    ],
+    callout: '<strong>Button-buck check.</strong> Buck fawns ("nubbins") have rounded pedicles that flatten the top of the head — a doe\'s head is rounded between the ears. Pedicles are easiest to see from the side and later in the season. Orphaned buck fawns can be as big as a doe.<ul><li>Don\'t shoot a lone antlerless deer — wait for several and pick the largest.</li><li>Pass on short-snouted, square-bodied deer.</li><li>Check for pedicles with binoculars early, not when you\'re ready to shoot. If unsure, wait.</li></ul>'
+  }
+};
+
+// Jawbone key (TPWD). Teeth are numbered 1–6 from the front of the lower jaw:
+// 1–3 premolars, 4–6 molars. The key is the same for bucks and does.
+var AG_JAW_CLASSES = {
+  fawn: { label: 'Fawn', log: 'Fawn', sub: '½ year', note: '5 or fewer cheek teeth, and tooth 3 still has 3 cusps.' },
+  y1:   { label: '1½', log: '1.5', sub: 'Yearling', note: 'Tooth 3 is the 3-cusped baby premolar, and tooth 6 is just breaking above the gum line.' }
+};
+var AG_JAW_WEAR = [
+  { label: '2½', log: '2.5', t: 'Lingual crests on all molars sharp and pointed. Back cusp of tooth 6 sharp and pointed. Enamel wider than the dentine on teeth 4, 5 and 6.' },
+  { label: '3½', log: '3.5', t: 'Lingual crest on tooth 4 blunt. Dentine on tooth 4 as wide as or wider than the enamel. Back cusp of tooth 6 forming a concavity.' },
+  { label: '4½', log: '4.5', t: 'Lingual crests on tooth 4 almost rounded off; on tooth 5, blunt. Dentine on tooth 4 twice as wide as the enamel, and wider than the enamel on tooth 5. Back cusp of tooth 6 slopes down toward the cheek.' },
+  { label: '5½', log: '5.5+', t: 'Lingual crest worn away on tooth 4, rounded on tooth 5, blunt on tooth 6. Dentine on tooth 6 now wider than the enamel.' },
+  { label: '6½', log: '5.5+', t: 'Tooth 4 worn completely smooth — no enamel ridge in its center. Small enamel ridge left in the center of teeth 5 and 6. Lingual crest on tooth 5 almost gone; rounded on tooth 6.' },
+  { label: '7½', log: '5.5+', t: 'Teeth 4 and 5 worn smooth with no center enamel ridges. Lingual crest gone from tooth 6; its infundibulum is a narrow crescent.' },
+  { label: '8½+', log: '5.5+', t: 'Teeth 4, 5 and 6 completely dished out, with no enamel ridges showing in their centers.' }
+];
+
+// ── State ─────────────────────────────────────────────────────────────
+var agState = { sex: 'buck', method: 'hoof', hoof: { buck: {}, doe: {} }, jaw: { teeth: null, p3: null, wear: null } };
+try {
+  var agSaved = JSON.parse(localStorage.getItem('aging-ui') || 'null');
+  if (agSaved && AG_HOOF[agSaved.sex]) agState.sex = agSaved.sex;
+  if (agSaved && (agSaved.method === 'hoof' || agSaved.method === 'jaw')) agState.method = agSaved.method;
+} catch (e) {}
+// Opened from an Activity Log entry's "age it" link: preset the deer and
+// method, and offer "Use this age" (back to that entry) instead of starting
+// a new log entry.
+var agReturn = null;
+(function() {
+  var q = new URLSearchParams(location.search);
+  if (q.get('from') !== 'hv' && q.get('from') !== 'si') return;
+  agReturn = q.get('from');
+  if (AG_HOOF[q.get('sex')]) agState.sex = q.get('sex');
+  if (q.get('method') === 'hoof' || q.get('method') === 'jaw') agState.method = q.get('method');
+})();
+
+function agBack(age) {
+  spaGo('/activity?restoreForm=1' + (age ? '&age=' + encodeURIComponent(age) : ''));
+}
+
+function agSet(key, val) {
+  agState[key] = val;
+  try { localStorage.setItem('aging-ui', JSON.stringify({ sex: agState.sex, method: agState.method })); } catch (e) {}
+  agRender();
+}
+
+function agPick(traitId, optIdx) {
+  var sel = agState.hoof[agState.sex];
+  sel[traitId] = sel[traitId] === optIdx ? undefined : optIdx; // tap again to clear
+  agRender();
+}
+
+function agJaw(key, val) {
+  var j = agState.jaw;
+  j[key] = j[key] === val ? null : val;
+  // Changing an earlier answer invalidates the later steps
+  if (key === 'teeth') { j.p3 = null; j.wear = null; }
+  if (key === 'p3') j.wear = null;
+  agRender();
+}
+
+function agReset() {
+  if (agState.method === 'hoof') agState.hoof[agState.sex] = {};
+  else agState.jaw = { teeth: null, p3: null, wear: null };
+  agRender();
+}
+
+// ── Estimation ────────────────────────────────────────────────────────
+function agHoofEstimate() {
+  var def = AG_HOOF[agState.sex], sel = agState.hoof[agState.sex];
+  var dist = def.classes.map(function() { return 0; });
+  var wSum = 0, idxSum = 0, answered = 0;
+  def.traits.forEach(function(tr) {
+    var oi = sel[tr.id];
+    if (oi === undefined) return;
+    var w = tr.w || 1, ages = tr.opts[oi].a;
+    answered++;
+    wSum += w;
+    ages.forEach(function(a) { dist[a] += w / ages.length; idxSum += a * w / ages.length; });
+  });
+  if (!answered) return null;
+  var mean = idxSum / wSum;
+  // Pick the class with the most support. Ties go to the class nearest the
+  // weighted mean, then to the younger one — under-aging is the safer error
+  // for harvest decisions (and rounding a mean of range answers skews old).
+  var idx = 0;
+  dist.forEach(function(v, i) {
+    var best = dist[idx];
+    if (v > best + 1e-9) idx = i;
+    else if (Math.abs(v - best) <= 1e-9 && Math.abs(i - mean) < Math.abs(idx - mean) - 1e-9) idx = i;
+  });
+  var share = dist[idx] / wSum;
+  var conf;
+  if (answered < 3) conf = { cls: 'conf-lo', t: 'Answer at least 3 traits' };
+  else if (share >= 0.55) conf = { cls: 'conf-hi', t: 'Cues agree' };
+  else if (share >= 0.35) conf = { cls: 'conf-mid', t: 'Cues mostly agree' };
+  else conf = { cls: 'conf-lo', t: 'Mixed signals — look again' };
+  // Name a neighboring class that has nearly as much support
+  var lean = '';
+  [idx + 1, idx - 1].forEach(function(o) {
+    if (!lean && def.classes[o] && dist[o] >= 0.75 * dist[idx]) lean = 'Could also be ' + def.classes[o].label;
+  });
+  return { cls: def.classes[idx], dist: dist, wSum: wSum, top: idx, conf: conf, lean: lean, answered: answered, total: def.traits.length };
+}
+
+function agJawEstimate() {
+  var j = agState.jaw;
+  if (j.teeth === 'lt6') return { cls: AG_JAW_CLASSES.fawn };
+  if (j.teeth === '6' && j.p3 === '3') return { cls: AG_JAW_CLASSES.y1 };
+  if (j.teeth === '6' && j.p3 === '2' && j.wear !== null) {
+    var w = AG_JAW_WEAR[j.wear];
+    return { cls: { label: w.label, log: w.log, sub: 'By tooth wear', note: w.t } };
+  }
+  return null;
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────
+function agSegs() {
+  ['Sex', 'Method'].forEach(function(k) {
+    var cur = agState[k.toLowerCase()];
+    document.querySelectorAll('#seg' + k + ' button').forEach(function(b) {
+      b.classList.toggle('on', b.getAttribute('data-v') === cur);
+    });
+  });
+}
+
+function agPic(o) {
+  return o.pic && A ? '<span class="opt-pic">' + o.pic() + '</span>' : '';
+}
+
+function agAgeText(def, ages) {
+  var labs = ages.map(function(a) { return def.classes[a].label; });
+  return labs.length > 1 ? labs[0] + ' – ' + labs[labs.length - 1] : labs[0];
+}
+
+function agRenderHoof() {
+  var def = AG_HOOF[agState.sex], sel = agState.hoof[agState.sex];
+  var h = '<div class="callout">' + def.callout + '</div>';
+  def.traits.forEach(function(tr) {
+    h += '<div class="trait"><div class="trait-head"><span class="trait-title">' + tr.title + '</span>' +
+      '<span class="trait-q">' + tr.q + '</span>' + (tr.weak ? '<span class="trait-weak">' + tr.weak + '</span>' : '') + '</div><div class="opts">';
+    tr.opts.forEach(function(o, i) {
+      h += '<button class="opt' + (sel[tr.id] === i ? ' on' : '') + '" onclick="agPick(\'' + tr.id + '\',' + i + ')">' +
+        agPic(o) + o.t + '<span class="opt-age">' + agAgeText(def, o.a) + '</span></button>';
+    });
+    h += '</div></div>';
+  });
+  return h;
+}
+
+function agJawSvg(highlight) {
+  // Tooth 6 (back) on the left, tooth 1 (front) on the right — matching the TPWD photos
+  var teeth = [
+    { n: 6, x: 34, w: 86, lobes: 3 }, { n: 5, x: 124, w: 70, lobes: 2 }, { n: 4, x: 198, w: 64, lobes: 2 },
+    { n: 3, x: 268, w: 52, lobes: 2 }, { n: 2, x: 324, w: 42, lobes: 2 }, { n: 1, x: 370, w: 36, lobes: 1 }
+  ];
+  var s = '<svg viewBox="0 0 470 150" role="img" aria-label="Lower jaw with cheek teeth numbered 1 to 6 from the front">';
+  s += '<path d="M10 70 Q14 40 30 40 L420 46 Q460 50 462 70 L462 92 Q440 112 380 112 L60 116 Q14 116 10 92 Z" fill="#f1ebdc" stroke="#b8ad92" stroke-width="1.5"/>';
+  teeth.forEach(function(t) {
+    var hl = highlight.indexOf(t.n) !== -1;
+    var top = 30, base = 66, lw = t.w / t.lobes, d = 'M' + t.x + ' ' + base + ' L' + t.x + ' ' + (top + 8);
+    for (var i = 0; i < t.lobes; i++) {
+      var x0 = t.x + i * lw;
+      d += ' Q' + (x0 + lw / 2) + ' ' + (top - 8) + ' ' + (x0 + lw) + ' ' + (top + 8);
+    }
+    d += ' L' + (t.x + t.w) + ' ' + base + ' Z';
+    s += '<path class="tooth' + (hl ? ' hl' : '') + '" d="' + d + '"/>';
+    s += '<text x="' + (t.x + t.w / 2) + '" y="92" text-anchor="middle" font-size="15" font-weight="700" fill="' + (hl ? '#8b5a1a' : '#5a5446') + '">' + t.n + '</text>';
+  });
+  // Group brackets
+  s += '<path d="M34 18 L34 12 L262 12 L262 18" fill="none" stroke="#1a4a1a" stroke-width="1.4"/>' +
+    '<text x="148" y="9" text-anchor="middle" font-size="11" font-weight="700" fill="#1a4a1a">MOLARS</text>';
+  s += '<path d="M268 18 L268 12 L406 12 L406 18" fill="none" stroke="#1a4a1a" stroke-width="1.4"/>' +
+    '<text x="337" y="9" text-anchor="middle" font-size="11" font-weight="700" fill="#1a4a1a">PREMOLARS</text>';
+  s += '<text x="40" y="136" font-size="11" fill="#777">◄ back (tooth 6 back cusp)</text>' +
+    '<text x="456" y="136" text-anchor="end" font-size="11" fill="#777">front of jaw ►</text>';
+  s += '</svg>';
+  return s;
+}
+
+function agRenderJaw() {
+  var j = agState.jaw;
+  var hl = j.teeth === null ? [1, 2, 3, 4, 5, 6] : (j.teeth === '6' && j.p3 === null ? [3] : (j.p3 === '2' ? [4, 5, 6] : []));
+  var h = '<div class="jaw-fig">' + agJawSvg(hl) +
+    '<div class="jaw-legend">Count and number the cheek teeth from the <strong>front</strong> of the lower jaw. ' +
+    '<strong>Lingual crests</strong> are the ridges on the tongue side; <strong>dentine</strong> is the dark brown core exposed as the white <strong>enamel</strong> wears. ' +
+    'Cutting the skin along the jaw edge or using a jaw spreader and flashlight helps — skip the cut if the deer is going to the taxidermist. The key is the same for bucks and does.</div></div>';
+
+  function step(n, title, q, key, opts, done) {
+    var s = '<div class="trait' + (done ? ' step-done' : '') + '"><div class="trait-head"><span class="step-num">' + n + '</span><span class="trait-title">' + title + '</span><span class="trait-q">' + q + '</span></div><div class="opts">';
+    opts.forEach(function(o) {
+      s += '<button class="opt' + (j[key] === o.v ? ' on' : '') + '" onclick="agJaw(\'' + key + '\',' + (typeof o.v === 'number' ? o.v : '\'' + o.v + '\'') + ')">' +
+        agPic(o) + o.t + (o.age ? '<span class="opt-age">' + o.age + '</span>' : '') + '</button>';
+    });
+    return s + '</div></div>';
+  }
+
+  h += step(1, 'Count the cheek teeth', 'Premolars + molars on one side.', 'teeth', [
+    { v: 'lt6', t: '5 or fewer — tooth 6 hasn\'t erupted (younger fawns show only 4)', age: 'Fawn', pic: function() { return A.jawCount(5, false); } },
+    { v: '6', t: '6 teeth — tooth 6 may be just breaking the gum line', age: 'Continue', pic: function() { return A.jawCount(5, true); } }
+  ], j.teeth !== null);
+
+  if (j.teeth === '6') {
+    h += step(2, 'Check tooth 3', 'The third premolar — how many cusps?', 'p3', [
+      { v: '3', t: '3 cusps — the baby tooth, often heavily worn', age: '1½', pic: function() { return A.p3(3); } },
+      { v: '2', t: '2 cusps — the permanent premolar', age: 'Continue', pic: function() { return A.p3(2); } }
+    ], j.p3 !== null);
+  }
+
+  if (j.teeth === '6' && j.p3 === '2') {
+    h += step(3, 'Match the molar wear', 'Start with tooth 4, then confirm with teeth 5 and 6.', 'wear',
+      AG_JAW_WEAR.map(function(w, i) { return { v: i, t: w.t, age: w.label, pic: function() { return A.wear(i); } }; }), j.wear !== null);
+  }
+  return h;
+}
+
+function agRenderResult() {
+  var est = agState.method === 'hoof' ? agHoofEstimate() : agJawEstimate();
+  var sexWord = agState.sex === 'buck' ? 'Buck' : 'Doe';
+  var h = '<div class="res-k">Estimated age · ' + sexWord + '</div>';
+  if (!est) {
+    h += '<div class="res-empty" style="margin-top:6px">' + (agState.method === 'hoof'
+      ? 'Tap the description that best fits each trait you can see. Skip anything you can\'t judge — three or more traits give a useful estimate.'
+      : 'Work through the jawbone steps — each answer narrows the age class.') + '</div>';
+    if (agReturn) h += '<div class="res-actions"><button class="btn btn-secondary" onclick="agBack()">↩ Back to my entry</button></div>';
+    return h;
+  }
+  var c = est.cls;
+  h += '<div class="res-age">' + c.label + (c.label === 'Fawn' || c.label === 'Adult' || c.label === 'Old' ? '' : ' <span style="font-size:1rem;font-weight:600">yrs</span>') + '</div>';
+  h += '<div class="res-sub">' + c.sub + (est.lean ? ' · ' + est.lean : '') + '</div>';
+  if (est.conf) h += '<span class="res-conf ' + est.conf.cls + '">' + est.conf.t + ' · ' + est.answered + '/' + est.total + ' traits</span>';
+  if (est.dist) {
+    var def = AG_HOOF[agState.sex];
+    h += '<div class="dist">';
+    est.dist.forEach(function(v, i) {
+      h += '<div class="dist-row' + (i === est.top ? ' top' : '') + '"><span class="dist-lab">' + def.classes[i].label + '</span>' +
+        '<span class="dist-bar"><span class="dist-fill" style="width:' + Math.round(100 * v / est.wSum) + '%;display:block"></span></span></div>';
+    });
+    h += '</div>';
+  }
+  h += '<div class="res-note">' + c.note + '</div>';
+  h += '<div class="res-actions">';
+  if (agReturn) {
+    if (c.log) h += '<button class="btn btn-primary" onclick="agBack(\'' + c.log + '\')">↩ Use this age (' + c.log + ')</button>';
+    else if (agState.method === 'hoof') h += '<button class="btn btn-primary" onclick="agSet(\'method\',\'jaw\')">🦷 Age her by the jawbone</button>';
+    h += '<button class="btn btn-secondary" onclick="agBack()">↩ Back without an age</button>';
+    h += '<button class="btn btn-secondary" onclick="agReset()">Start over</button></div>';
+    return h;
+  }
+  var sex = agState.sex === 'buck' ? 'Male' : 'Female';
+  if (c.log) {
+    h += '<button class="btn btn-primary" onclick="spaGo(\'/activity#harvest-' + sex + '-' + encodeURIComponent(c.log) + '\')">🎯 Log harvest as ' + c.log + (c.log === 'Fawn' ? '' : ' yrs') + '</button>';
+  } else {
+    h += '<button class="btn btn-primary" onclick="agSet(\'method\',\'jaw\')">🦷 Age her by the jawbone</button>';
+  }
+  // Sightings are live deer, so only offer it for an on-the-hoof estimate
+  if (agState.method === 'hoof') h += '<button class="btn btn-secondary" onclick="agLogSighting()">👀 Log sighting</button>';
+  h += '<button class="btn btn-secondary" onclick="agReset()">Start over</button></div>';
+  return h;
+}
+
+// Open a new whitetail Sighting of one deer: the age class goes in Age Class
+// and a note records the sex and estimate, e.g.
+// "Buck, 4½ yrs (Mature) — aged on the hoof with Deer Aging"
+function agLogSighting() {
+  var est = agHoofEstimate();
+  if (!est) return;
+  var c = est.cls;
+  var age = /^[0-9]/.test(c.label) ? c.label + ' yrs' : c.label;
+  var desc = (agState.sex === 'buck' ? 'Buck' : 'Doe') + ', ' + age + ' (' + c.sub + ') — aged on the hoof with Deer Aging';
+  spaGo('/activity#sighting-' + encodeURIComponent(c.log || '') + '-' + encodeURIComponent(desc));
+}
+
+function agRender() {
+  agSegs();
+  document.getElementById('agReturnNote').style.display = agReturn ? '' : 'none';
+  document.getElementById('agMain').innerHTML = agState.method === 'hoof' ? agRenderHoof() : agRenderJaw();
+  document.getElementById('agResult').innerHTML = agRenderResult();
+}
+
+agRender();
+</script>
+<script src="/help.js"></script>
+</body>
+</html>

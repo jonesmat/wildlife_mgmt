@@ -348,8 +348,9 @@
           <div class="form-group"><label>Sex</label>
             <select id="hv-sex" onchange="updateHarvestFields()"><option value="">--</option><option>Male</option><option>Female</option><option>Unknown</option></select>
           </div>
-          <div class="form-group"><label>Age Class</label>
+          <div class="form-group" id="hv-ageGroup" style="display:none"><label>Age Class</label>
             <select id="hv-age"><option value="">--</option><option>Fawn</option><option>1.5</option><option>2.5</option><option>3.5</option><option>4.5</option><option>5.5+</option><option>Unknown</option></select>
+            <a href="#" onclick="ageIt('hv');return false" style="font-size:0.78rem;display:inline-block;margin-top:4px;color:#1a4a1a">age it</a>
           </div>
           <div class="form-group"><label>Weight (lbs)</label><input type="number" id="hv-weight"></div>
         </div>
@@ -507,8 +508,12 @@
             <input type="text" id="si-speciesOther" placeholder="Specify species" style="display:none;margin-top:6px">
             <input type="hidden" id="si-species">
           </div>
-          <div class="form-group"><label>Count</label><input type="number" id="si-count" min="1" value="1"></div>
-          <div class="form-group"><label>Sex / Age Description</label><input type="text" id="si-sexAge" placeholder="2 bucks, 3 does"></div>
+          <div class="form-group"><label>Count</label><input type="number" id="si-count" min="1" value="1" oninput="updateSightingFields()"></div>
+          <div class="form-group" id="si-sexAgeGroup" style="display:none"><label>Sex / Group Breakdown</label><input type="text" id="si-sexAge" placeholder="2 bucks, 3 does, 1 fawn"></div>
+          <div class="form-group" id="si-ageGroup" style="display:none"><label>Age Class</label>
+            <select id="si-age"><option value="">--</option><option>Fawn</option><option>1.5</option><option>2.5</option><option>3.5</option><option>4.5</option><option>5.5+</option><option>Unknown</option></select>
+            <a href="#" onclick="ageIt('si');return false" style="font-size:0.78rem;display:inline-block;margin-top:4px;color:#1a4a1a">age it</a>
+          </div>
           <div class="form-group" id="si-buckGroup" style="display:none">
             <label>Watched Buck</label>
             <select id="si-buckId"><option value="">-- None --</option></select>
@@ -844,6 +849,37 @@ async function init() {
       switchType();
     }
   }
+  // Deep link from the Deer Aging tool: /activity#harvest-<Male|Female>-<age>
+  // opens a new whitetail Harvest entry with sex and age class prefilled
+  var hvMatch = /^#harvest-(Male|Female)-(.+)$/.exec(location.hash);
+  if (hvMatch) {
+    var hvAge = decodeURIComponent(hvMatch[2]);
+    showNewForm();
+    document.getElementById('fType').value = 'Harvest';
+    switchType();
+    populateSpeciesField('hv', 'White-tailed Deer');
+    document.getElementById('hv-sex').value = hvMatch[1];
+    var ageSel = document.getElementById('hv-age');
+    if (Array.prototype.some.call(ageSel.options, function(o) { return o.value === hvAge; })) ageSel.value = hvAge;
+    updateHarvestFields();
+  }
+  // Deep link from the Deer Aging tool: /activity#sighting-<age>-<note>
+  // opens a new whitetail Sighting of one deer with the age class (may be
+  // empty) and a note on how it was aged. Values go in via .value / a
+  // whitelisted option, so the hash text is never parsed as HTML.
+  var siMatch = /^#sighting-([^-]*)-(.*)$/.exec(location.hash);
+  if (siMatch) {
+    var siAge = decodeURIComponent(siMatch[1]);
+    showNewForm();
+    document.getElementById('fType').value = 'Sighting';
+    switchType();
+    populateSpeciesField('si', 'White-tailed Deer');
+    updateSightingFields();
+    document.getElementById('si-count').value = 1;
+    document.getElementById('si-notes').value = decodeURIComponent(siMatch[2]).slice(0, 200);
+    var siAgeSel = document.getElementById('si-age');
+    if (Array.prototype.some.call(siAgeSel.options, function(o) { return o.value === siAge; })) siAgeSel.value = siAge;
+  }
   // Deep link from the Asset Registry: /activity#maint-<assetId> opens a new
   // Maintenance entry pre-linked to that asset
   if (location.hash.indexOf('#maint-') === 0) {
@@ -862,6 +898,11 @@ async function init() {
   if (savedState && (params.get('newRoute') || params.get('restoreForm'))) {
     localStorage.removeItem('censusFormState');
     try { restoreFormState(JSON.parse(savedState), params.get('newRoute')); } catch (e) { /* corrupt state — start fresh */ }
+    // Returning from Deer Aging's "Use this age": fill the entry's Age Class
+    // (only with one of the select's own options)
+    var agedValue = params.get('age');
+    var ageSel = document.getElementById(document.getElementById('fType').value === 'Sighting' ? 'si-age' : 'hv-age');
+    if (agedValue && Array.prototype.some.call(ageSel.options, function(o) { return o.value === agedValue; })) ageSel.value = agedValue;
   }
 }
 
@@ -1103,7 +1144,8 @@ function renderDetail(e) {
   } else if (e.type === 'Sighting') {
     rows += twoCol('Species', e['si-species'], 'Count', e['si-count']);
     if (buckNameById(e['si-buckId'])) rows += labelVal('Watched Buck', buckNameById(e['si-buckId']));
-    rows += twoCol('Sex/Age', e['si-sexAge'], 'Method', e['si-method']);
+    rows += twoCol('Sex / Group', e['si-sexAge'], 'Method', e['si-method']);
+    if (e['si-age']) rows += labelVal('Age Class', e['si-age']);
     rows += twoCol('Location', e['si-location'], '', '');
     rows += labelVal('Notes', e['si-notes']);
   } else if (window.PRACTICE_FIELDS[e.type]) {
@@ -1336,6 +1378,9 @@ function updateHarvestFields() {
   if (antlerSection) antlerSection.style.display = isBuck ? '' : 'none';
   var tagGroup = document.getElementById('hv-tagGroup');
   if (tagGroup) tagGroup.style.display = isWTD ? '' : 'none';
+  // Age classes (Fawn, 1.5 … 5.5+) are whitetail-specific
+  var ageGroup = document.getElementById('hv-ageGroup');
+  if (ageGroup) ageGroup.style.display = isWTD ? '' : 'none';
 }
 
 // ── Boone & Crockett scoring ──
@@ -1734,10 +1779,19 @@ async function buckAddSave(prefix) {
   document.getElementById(prefix + '-buckAdd').style.display = 'none';
 }
 
+// Whitetail: a group gets a sex/group breakdown, a single deer gets an age
+// class instead. Other species always get the breakdown (no age class).
+// A blank count is treated as 1 (the field's default).
+function sightingCount() {
+  return parseInt(document.getElementById('si-count').value, 10) || 1;
+}
+
 function updateSightingFields() {
-  var species = document.getElementById('si-species').value;
-  document.getElementById('si-buckGroup').style.display =
-    (species === 'White-tailed Deer') ? '' : 'none';
+  var isWTD = document.getElementById('si-species').value === 'White-tailed Deer';
+  var single = sightingCount() <= 1;
+  document.getElementById('si-buckGroup').style.display = isWTD ? '' : 'none';
+  document.getElementById('si-sexAgeGroup').style.display = (isWTD && single) ? 'none' : '';
+  document.getElementById('si-ageGroup').style.display = (isWTD && single) ? '' : 'none';
 }
 
 // ── Census route create-and-return ──
@@ -1785,6 +1839,7 @@ function restoreFormState(state, newRouteId) {
     populateSpeciesField(p, (state.fields || {})[p + '-species']);
   });
   updateHarvestFields();
+  updateSightingFields();
   pendingPhotos = (state.photos || []).map(function(p) {
     // Older saved states stored plain filename strings
     var f = (typeof p === 'string') ? p : p.filename;
@@ -1798,6 +1853,18 @@ function restoreFormState(state, newRouteId) {
   updateMoonUI();
   if (newRouteId) document.getElementById('ce-routeId').value = newRouteId;
   scrollToForm();
+}
+
+// "age it" on a Harvest or Sighting: save the in-progress entry, open the
+// Deer Aging tool (jawbone for a harvest, on-the-hoof for a sighting), and
+// come back via its "Use this age" button with the age filled in.
+function ageIt(prefix) {
+  localStorage.setItem('censusFormState', JSON.stringify(captureFormState()));
+  var q = 'from=' + prefix + '&method=' + (prefix === 'hv' ? 'jaw' : 'hoof');
+  var sex = prefix === 'hv' ? document.getElementById('hv-sex').value : '';
+  if (sex === 'Male') q += '&sex=buck';
+  if (sex === 'Female') q += '&sex=doe';
+  spaGo('/aging?' + q);
 }
 
 function createRouteFromCensus() {
@@ -2062,7 +2129,7 @@ function getTypeFields(type) {
   if (window.PRACTICE_FIELDS[type]) return window.PRACTICE_FIELDS[type].map(function(f) { return f.id; });
   var map = {
     'Harvest':   ['hv-species','hv-sex','hv-age','hv-weight','hv-tag','hv-hunter','hv-location','hv-method','hv-points','hv-mainBeam','hv-tines','hv-spread','hv-buckId','hv-notes'].concat(BC_FIELDS),
-    'Sighting':  ['si-species','si-count','si-sexAge','si-location','si-method','si-buckId','si-notes'],
+    'Sighting':  ['si-species','si-count','si-sexAge','si-age','si-location','si-method','si-buckId','si-notes'],
     'Census':    ['ce-surveyType','ce-species','ce-routeId','ce-total','ce-conditions','ce-notes'],
     'Predator Control': ['pc-species','pc-method','pc-count','pc-notes'],
     'Rainfall':  ['rf-inches','rf-gauge','rf-notes'],
@@ -2107,6 +2174,8 @@ async function saveEntry() {
       var el = document.getElementById(f);
       if (el) entry[f] = el.value;
     });
+    if (type === 'Sighting' && (entry['si-species'] !== 'White-tailed Deer' || sightingCount() > 1)) entry['si-age'] = '';
+    if (type === 'Harvest' && entry['hv-species'] !== 'White-tailed Deer') entry['hv-age'] = '';
     if (type === 'Census') {
       // Keep ce-route as the route NAME so cards, reports, and the PDF
       // keep working; preserve legacy free-text on entries without a route
