@@ -118,6 +118,24 @@
           chips: ['“Crabclaw”', '“Tall Tines”'] }
       ]
     },
+    census: {
+      title: 'Census Campaign',
+      slides: [
+        { icon: '🔦', title: 'Set it up once a year',
+          text: 'A campaign holds the year’s survey setup: route, length, visibility readings, property acres and the survey window. Next year’s campaign on the same route can copy the readings.',
+          chips: ['+ New Campaign', 'Copy readings from 2025'] },
+        { icon: '📏', title: 'Visibility makes it a density',
+          text: 'Every 1/10 mile, record how far your light reaches on each side, in yards. Average width × route length gives the visible acres the deer were counted on.',
+          points: ['Measure once with your count light', 'Measure again after brush work or a burn'] },
+        { icon: '🗓️', title: 'Count from the truck',
+          text: 'Start count opens a dark tap-to-count screen: one big button each for bucks, does, fawns and unknown, plus undo. It keeps the screen on, and a reload won’t lose the run. At the end of the route, save it as that night’s Census entry.',
+          points: ['Enter totals types in a night counted on paper', 'Each night shows on the Activity Log timeline as “count 2 of 3”'],
+          chips: ['▶ Start count', 'End of route'] },
+        { icon: '📊', title: 'Read the results',
+          text: 'Counts are pooled into acres per deer and a herd estimate for the whole property, plus buck:doe and fawns per doe. The page flags a night far off the others.',
+          points: ['TPWD recommends at least 3 counts, Aug to early Oct'] }
+      ]
+    },
     aging: {
       title: 'Deer Aging',
       slides: [
