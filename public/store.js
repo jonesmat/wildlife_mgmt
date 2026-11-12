@@ -286,6 +286,7 @@
     if (!d.settings) d.settings = {};
     if (!d.settings.photoQuality) d.settings.photoQuality = 'balanced';
     if (!d.bucks) d.bucks = [];
+    if (!d.censusCampaigns) d.censusCampaigns = [];
     if (!d.assets) d.assets = [];
     if (!d.reminders) d.reminders = [];
     if (!d.customEvents) d.customEvents = [];
@@ -393,6 +394,10 @@
   }
 
   // ── API implementation (mirrors the old server routes) ──
+
+  var CAMPAIGN_KEYS = ['year', 'name', 'species', 'surveyType', 'routeId', 'routeMiles',
+    'interval', 'readings', 'visibleAcresOverride', 'propertyAcres', 'targetCounts',
+    'windowStart', 'windowEnd', 'targetAcresPerDeer', 'observers', 'light', 'notes'];
 
   async function handleApi(method, pathname, init) {
     var data = await loadData();
@@ -577,6 +582,42 @@
         data.log.forEach(function(e) {
           if (e['hv-buckId'] === bid) e['hv-buckId'] = '';
           if (e['si-buckId'] === bid) e['si-buckId'] = '';
+        });
+        await saveData(data);
+        return json({ ok: true });
+      }
+    }
+
+    // Census campaigns: one year's survey setup (route, visibility readings,
+    // property acres, survey window), entered once. Census log entries link
+    // to a campaign via ce-campaignId and roll up on the /census page.
+    if (pathname === '/api/census-campaigns') {
+      if (method === 'GET') return json(data.censusCampaigns);
+      if (method === 'POST') {
+        var camp = { id: String(Date.now()), createdAt: now, updatedAt: now };
+        CAMPAIGN_KEYS.forEach(function(k) { if (body[k] !== undefined) camp[k] = body[k]; });
+        if (!camp.name) camp.name = (camp.year || '') + ' Census';
+        data.censusCampaigns.push(camp);
+        await saveData(data);
+        return json(camp);
+      }
+    }
+
+    if ((m = pathname.match(/^\/api\/census-campaigns\/([^/]+)$/))) {
+      var cid = m[1];
+      if (method === 'PUT') {
+        var c = data.censusCampaigns.find(function(x) { return x.id === cid; });
+        if (!c) return json({ error: 'Campaign not found' }, 404);
+        CAMPAIGN_KEYS.forEach(function(k) { if (body[k] !== undefined) c[k] = body[k]; });
+        c.updatedAt = now;
+        await saveData(data);
+        return json(c);
+      }
+      if (method === 'DELETE') {
+        data.censusCampaigns = data.censusCampaigns.filter(function(x) { return x.id !== cid; });
+        // Keep the counts in the log, just unlinked
+        data.log.forEach(function(e) {
+          if (e['ce-campaignId'] === cid) e['ce-campaignId'] = '';
         });
         await saveData(data);
         return json({ ok: true });
@@ -821,6 +862,9 @@
         });
         (inc.bucks || []).forEach(function(b2) {
           if (!data.bucks.some(function(x) { return x.id === b2.id; })) data.bucks.push(b2);
+        });
+        (inc.censusCampaigns || []).forEach(function(c3) {
+          if (!data.censusCampaigns.some(function(x) { return x.id === c3.id; })) data.censusCampaigns.push(c3);
         });
         (inc.assets || []).forEach(function(a2) {
           if (!data.assets.some(function(x) { return x.id === a2.id; })) data.assets.push(a2);

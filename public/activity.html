@@ -542,6 +542,13 @@
       <!-- Census -->
       <div id="fields-Census" style="display:none">
         <div class="entry-tip">💡 <strong>Tip:</strong> Run the <strong>same route, same conditions, same time of year</strong> (late summer/fall) so trends are comparable — TPWD suggests at least three spotlight runs a week or so apart to smooth out bad nights. The point isn't the paperwork: <strong>this is the number that sets your harvest</strong>. More deer than the range can carry means a heavier doe harvest this year. Keep written records — the appraisal district can ask to see them.</div>
+        <div class="form-row" id="ce-campaignRow">
+          <div class="form-group"><label>Census Campaign</label>
+            <select id="ce-campaignId" onchange="applyCampaign()"><option value="">-- Not part of a campaign --</option></select>
+            <a href="/census" style="font-size:0.78rem;display:inline-block;margin-top:4px;color:#1a4a1a">Set up a campaign</a>
+          </div>
+          <div class="form-group" id="ce-campaignInfo" style="font-size:0.8rem;color:#666;align-self:center"></div>
+        </div>
         <div class="form-row">
           <div class="form-group"><label>Survey Type</label>
             <select id="ce-surveyType">
@@ -559,7 +566,7 @@
           </div>
           <div class="form-group">
             <label>Target Species</label>
-            <select id="ce-speciesSelect" onchange="speciesSelectChange('ce')">
+            <select id="ce-speciesSelect" onchange="speciesSelectChange('ce'); updateCensusFields()">
               <option value="">-- Select --</option>
               <option>White-tailed Deer</option>
               <option>Mule Deer</option>
@@ -585,6 +592,12 @@
             <select id="ce-routeId"><option value="">-- Select route --</option></select>
             <a href="#" onclick="createRouteFromCensus();return false" style="font-size:0.78rem;display:inline-block;margin-top:4px;color:#1a4a1a">+ Create route</a>
           </div>
+        </div>
+        <div class="form-row" id="ce-tallyRow" style="display:none">
+          <div class="form-group"><label>Bucks</label><input type="number" id="ce-bucks" min="0" inputmode="numeric" oninput="updateCensusTotal()"></div>
+          <div class="form-group"><label>Does</label><input type="number" id="ce-does" min="0" inputmode="numeric" oninput="updateCensusTotal()"></div>
+          <div class="form-group"><label>Fawns</label><input type="number" id="ce-fawns" min="0" inputmode="numeric" oninput="updateCensusTotal()"></div>
+          <div class="form-group"><label>Unknown</label><input type="number" id="ce-unknown" min="0" inputmode="numeric" oninput="updateCensusTotal()"></div>
         </div>
         <div class="form-row">
           <div class="form-group"><label>Total Observed</label><input type="text" id="ce-total" placeholder="12 deer (8M/4F)"></div>
@@ -791,6 +804,7 @@ var sortDir = 'desc';   // 'desc' = newest first
 var visibleCount = 25;  // pagination: how many entries are shown
 var PAGE_SIZE = 25;
 var logRoutes = [];       // census routes from settings: [{ id, name, imageId, points }]
+var logCampaigns = [];    // census campaigns: [{ id, year, name, species, surveyType, routeId, ... }]
 var logBucks = [];        // watched bucks: [{ id, name, notes, status }]
 var logAssets = [];       // registry assets: [{ id, name, category, status }]
 var photoQuality = 'balanced'; // photo downscaling setting ('original'|'high'|'balanced'|'compact')
@@ -831,6 +845,10 @@ async function init() {
     opt.textContent = r.name;
     routeSel.appendChild(opt);
   });
+  try {
+    logCampaigns = await (await fetch('/api/census-campaigns')).json();
+  } catch (e) { logCampaigns = []; }
+  populateCampaignSelect();
   allEntries = await (await fetch('/api/log')).json();
   applyFilter();
   // Deep link from Trophy Board on the home page: /activity#entry-<id>
@@ -879,6 +897,18 @@ async function init() {
     document.getElementById('si-notes').value = decodeURIComponent(siMatch[2]).slice(0, 200);
     var siAgeSel = document.getElementById('si-age');
     if (Array.prototype.some.call(siAgeSel.options, function(o) { return o.value === siAge; })) siAgeSel.value = siAge;
+  }
+  // Deep link from the Census Campaign page: /activity#census-<campaignId>
+  // opens a new Census entry tied to that campaign, with its setup filled in
+  if (location.hash.indexOf('#census-') === 0) {
+    var campId = decodeURIComponent(location.hash.slice(8));
+    if (campaignById(campId)) {
+      showNewForm();
+      document.getElementById('fType').value = 'Census';
+      switchType();
+      document.getElementById('ce-campaignId').value = campId;
+      applyCampaign();
+    }
   }
   // Deep link from the Asset Registry: /activity#maint-<assetId> opens a new
   // Maintenance entry pre-linked to that asset
@@ -1154,7 +1184,18 @@ function renderDetail(e) {
     rows += twoCol('Practice', e['ac-name'] || e['ac-category'], 'Acres', e['ac-acres']);
     rows += labelVal('Notes', e['ac-notes']);
   } else if (e.type === 'Census') {
+    var camp = campaignById(e['ce-campaignId']);
+    if (camp) {
+      var cn = campaignCountIndex(e);
+      rows += '<div style="margin-bottom:6px"><span style="font-size:0.78rem;color:#777;font-weight:600">Campaign:</span> ' +
+        '<a href="/census?year=' + encodeURIComponent(camp.year || '') + '" style="color:#1a4a1a">' + escHtml(camp.name || 'Census campaign') + '</a>' +
+        escHtml(' (count ' + cn.n + ' of ' + cn.target + ')') + '</div>';
+    }
     rows += twoCol('Survey Type', e['ce-surveyType'], 'Species', e['ce-species']);
+    if (['ce-bucks','ce-does','ce-fawns','ce-unknown'].some(function(k) { return e[k] !== undefined && e[k] !== ''; })) {
+      rows += twoCol('Bucks / Does', (e['ce-bucks'] || 0) + ' / ' + (e['ce-does'] || 0),
+        'Fawns / Unknown', (e['ce-fawns'] || 0) + ' / ' + (e['ce-unknown'] || 0));
+    }
     rows += twoCol('Route/Stand', e['ce-route'], 'Total Observed', e['ce-total']);
     rows += labelVal('Conditions', e['ce-conditions']);
     rows += labelVal('Notes', e['ce-notes']);
@@ -1297,6 +1338,7 @@ function editEntry(id) {
   // Show the free-text item only when the entry isn't linked to an asset
   document.getElementById('ma-itemGroup').style.display = e['ma-assetId'] ? 'none' : '';
   populateSpeciesField('ce', e['ce-species']);
+  updateCensusFields();
   // Photos already on server
   originalPhotos = (e.photos || []).slice();
   pendingPhotos = (e.photos || []).map(function(f) { return { filename: f, uploaded: true, localUrl: '/photos/' + f }; });
@@ -1794,6 +1836,86 @@ function updateSightingFields() {
   document.getElementById('si-ageGroup').style.display = (isWTD && single) ? '' : 'none';
 }
 
+// ── Census campaigns ──
+// A campaign (set up on /census) holds the year's survey setup. Census
+// entries tied to one inherit its type, species and route, and record the
+// night's buck/doe/fawn tallies; the campaign page rolls them up.
+function campaignById(id) {
+  if (!id) return null;
+  for (var i = 0; i < logCampaigns.length; i++) if (logCampaigns[i].id === id) return logCampaigns[i];
+  return null;
+}
+
+// Which count of its campaign an entry is (by date), and the planned total
+function campaignCountIndex(e) {
+  var camp = campaignById(e['ce-campaignId']);
+  var sibs = allEntries.filter(function(x) { return x.type === 'Census' && x['ce-campaignId'] === e['ce-campaignId']; })
+    .sort(function(a, b) { return (a.datetime || '') < (b.datetime || '') ? -1 : ((a.datetime || '') > (b.datetime || '') ? 1 : 0); });
+  var n = 0;
+  for (var i = 0; i < sibs.length; i++) if (sibs[i].id === e.id) { n = i + 1; break; }
+  return { n: n || sibs.length + 1, target: (camp && parseInt(camp.targetCounts, 10)) || 3 };
+}
+
+function populateCampaignSelect() {
+  var sel = document.getElementById('ce-campaignId');
+  logCampaigns.slice().sort(function(a, b) { return String(b.year) < String(a.year) ? -1 : 1; }).forEach(function(c) {
+    var opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name || ((c.year || '') + ' Census');
+    sel.appendChild(opt);
+  });
+  document.getElementById('ce-campaignRow').style.display = logCampaigns.length ? '' : 'none';
+}
+
+// New Census entries join the campaign for their year when there is exactly one
+function autoSelectCampaign() {
+  if (document.getElementById('editingId').value) return;
+  var sel = document.getElementById('ce-campaignId');
+  if (sel.value) return;
+  var y = (document.getElementById('fDatetime').value || '').slice(0, 4);
+  var mine = logCampaigns.filter(function(c) { return String(c.year) === y; });
+  if (mine.length === 1) {
+    sel.value = mine[0].id;
+    applyCampaign();
+  } else {
+    updateCensusFields();
+  }
+}
+
+function applyCampaign() {
+  var camp = campaignById(document.getElementById('ce-campaignId').value);
+  if (camp) {
+    if (camp.surveyType) document.getElementById('ce-surveyType').value = camp.surveyType;
+    if (camp.species) populateSpeciesField('ce', camp.species);
+    if (camp.routeId && routeNameById(camp.routeId)) document.getElementById('ce-routeId').value = camp.routeId;
+  }
+  updateCensusFields();
+}
+
+function updateCensusFields() {
+  var camp = campaignById(document.getElementById('ce-campaignId').value);
+  var species = document.getElementById('ce-species').value || '';
+  document.getElementById('ce-tallyRow').style.display = (camp || /deer/i.test(species)) ? '' : 'none';
+  var info = document.getElementById('ce-campaignInfo');
+  if (camp) {
+    var ci = campaignCountIndex({ id: document.getElementById('editingId').value, 'ce-campaignId': camp.id });
+    info.textContent = 'Count ' + ci.n + ' of ' + ci.target + ' planned' +
+      (camp.observers ? ' · ' + camp.observers : '') + (camp.light ? ' · ' + camp.light : '');
+  } else {
+    info.textContent = '';
+  }
+}
+
+// Keep Total Observed in step with the tallies (it feeds Census Trends)
+function updateCensusTotal() {
+  var vals = ['ce-bucks','ce-does','ce-fawns','ce-unknown'].map(function(k) {
+    return parseInt(document.getElementById(k).value, 10) || 0;
+  });
+  var tot = vals[0] + vals[1] + vals[2] + vals[3];
+  document.getElementById('ce-total').value = tot + ' deer (' + vals[0] + ' bucks / ' + vals[1] + ' does / ' +
+    vals[2] + ' fawns' + (vals[3] ? ' / ' + vals[3] + ' unknown' : '') + ')';
+}
+
 // ── Census route create-and-return ──
 // Saves the in-progress entry form, sends the user to Settings to draw a
 // route, and restores everything (with the new route selected) on return.
@@ -1840,6 +1962,7 @@ function restoreFormState(state, newRouteId) {
   });
   updateHarvestFields();
   updateSightingFields();
+  updateCensusFields();
   pendingPhotos = (state.photos || []).map(function(p) {
     // Older saved states stored plain filename strings
     var f = (typeof p === 'string') ? p : p.filename;
@@ -2119,6 +2242,7 @@ function switchType() {
   if (shown === 'Practice') document.getElementById('fields-Practice').innerHTML = window.renderPracticeForm(t);
   // Census uses Route/Stand ID instead of a map location
   document.getElementById('locSection').style.display = (t === 'Census') ? 'none' : '';
+  if (t === 'Census') autoSelectCampaign();
   // Purchases carry their own Cost field
   document.getElementById('f-costGroup').style.display = (t === 'Purchase') ? 'none' : '';
   // Moon phase applies to wildlife-activity events
@@ -2130,7 +2254,7 @@ function getTypeFields(type) {
   var map = {
     'Harvest':   ['hv-species','hv-sex','hv-age','hv-weight','hv-tag','hv-hunter','hv-location','hv-method','hv-points','hv-mainBeam','hv-tines','hv-spread','hv-buckId','hv-notes'].concat(BC_FIELDS),
     'Sighting':  ['si-species','si-count','si-sexAge','si-age','si-location','si-method','si-buckId','si-notes'],
-    'Census':    ['ce-surveyType','ce-species','ce-routeId','ce-total','ce-conditions','ce-notes'],
+    'Census':    ['ce-campaignId','ce-surveyType','ce-species','ce-routeId','ce-bucks','ce-does','ce-fawns','ce-unknown','ce-total','ce-conditions','ce-notes'],
     'Predator Control': ['pc-species','pc-method','pc-count','pc-notes'],
     'Rainfall':  ['rf-inches','rf-gauge','rf-notes'],
     'Maintenance': ['ma-item','ma-action','ma-assetId','ma-notes'],
@@ -2390,7 +2514,14 @@ function entryTitle(e) {
   if (e.type === 'Sighting') return (e['si-count'] ? e['si-count'] + ' ' : '') + (e['si-species'] || 'Sighting');
   if (window.PRACTICE_FIELDS[e.type]) return window.practiceTitle(e);
   if (e.type === 'Activity') return (e['ac-name'] || e['ac-category'] || e.type); // legacy
-  if (e.type === 'Census') return (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
+  if (e.type === 'Census') {
+    var ct = (e['ce-surveyType'] || 'Census') + (e['ce-species'] ? ' — ' + e['ce-species'] : '');
+    if (campaignById(e['ce-campaignId'])) {
+      var ci = campaignCountIndex(e);
+      ct += ' (count ' + ci.n + ' of ' + ci.target + ')';
+    }
+    return ct;
+  }
   if (e.type === 'Predator Control') return (e['pc-species'] || 'Predator Control') + (e['pc-method'] ? ' (' + e['pc-method'] + ')' : '');
   if (e.type === 'Rainfall') return (e['rf-inches'] ? e['rf-inches'] + ' in of rain' : 'Rainfall') + (e['rf-gauge'] ? ' — ' + e['rf-gauge'] : '');
   if (e.type === 'Maintenance') return (e['ma-item'] || assetNameById(e['ma-assetId']) || 'Maintenance');

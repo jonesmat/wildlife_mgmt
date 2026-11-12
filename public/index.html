@@ -289,6 +289,11 @@
       <div class="t-title">Property Map</div>
       <div class="t-sub">Activity by location</div>
     </div>
+    <div class="tile" onclick="spaGo('/census')">
+      <div class="t-icon">🔦</div>
+      <div class="t-title">Census Campaign</div>
+      <div class="t-sub" id="tileCensusSub">Plan the year's counts</div>
+    </div>
     <div class="tile" onclick="spaGo('/trends')">
       <div class="t-icon">📈</div>
       <div class="t-title">Census Trends</div>
@@ -579,6 +584,24 @@
       '</div>';
   }
 
+  // Census Campaign tile: this year's progress toward its planned counts
+  async function updateCensusTile(entries) {
+    var camps;
+    try { camps = await (await fetch('/api/census-campaigns')).json(); }
+    catch (e) { return; }
+    var y = String(new Date().getFullYear());
+    var mine = (camps || []).filter(function(c) { return String(c.year) === y; });
+    var sub = document.getElementById('tileCensusSub');
+    if (!sub) return;
+    if (!mine.length) { sub.textContent = 'Set up ' + y + ' counts'; return; }
+    var done = 0, planned = 0;
+    mine.forEach(function(c) {
+      planned += parseInt(c.targetCounts, 10) || 3;
+      done += entries.filter(function(e) { return e.type === 'Census' && e['ce-campaignId'] === c.id; }).length;
+    });
+    sub.textContent = y + ': ' + done + ' of ' + planned + ' counts';
+  }
+
   async function loadTrophies() {
     var board = document.getElementById('trophyBoard');
     var entries;
@@ -587,6 +610,7 @@
     document.getElementById('tileLogSub').textContent =
       entries.length ? entries.length + ' entr' + (entries.length === 1 ? 'y' : 'ies') : 'Start logging';
     renderPracticeRing(entries);
+    updateCensusTile(entries);
     var factsHtml = yearFactChips(entries);
     var scored = entries.filter(function(e) {
       return e.type === 'Harvest' && parseFloat(e['hv-bc-net']) > 0;

@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Census Campaign</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script src="/theme.js"></script>
+<script src="/store.js"></script>
+<script src="/dialog.js"></script>
+<link rel="stylesheet" href="/form-shared.css">
+<style>
+.year-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.year-nav { display: flex; align-items: center; gap: 4px; }
+.year-nav button {
+  border: 1px solid #ccd; background: white; border-radius: 6px; width: 32px; height: 32px;
+  cursor: pointer; font-size: 1rem; color: #1a4a1a;
+}
+.year-label { font-size: 1.25rem; font-weight: 700; color: #1a4a1a; min-width: 60px; text-align: center; }
+
+.cycle { background: white; border: 1px solid #ddd; border-radius: 10px; padding: 12px 16px; margin-bottom: 18px; }
+.cycle summary { cursor: pointer; font-weight: 700; color: #1a4a1a; font-size: 0.92rem; }
+.cycle-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+.cycle-step { border-left: 3px solid #1a4a1a; padding: 4px 10px; font-size: 0.82rem; color: #555; line-height: 1.4; }
+.cycle-step.now { background: #f0f7f0; }
+.cycle-step b { display: block; color: #1a4a1a; font-size: 0.86rem; margin-bottom: 2px; }
+
+.camp-card { background: white; border: 1px solid #ddd; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+.camp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.camp-name { font-size: 1.15rem; font-weight: 700; color: #1a4a1a; }
+.camp-sub { font-size: 0.82rem; color: #777; margin-top: 3px; }
+.chip {
+  font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 10px;
+  text-transform: uppercase; letter-spacing: 0.04em; vertical-align: middle; margin-left: 8px;
+}
+.chip-planned  { background: #eef1f6; color: #3a4a6a; }
+.chip-active   { background: #fdf3e0; color: #8b5a1a; }
+.chip-complete { background: #e8f0e8; color: #1a4a1a; }
+.chip-late     { background: #fde8e8; color: #8b1a1a; }
+.camp-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px; }
+.stat { background: #f6f9f5; border-radius: 8px; padding: 10px 12px; }
+.stat-val { font-size: 1.3rem; font-weight: 700; color: #1a4a1a; }
+.stat-lbl { font-size: 0.72rem; color: #777; margin-top: 2px; }
+
+.slots { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.slot {
+  border: 2px dashed #cdd5cd; border-radius: 8px; padding: 6px 12px; font-size: 0.8rem;
+  color: #999; min-width: 92px; text-align: center;
+}
+.slot.done { border-style: solid; border-color: #1a4a1a; color: #1a4a1a; background: #f0f7f0; font-weight: 600; }
+.slot small { display: block; font-weight: 400; color: #777; font-size: 0.7rem; }
+
+.runs { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 0.84rem; }
+.runs th { text-align: right; font-size: 0.7rem; color: #777; text-transform: uppercase; letter-spacing: 0.03em; padding: 6px 8px; border-bottom: 2px solid #e4e8e4; }
+.runs td { text-align: right; padding: 6px 8px; border-bottom: 1px solid #f0f0f0; }
+.runs th:first-child, .runs td:first-child { text-align: left; }
+.runs tr.pooled td { font-weight: 700; border-top: 2px solid #e4e8e4; border-bottom: none; }
+.runs a { color: #1a4a1a; }
+.runs-wrap { overflow-x: auto; }
+
+.results { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.result { border: 1px solid #e4e8e4; border-radius: 8px; padding: 10px 12px; font-size: 0.86rem; }
+.result-lbl { font-size: 0.72rem; color: #777; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
+.result-val { font-size: 1.05rem; font-weight: 700; color: #1a4a1a; margin-top: 3px; }
+.result-note { font-size: 0.78rem; color: #777; margin-top: 2px; }
+.notes-list { margin-top: 12px; font-size: 0.82rem; color: #8b5a1a; line-height: 1.5; padding-left: 18px; }
+
+.editor { background: white; border: 2px solid #1a4a1a; border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; display: none; }
+.editor .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 12px; }
+.editor h3 { font-size: 0.92rem; color: #1a4a1a; margin: 14px 0 8px; padding-top: 10px; border-top: 1px solid #eee; }
+.editor h3:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+.vis-guide { background: #f6f9f5; border: 1px solid #dde6dd; border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; }
+.vis-guide summary { cursor: pointer; font-weight: 700; color: #1a4a1a; font-size: 0.84rem; }
+.vis-guide-body { font-size: 0.82rem; color: #444; line-height: 1.5; margin-top: 8px; }
+.vis-guide-body p { margin: 6px 0; }
+.vis-guide-body ul { margin: 4px 0 8px 18px; }
+.vis-guide-body li { margin-bottom: 4px; }
+.vis-table { border-collapse: collapse; font-size: 0.82rem; margin-top: 6px; }
+.vis-table th { font-size: 0.7rem; color: #777; text-transform: uppercase; padding: 4px 6px; text-align: left; }
+.vis-table td { padding: 2px 6px; }
+.vis-table input { width: 80px; padding: 4px 6px; }
+.vis-scroll { max-height: 320px; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; display: inline-block; padding: 4px; }
+.vis-total { margin-top: 8px; font-size: 0.88rem; color: #1a4a1a; font-weight: 600; }
+.unlinked { background: #fffaf0; border: 1px solid #f0dcb0; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 0.85rem; }
+.unlinked-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 4px 0; }
+.empty { background: white; border: 1px dashed #bbb; border-radius: 10px; padding: 28px; text-align: center; color: #777; }
+
+/* ── Night tally: dark, dim red so spotters keep their night vision ── */
+.tally {
+  position: fixed; inset: 0; z-index: 1500; background: #0b0b0b; color: #d9a0a0;
+  display: none; flex-direction: column; padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+  user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.tally.open { display: flex; }
+/* Dark mode inverts the whole page; invert the tally back so it stays dark */
+html.dark-mode .tally { filter: invert(1) hue-rotate(180deg); }
+.tally-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.82rem; color: #a06a6a; }
+.tally-top b { color: #d9a0a0; font-size: 0.92rem; }
+.tally-x { background: none; border: 1px solid #4a2a2a; color: #d9a0a0; border-radius: 8px; padding: 6px 12px; font-size: 0.85rem; }
+.tally-total { text-align: center; margin: 10px 0 6px; }
+.tally-total .n { font-size: 3.2rem; font-weight: 700; color: #e0b0b0; line-height: 1; }
+.tally-total .l { font-size: 0.78rem; color: #8a5a5a; letter-spacing: 0.08em; text-transform: uppercase; }
+.tally-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; min-height: 0; }
+.tally-btn {
+  position: relative; border: 2px solid #4a2020; background: #1a0d0d; color: #e0b0b0; border-radius: 16px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 1.1rem; font-weight: 700; touch-action: manipulation; cursor: pointer;
+}
+.tally-btn:active, .tally-btn.flash { background: #3a1515; border-color: #8a3a3a; }
+.tally-btn .c { font-size: 2.6rem; line-height: 1.1; }
+.tally-btn .minus {
+  position: absolute; top: 8px; right: 8px; width: 38px; height: 38px; border-radius: 50%;
+  border: 1px solid #4a2a2a; background: #120909; color: #a06a6a; font-size: 1.3rem; line-height: 1;
+}
+.tally-bottom { display: flex; gap: 10px; margin-top: 10px; }
+.tally-bottom button {
+  flex: 1; padding: 14px; border-radius: 12px; font-size: 1rem; font-weight: 700;
+  border: 1px solid #4a2a2a; background: #160b0b; color: #d9a0a0;
+}
+.tally-bottom .finish { background: #4a1a1a; border-color: #8a3a3a; color: #f0c8c8; }
+.tally-bottom button:disabled { opacity: 0.4; }
+.tally-sum { flex: 1; overflow-y: auto; display: none; flex-direction: column; gap: 10px; margin-top: 10px; }
+.tally.finishing .tally-sum { display: flex; }
+.tally.finishing .tally-grid, .tally.finishing .tally-bottom.counting { display: none; }
+.tally .tally-bottom.saving { display: none; }
+.tally.finishing .tally-bottom.saving { display: flex; }
+.tally-sum-row { display: flex; justify-content: space-between; font-size: 1.05rem; padding: 6px 2px; border-bottom: 1px solid #2a1515; }
+.tally-sum label { font-size: 0.78rem; color: #8a5a5a; }
+.tally-sum input, .tally-sum textarea {
+  width: 100%; background: #160b0b; border: 1px solid #4a2a2a; color: #e0b0b0; border-radius: 8px;
+  padding: 10px; font-size: 1rem; margin-top: 4px;
+}
+.resume-bar {
+  background: #fdf3e0; border: 1px solid #f0dcb0; border-radius: 10px; padding: 10px 14px; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 0.86rem; color: #8b5a1a;
+}
+
+@media (max-width: 700px) {
+  .cycle-steps, .stat-row { grid-template-columns: 1fr 1fr; }
+  .results { grid-template-columns: 1fr; }
+  .editor .grid { grid-template-columns: 1fr; }
+}
+</style>
+<script src="/google-sync.js"></script>
+<script src="/spa.js"></script>
+<link rel="stylesheet" href="/mobile.css">
+</head>
+<body>
+<header>
+  <h1>🔦 Census Campaign</h1>
+  <div class="header-actions">
+    <a href="/activity" class="btn btn-white">Activity Log</a>
+    <a href="/" class="btn btn-white">Home</a>
+  </div>
+</header>
+
+<div class="layout">
+  <main class="main" style="max-width:900px">
+    <div class="hint-block" style="margin-bottom:16px">
+      Set up the year's census once: the route, its visibility readings, property acres and survey
+      window. Then log each night's count as a Census entry in the Activity Log. Each count stays
+      on your timeline and adds up here into a density, a herd estimate and buck:doe:fawn ratios.
+    </div>
+
+    <details class="cycle" id="cycle">
+      <summary>How a spotlight census year goes</summary>
+      <div class="cycle-steps">
+        <div class="cycle-step" data-months="6"><b>July: set up</b>Pick a 2–15 mile route away from feeders. Measure visibility every 1/10 mile, left and right, with your count light.</div>
+        <div class="cycle-step" data-months="7,8,9"><b>Aug to early Oct: count</b>At least 3 counts on separate nights, about a week apart. Start after dark and drive 5–8 mph. Tally bucks, does, fawns and unknowns.</div>
+        <div class="cycle-step" data-months="9,10"><b>October: decide</b>Pool the counts into acres per deer, a herd estimate and ratios. Set the season's doe and buck harvest.</div>
+        <div class="cycle-step" data-months="10,11,0"><b>Nov to Jan: harvest</b>Record age, weight and antlers on every deer taken. Harvest data checks the census.</div>
+      </div>
+    </details>
+
+    <div class="year-bar">
+      <div class="year-nav">
+        <button type="button" id="yearPrev" aria-label="Previous year">‹</button>
+        <span class="year-label" id="yearLabel"></span>
+        <button type="button" id="yearNext" aria-label="Next year">›</button>
+      </div>
+      <button class="btn btn-primary" id="newCampBtn">+ New Campaign</button>
+    </div>
+
+    <div class="editor" id="editor">
+      <h3 id="editorTitle">New Campaign</h3>
+      <div class="grid">
+        <div class="form-group"><label>Name</label><input type="text" id="cName"></div>
+        <div class="form-group"><label>Target Species</label>
+          <select id="cSpecies">
+            <option>White-tailed Deer</option><option>Mule Deer</option><option>Pronghorn</option>
+            <option>Wild Turkey</option><option>Axis Deer</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Survey Type</label>
+          <select id="cSurveyType">
+            <option>Spotlight Count</option><option>Stand Count</option><option>Aerial Count</option>
+            <option>Track Count</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Route</label>
+          <select id="cRoute"><option value="">-- No saved route --</option></select>
+          <a href="/settings#routes" style="font-size:0.78rem;display:inline-block;margin-top:4px;color:#1a4a1a">Draw a route in Settings</a>
+        </div>
+        <div class="form-group"><label>Property Acres</label><input type="number" id="cAcres" min="0" step="any"></div>
+        <div class="form-group"><label>Planned Counts</label><input type="number" id="cTarget" min="1" max="10" value="3"></div>
+        <div class="form-group"><label>Survey Window Start</label><input type="date" id="cStart"></div>
+        <div class="form-group"><label>Survey Window End</label><input type="date" id="cEnd"></div>
+        <div class="form-group"><label>Target Acres per Deer (optional)</label><input type="number" id="cGoal" min="0" step="any" placeholder="e.g. 10"></div>
+        <div class="form-group"><label>Observers</label><input type="text" id="cObservers" placeholder="Driver + 2 spotters"></div>
+        <div class="form-group"><label>Light / Equipment</label><input type="text" id="cLight" placeholder="e.g. 1M candlepower, both sides"></div>
+      </div>
+
+      <h3>Visibility</h3>
+      <div style="font-size:0.82rem;color:#666;margin-bottom:8px;line-height:1.45">
+        Stop at each reading point and record how far, in yards, your light shows a deer on each side.
+        Measure once in July with the same light. Measure again only after brush work or a burn changes the cover.
+      </div>
+      <details class="vis-guide">
+        <summary>How to measure how far you can see</summary>
+        <div class="vis-guide-body">
+          <p>At each stop, record how far out you could still spot eyeshine and tell a buck from a doe. That's often closer than where the beam fades out.</p>
+          <ul>
+            <li><b>Laser rangefinder at night (best).</b> Shine your count light straight out to the side and range the farthest spot a deer would still show: the brush line, a tree edge, or the top of a rise.</li>
+            <li><b>Open pasture with nothing to range:</b> use your light's useful distance and keep that same number every year. Set it once by ranging a post or a truck at the edge of where you can still tell sex.</li>
+            <li><b>Satellite map as a cross-check.</b> Measure from the road to the tree line at each stop. This works for clean pasture edges but reads too far in brush.</li>
+            <li><b>By eye, in 25-yard steps.</b> Practice first against known distances. It's less exact, but fine if it's done the same way every year.</li>
+          </ul>
+          <p><b>Rules that matter more than precision:</b></p>
+          <ul>
+            <li>Measure at night with the light you count with. Your daytime view is much farther.</li>
+            <li>Enter 0 where the view is blocked by a cut bank, wall of brush or creek bank. Don't skip the stop.</li>
+            <li>Measure in Aug–Sep with the leaves on. Winter readings run long and make the density look too low.</li>
+            <li>Use the same light, vehicle and seat height every time. A spotter standing in a truck bed sees farther than one in the cab.</li>
+          </ul>
+          <p>A 2-mile route at 1/10-mile stops is 21 stops: about an hour with a driver and someone on the rangefinder.</p>
+        </div>
+      </details>
+      <div class="grid">
+        <div class="form-group"><label>Route Length (miles)</label><input type="number" id="cMiles" min="0" step="0.1"></div>
+        <div class="form-group"><label>Reading Every</label>
+          <select id="cInterval"><option value="0.1">1/10 mile</option><option value="0.2">2/10 mile (routes 12+ mi)</option></select>
+        </div>
+        <div class="form-group"><label>Or enter visible acres directly</label><input type="number" id="cVisOverride" min="0" step="any" placeholder="Leave blank to use readings"></div>
+      </div>
+      <div id="copyReadings" style="margin-bottom:8px"></div>
+      <div id="visTableWrap"></div>
+      <div class="vis-total" id="visTotal"></div>
+
+      <h3>Notes</h3>
+      <textarea id="cNotes" rows="2" style="width:100%"></textarea>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button class="btn btn-secondary" id="cancelEditBtn">Cancel</button>
+        <button class="btn btn-primary" id="saveCampBtn">Save Campaign</button>
+      </div>
+    </div>
+
+    <div id="resumeBar"></div>
+    <div id="unlinked"></div>
+    <div id="campList"><div style="color:#999;font-size:0.9rem">Loading...</div></div>
+  </main>
+</div>
+
+<div class="tally" id="tally" role="dialog" aria-label="Count tally">
+  <div class="tally-top">
+    <div><b id="tName"></b><br><span id="tSub"></span></div>
+    <button type="button" class="tally-x" data-t="hide" title="Hide the tally; it keeps your count">Hide</button>
+  </div>
+  <div class="tally-total"><div class="n" id="tTotal">0</div><div class="l">deer this run</div></div>
+  <div class="tally-grid">
+    <div class="tally-btn" data-t="add" data-k="bucks"><span class="c" id="tc-bucks">0</span>Bucks<button type="button" class="minus" data-t="sub" data-k="bucks" aria-label="Take one buck off">−</button></div>
+    <div class="tally-btn" data-t="add" data-k="does"><span class="c" id="tc-does">0</span>Does<button type="button" class="minus" data-t="sub" data-k="does" aria-label="Take one doe off">−</button></div>
+    <div class="tally-btn" data-t="add" data-k="fawns"><span class="c" id="tc-fawns">0</span>Fawns<button type="button" class="minus" data-t="sub" data-k="fawns" aria-label="Take one fawn off">−</button></div>
+    <div class="tally-btn" data-t="add" data-k="unknown"><span class="c" id="tc-unknown">0</span>Unknown<button type="button" class="minus" data-t="sub" data-k="unknown" aria-label="Take one unknown off">−</button></div>
+  </div>
+  <div class="tally-bottom counting">
+    <button type="button" data-t="undo" id="tUndo">↶ Undo</button>
+    <button type="button" class="finish" data-t="finish">End of route</button>
+  </div>
+  <div class="tally-sum">
+    <div class="tally-sum-row"><span>Bucks</span><b id="ts-bucks"></b></div>
+    <div class="tally-sum-row"><span>Does</span><b id="ts-does"></b></div>
+    <div class="tally-sum-row"><span>Fawns</span><b id="ts-fawns"></b></div>
+    <div class="tally-sum-row"><span>Unknown</span><b id="ts-unknown"></b></div>
+    <div class="tally-sum-row"><span>Total</span><b id="ts-total"></b></div>
+    <div><label for="tConditions">Conditions (visibility, wind, temp)</label><input type="text" id="tConditions" placeholder="Clear, calm, 78°F"></div>
+    <div><label for="tNotes">Notes</label><textarea id="tNotes" rows="2"></textarea></div>
+  </div>
+  <div class="tally-bottom saving">
+    <button type="button" data-t="back">Keep counting</button>
+    <button type="button" class="finish" data-t="save">Save count</button>
+  </div>
+  <div class="tally-bottom saving" style="margin-top:8px">
+    <button type="button" data-t="discard" style="flex:0 1 auto;font-weight:400;font-size:0.85rem">Discard run</button>
+  </div>
+</div>
+
+<script>
+(function() {
+var campaigns = [];
+var entries = [];
+var routes = [];
+var planAcres = '';
+var planGoal = '';
+var year = new Date().getFullYear();
+var editingId = null;
+var readings = [];   // [{ l, r }] yards, one per stop, for the open editor
+
+var q = new URLSearchParams(location.search);
+if (/^\d{4}$/.test(q.get('year') || '')) year = parseInt(q.get('year'), 10);
+
+function escHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function escAttr(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function num(v) { var n = parseFloat(v); return isFinite(n) ? n : null; }
+function round1(n) { return Math.round(n * 10) / 10; }
+function fmtDate(s) {
+  if (!s) return '';
+  var d = new Date(s.length === 10 ? s + 'T12:00:00' : s);
+  return isNaN(d) ? s : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function $(id) { return document.getElementById(id); }
+
+// ── Census math (TPWD spotlight method) ──
+
+// Visible acres from stop readings: average (left + right) width in yards ×
+// route length in yards ÷ 4,840 sq yd per acre.
+function visibleAcres(c) {
+  var o = num(c.visibleAcresOverride);
+  if (o && o > 0) return o;
+  var miles = num(c.routeMiles);
+  var rs = (c.readings || []).filter(function(r) { return num(r.l) !== null || num(r.r) !== null; });
+  if (!miles || !rs.length) return null;
+  var tot = rs.reduce(function(s, r) { return s + (num(r.l) || 0) + (num(r.r) || 0); }, 0);
+  return (tot / rs.length) * miles * 1760 / 4840;
+}
+
+function parseCount(s) {
+  var m = /(\d+)/.exec(s || '');
+  return m ? parseInt(m[1], 10) : null;
+}
+
+// One count night: structured tallies when present, else the first number
+// in the free-text Total Observed.
+function runOf(e) {
+  var parts = ['ce-bucks', 'ce-does', 'ce-fawns', 'ce-unknown'].map(function(k) { return num(e[k]); });
+  var structured = parts.some(function(p) { return p !== null; });
+  var b = parts[0] || 0, d = parts[1] || 0, f = parts[2] || 0, u = parts[3] || 0;
+  return {
+    id: e.id, date: (e.datetime || '').slice(0, 10), structured: structured,
+    bucks: b, does: d, fawns: f, unknown: u,
+    total: structured ? b + d + f + u : parseCount(e['ce-total'])
+  };
+}
+
+function runsFor(c) {
+  return entries.filter(function(e) { return e.type === 'Census' && e['ce-campaignId'] === c.id; })
+    .map(runOf)
+    .sort(function(a, b) { return a.date < b.date ? -1 : 1; });
+}
+
+function analyze(c) {
+  var va = visibleAcres(c);
+  var acres = num(c.propertyAcres);
+  var runs = runsFor(c);
+  var counted = runs.filter(function(r) { return r.total !== null; });
+  var totalDeer = counted.reduce(function(s, r) { return s + r.total; }, 0);
+  var res = { va: va, acres: acres, runs: runs, counted: counted, totalDeer: totalDeer, notes: [] };
+  // Pooled across nights: (visible acres × nights) ÷ all deer counted
+  if (va && counted.length && totalDeer > 0) {
+    res.acresPerDeer = va * counted.length / totalDeer;
+    if (acres) res.herd = acres / res.acresPerDeer;
+  }
+  var comp = runs.filter(function(r) { return r.structured; });
+  res.bucks = comp.reduce(function(s, r) { return s + r.bucks; }, 0);
+  res.does = comp.reduce(function(s, r) { return s + r.does; }, 0);
+  res.fawns = comp.reduce(function(s, r) { return s + r.fawns; }, 0);
+  res.unknown = comp.reduce(function(s, r) { return s + r.unknown; }, 0);
+
+  var target = parseInt(c.targetCounts, 10) || 3;
+  if (!va) res.notes.push('Add visibility readings (or visible acres) to calculate density.');
+  if (!acres) res.notes.push('Add property acres to estimate the herd.');
+  if (counted.length && counted.length < target) {
+    res.notes.push((target - counted.length) + ' more count' + (target - counted.length === 1 ? '' : 's') +
+      ' to reach the planned ' + target + '. Estimates firm up as nights are added.');
+  }
+  if (counted.length >= 3) {
+    var mean = totalDeer / counted.length;
+    counted.forEach(function(r) {
+      if (mean > 0 && Math.abs(r.total - mean) / mean > 0.5) {
+        res.notes.push('The ' + fmtDate(r.date) + ' count (' + r.total + ') is far from the average (' +
+          round1(mean) + '). Many biologists run a fourth night when one count is off like this.');
+      }
+    });
+  }
+  runs.forEach(function(r) {
+    if ((c.windowStart && r.date < c.windowStart) || (c.windowEnd && r.date > c.windowEnd)) {
+      res.notes.push('The ' + fmtDate(r.date) + ' count falls outside the survey window.');
+    }
+  });
+  return res;
+}
+
+function status(c, res) {
+  var target = parseInt(c.targetCounts, 10) || 3;
+  var today = new Date().toISOString().slice(0, 10);
+  if (res.counted.length >= target) return { cls: 'complete', label: 'Complete' };
+  if (c.windowEnd && today > c.windowEnd) return { cls: 'late', label: 'Window passed' };
+  if (res.runs.length) return { cls: 'active', label: 'In progress' };
+  if (c.windowStart && today >= c.windowStart) return { cls: 'active', label: 'Window open' };
+  return { cls: 'planned', label: 'Planned' };
+}
+
+// ── Load & render ──
+
+async function load() {
+  var r = await Promise.all([
+    fetch('/api/census-campaigns').then(function(x) { return x.json(); }),
+    fetch('/api/log').then(function(x) { return x.json(); }),
+    fetch('/api/routes').then(function(x) { return x.json(); }).catch(function() { return []; }),
+    fetch('/api/data').then(function(x) { return x.json(); }).catch(function() { return {}; })
+  ]);
+  campaigns = Array.isArray(r[0]) ? r[0] : [];
+  entries = Array.isArray(r[1]) ? r[1] : [];
+  routes = Array.isArray(r[2]) ? r[2] : [];
+  var plan = (r[3] && r[3].plan) || {};
+  planAcres = ((plan.property || {}).totalAcreage || '').toString().replace(/[^\d.]/g, '');
+  var td = ((plan.deerManagement || {}).targetDensity || '').toString();
+  var gm = /1\s*(?:deer)?\s*(?:\/|:|per|to)\s*(\d+(?:\.\d+)?)/i.exec(td);
+  planGoal = gm ? gm[1] : '';
+  var sel = $('cRoute');
+  sel.innerHTML = '<option value="">-- No saved route --</option>' + routes.map(function(rt) {
+    return '<option value="' + escAttr(rt.id) + '">' + escHtml(rt.name) + '</option>';
+  }).join('');
+  render();
+}
+
+function routeName(id) {
+  var r = routes.find(function(x) { return x.id === id; });
+  return r ? r.name : '';
+}
+
+function render() {
+  $('yearLabel').textContent = year;
+  var month = new Date().getMonth();
+  document.querySelectorAll('.cycle-step').forEach(function(el) {
+    el.classList.toggle('now', el.getAttribute('data-months').split(',').indexOf(String(month)) !== -1);
+  });
+
+  var list = campaigns.filter(function(c) { return String(c.year) === String(year); })
+    .sort(function(a, b) { return (a.createdAt || '') < (b.createdAt || '') ? -1 : 1; });
+  if (!list.length) {
+    $('campList').innerHTML = '<div class="empty">No census campaign for ' + year + ' yet.<br><br>' +
+      '<button class="btn btn-primary" data-act="new">Set up the ' + year + ' census</button></div>';
+  } else {
+    $('campList').innerHTML = list.map(renderCampaign).join('');
+  }
+  renderUnlinked(list);
+  renderResume();
+}
+
+function renderCampaign(c) {
+  var res = analyze(c);
+  var st = status(c, res);
+  var target = parseInt(c.targetCounts, 10) || 3;
+  var id = escAttr(c.id);
+  var sub = [c.surveyType || 'Spotlight Count', c.species, routeName(c.routeId),
+    (c.windowStart || c.windowEnd) ? fmtDate(c.windowStart) + ' – ' + fmtDate(c.windowEnd) : '']
+    .filter(Boolean).map(escHtml).join(' · ');
+
+  var slots = '';
+  var n = Math.max(target, res.runs.length);
+  for (var i = 0; i < n; i++) {
+    var r = res.runs[i];
+    slots += r
+      ? '<div class="slot done">Count ' + (i + 1) + '<small>' + escHtml(fmtDate(r.date)) +
+          (r.total !== null ? ' · ' + r.total + ' seen' : '') + '</small></div>'
+      : '<div class="slot">Count ' + (i + 1) + '<small>not yet</small></div>';
+  }
+
+  var stats =
+    stat(res.va ? Math.round(res.va) : '—', 'Visible acres') +
+    stat(res.counted.length + ' / ' + target, 'Counts logged') +
+    stat(res.acresPerDeer ? round1(res.acresPerDeer) : '—', 'Acres per deer') +
+    stat(res.herd ? Math.round(res.herd) : '—', 'Herd estimate');
+
+  var table = '';
+  if (res.runs.length) {
+    table = '<div class="runs-wrap"><table class="runs"><thead><tr><th>Night</th><th>Bucks</th><th>Does</th>' +
+      '<th>Fawns</th><th>Unk.</th><th>Total</th><th>Ac / deer</th><th>Herd est.</th></tr></thead><tbody>' +
+      res.runs.map(function(r) {
+        var apd = (res.va && r.total) ? res.va / r.total : null;
+        return '<tr><td><a href="/activity#entry-' + escAttr(encodeURIComponent(r.id)) + '">' + escHtml(fmtDate(r.date)) + '</a></td>' +
+          '<td>' + (r.structured ? r.bucks : '') + '</td><td>' + (r.structured ? r.does : '') + '</td>' +
+          '<td>' + (r.structured ? r.fawns : '') + '</td><td>' + (r.structured ? r.unknown : '') + '</td>' +
+          '<td>' + (r.total !== null ? r.total : '—') + '</td>' +
+          '<td>' + (apd ? round1(apd) : '—') + '</td>' +
+          '<td>' + (apd && res.acres ? Math.round(res.acres / apd) : '—') + '</td></tr>';
+      }).join('') +
+      (res.counted.length > 1 ?
+        '<tr class="pooled"><td>All nights</td><td>' + res.bucks + '</td><td>' + res.does + '</td><td>' + res.fawns +
+        '</td><td>' + res.unknown + '</td><td>' + res.totalDeer + '</td><td>' +
+        (res.acresPerDeer ? round1(res.acresPerDeer) : '—') + '</td><td>' + (res.herd ? Math.round(res.herd) : '—') + '</td></tr>' : '') +
+      '</tbody></table></div>';
+  }
+
+  var results = '';
+  if (res.bucks || res.does || res.fawns) {
+    var bd = res.bucks ? '1 : ' + round1(res.does / res.bucks) : (res.does ? 'No bucks seen' : '—');
+    var fd = res.does ? round1(res.fawns / res.does) : null;
+    results += result('Buck : Doe', bd, res.bucks + ' bucks, ' + res.does + ' does across all nights');
+    results += result('Fawns per Doe', fd !== null ? fd.toFixed(2) : '—',
+      fd !== null ? 'About a ' + Math.round(fd * 100) + '% fawn crop' : 'Needs does in the tally');
+  }
+  var goal = num(c.targetAcresPerDeer);
+  if (goal && res.herd && res.acres) {
+    var goalHerd = res.acres / goal;
+    var diff = Math.round(res.herd - goalHerd);
+    results += result('Against Target', diff > 0 ? diff + ' over' : (diff < 0 ? (-diff) + ' under' : 'On target'),
+      'Target of 1 deer / ' + goal + ' ac ≈ ' + Math.round(goalHerd) + ' deer on ' + Math.round(res.acres) + ' acres');
+  }
+  if (res.herd && res.bucks + res.does + res.fawns > 0) {
+    var known = res.bucks + res.does + res.fawns;
+    results += result('Herd Makeup (est.)',
+      Math.round(res.herd * res.bucks / known) + ' B · ' + Math.round(res.herd * res.does / known) + ' D · ' +
+      Math.round(res.herd * res.fawns / known) + ' F',
+      'Herd estimate split by the buck:doe:fawn tally');
+  }
+
+  return '<div class="camp-card">' +
+    '<div class="camp-head"><div>' +
+      '<div class="camp-name">' + escHtml(c.name || 'Census') + '<span class="chip chip-' + st.cls + '">' + st.label + '</span></div>' +
+      '<div class="camp-sub">' + sub + '</div>' +
+    '</div><div class="camp-actions">' +
+      '<button class="btn btn-primary" data-act="tally" data-id="' + id + '" title="Tap-to-count screen for the drive">▶ Start count</button>' +
+      '<button class="btn btn-secondary" data-act="log" data-id="' + id + '" title="Type in a night\'s totals">Enter totals</button>' +
+      '<button class="btn btn-secondary" data-act="edit" data-id="' + id + '">Edit setup</button>' +
+      '<button class="btn btn-secondary" data-act="delete" data-id="' + id + '" title="Delete campaign">🗑</button>' +
+    '</div></div>' +
+    '<div class="stat-row">' + stats + '</div>' +
+    '<div class="slots">' + slots + '</div>' +
+    table +
+    (results ? '<div class="results">' + results + '</div>' : '') +
+    (res.notes.length ? '<ul class="notes-list">' + res.notes.map(function(t) { return '<li>' + escHtml(t) + '</li>'; }).join('') + '</ul>' : '') +
+  '</div>';
+}
+
+function stat(v, l) { return '<div class="stat"><div class="stat-val">' + escHtml(v) + '</div><div class="stat-lbl">' + escHtml(l) + '</div></div>'; }
+function result(l, v, note) {
+  return '<div class="result"><div class="result-lbl">' + escHtml(l) + '</div><div class="result-val">' + escHtml(v) +
+    '</div><div class="result-note">' + escHtml(note) + '</div></div>';
+}
+
+// Census entries this year that aren't tied to any campaign: offer to link
+function renderUnlinked(list) {
+  var box = $('unlinked');
+  var ids = {};
+  campaigns.forEach(function(c) { ids[c.id] = 1; });
+  var loose = entries.filter(function(e) {
+    return e.type === 'Census' && (e.datetime || '').slice(0, 4) === String(year) && !ids[e['ce-campaignId']];
+  });
+  if (!loose.length || !list.length) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="unlinked"><strong>' + loose.length + ' census entr' + (loose.length === 1 ? 'y' : 'ies') +
+    ' from ' + year + ' not in a campaign</strong>' +
+    loose.map(function(e) {
+      return '<div class="unlinked-row"><span style="flex:1">' + escHtml(fmtDate((e.datetime || '').slice(0, 10))) + ' — ' +
+        escHtml(e['ce-surveyType'] || 'Census') + (e['ce-total'] ? ' · ' + escHtml(e['ce-total']) : '') + '</span>' +
+        list.map(function(c) {
+          return '<button class="btn btn-secondary" style="padding:4px 10px;font-size:0.78rem" data-act="link" data-id="' +
+            escAttr(c.id) + '" data-entry="' + escAttr(e.id) + '">Add to ' + escHtml(c.name || 'campaign') + '</button>';
+        }).join('') + '</div>';
+    }).join('') + '</div>';
+}
+
+// ── Editor ──
+
+function openEditor(c) {
+  editingId = c ? c.id : null;
+  $('editorTitle').textContent = c ? 'Edit Campaign' : 'New ' + year + ' Campaign';
+  var prev = c ? null : latestOther(null);
+  $('cName').value = c ? (c.name || '') : year + ' Spotlight Census';
+  $('cSpecies').value = (c && c.species) || 'White-tailed Deer';
+  $('cSurveyType').value = (c && c.surveyType) || 'Spotlight Count';
+  $('cRoute').value = c ? (c.routeId || '') : ((prev && prev.routeId) || (routes.length === 1 ? routes[0].id : ''));
+  $('cAcres').value = c ? (c.propertyAcres || '') : ((prev && prev.propertyAcres) || planAcres);
+  $('cTarget').value = (c && c.targetCounts) || 3;
+  $('cStart').value = c ? (c.windowStart || '') : year + '-08-01';
+  $('cEnd').value = c ? (c.windowEnd || '') : year + '-10-15';
+  $('cGoal').value = c ? (c.targetAcresPerDeer || '') : ((prev && prev.targetAcresPerDeer) || planGoal);
+  $('cObservers').value = c ? (c.observers || '') : ((prev && prev.observers) || '');
+  $('cLight').value = c ? (c.light || '') : ((prev && prev.light) || '');
+  $('cNotes').value = (c && c.notes) || '';
+  $('cMiles').value = c ? (c.routeMiles || '') : '';
+  $('cInterval').value = (c && c.interval) || '0.1';
+  $('cVisOverride').value = (c && c.visibleAcresOverride) || '';
+  readings = c ? (c.readings || []).map(function(r) { return { l: r.l, r: r.r }; }) : [];
+  // A new campaign on the same route as last year's starts from its readings
+  if (!c) fillFromRoute();
+  // The measuring guide starts collapsed every time the editor opens
+  document.querySelector('#editor .vis-guide').open = false;
+  $('editor').style.display = 'block';
+  buildVisTable();
+  $('editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Most recent other campaign (optionally on a given route) to copy setup from
+function latestOther(routeId) {
+  return campaigns.filter(function(x) {
+    return x.id !== editingId && (routeId === null || x.routeId === routeId);
+  }).sort(function(a, b) {
+    return String(b.year) + (b.createdAt || '') < String(a.year) + (a.createdAt || '') ? -1 : 1;
+  })[0] || null;
+}
+
+function fillFromRoute() {
+  var rid = $('cRoute').value;
+  var src = rid ? latestOther(rid) : null;
+  if (src && !readings.length && !$('cMiles').value) copyFrom(src);
+}
+
+function copyFrom(src) {
+  $('cMiles').value = src.routeMiles || '';
+  $('cInterval').value = src.interval || '0.1';
+  $('cVisOverride').value = src.visibleAcresOverride || '';
+  readings = (src.readings || []).map(function(r) { return { l: r.l, r: r.r }; });
+  buildVisTable();
+}
+
+function stopCount() {
+  var miles = num($('cMiles').value);
+  var step = num($('cInterval').value) || 0.1;
+  if (!miles || miles <= 0) return 0;
+  return Math.min(400, Math.round(miles / step) + 1);
+}
+
+function syncReadingsFromTable() {
+  document.querySelectorAll('#visTableWrap input[data-i]').forEach(function(inp) {
+    var i = +inp.getAttribute('data-i');
+    if (!readings[i]) readings[i] = { l: '', r: '' };
+    readings[i][inp.getAttribute('data-side')] = inp.value;
+  });
+}
+
+function buildVisTable() {
+  var n = stopCount();
+  var step = num($('cInterval').value) || 0.1;
+  var rid = $('cRoute').value;
+  var src = rid ? latestOther(rid) : null;
+  $('copyReadings').innerHTML = (src && (src.readings || []).length) ?
+    '<button class="btn btn-secondary" style="padding:4px 10px;font-size:0.78rem" data-act="copy" data-id="' + escAttr(src.id) +
+    '">Copy readings from ' + escHtml(src.name || src.year) + '</button>' : '';
+  if (!n) {
+    $('visTableWrap').innerHTML = '<div style="font-size:0.82rem;color:#999">Enter the route length to lay out reading stops.</div>';
+    updateVisTotal();
+    return;
+  }
+  var rows = '';
+  for (var i = 0; i < n; i++) {
+    var r = readings[i] || { l: '', r: '' };
+    rows += '<tr><td>' + (i + 1) + '</td><td>' + round1(i * step).toFixed(1) + '</td>' +
+      '<td><input type="number" min="0" inputmode="numeric" data-i="' + i + '" data-side="l" value="' + escAttr(r.l) + '"></td>' +
+      '<td><input type="number" min="0" inputmode="numeric" data-i="' + i + '" data-side="r" value="' + escAttr(r.r) + '"></td></tr>';
+  }
+  $('visTableWrap').innerHTML = '<div class="vis-scroll"><table class="vis-table"><thead><tr><th>Stop</th><th>Mile</th>' +
+    '<th>Left yds</th><th>Right yds</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  updateVisTotal();
+}
+
+function editorCampaign() {
+  syncReadingsFromTable();
+  var n = stopCount();
+  return {
+    year: year,
+    name: $('cName').value.trim() || year + ' Census',
+    species: $('cSpecies').value,
+    surveyType: $('cSurveyType').value,
+    routeId: $('cRoute').value,
+    routeMiles: $('cMiles').value,
+    interval: $('cInterval').value,
+    readings: readings.slice(0, n),
+    visibleAcresOverride: $('cVisOverride').value,
+    propertyAcres: $('cAcres').value,
+    targetCounts: $('cTarget').value || '3',
+    windowStart: $('cStart').value,
+    windowEnd: $('cEnd').value,
+    targetAcresPerDeer: $('cGoal').value,
+    observers: $('cObservers').value.trim(),
+    light: $('cLight').value.trim(),
+    notes: $('cNotes').value.trim()
+  };
+}
+
+function updateVisTotal() {
+  var c = editorCampaign();
+  var va = visibleAcres(c);
+  var filled = (c.readings || []).filter(function(r) { return num(r.l) !== null || num(r.r) !== null; }).length;
+  var txt = '';
+  if (num(c.visibleAcresOverride)) txt = 'Visible acres: ' + round1(va) + ' (entered directly)';
+  else if (va) txt = 'Visible acres: ' + round1(va) + ' — from ' + filled + ' of ' + stopCount() + ' stops';
+  $('visTotal').textContent = txt;
+}
+
+async function saveCampaign() {
+  var body = editorCampaign();
+  if (body.year && editingId) {
+    var existing = campaigns.find(function(x) { return x.id === editingId; });
+    if (existing) body.year = existing.year;
+  }
+  await fetch(editingId ? '/api/census-campaigns/' + encodeURIComponent(editingId) : '/api/census-campaigns', {
+    method: editingId ? 'PUT' : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  closeEditor();
+  load();
+}
+
+function closeEditor() {
+  $('editor').style.display = 'none';
+  editingId = null;
+  readings = [];
+}
+
+async function deleteCampaign(id) {
+  var c = campaigns.find(function(x) { return x.id === id; });
+  if (!c) return;
+  if (!(await appConfirm('Its counts stay in the Activity Log, just no longer grouped.', 'Delete “' + (c.name || 'campaign') + '”?', 'Delete'))) return;
+  await fetch('/api/census-campaigns/' + encodeURIComponent(id), { method: 'DELETE' });
+  load();
+}
+
+async function linkEntry(campId, entryId) {
+  var e = entries.find(function(x) { return x.id === entryId; });
+  var c = campaigns.find(function(x) { return x.id === campId; });
+  if (!e || !c) return;
+  var upd = Object.assign({}, e, { 'ce-campaignId': campId });
+  await fetch('/api/log/' + encodeURIComponent(entryId), {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(upd)
+  });
+  load();
+}
+
+function setYear(y) {
+  year = y;
+  closeEditor();
+  history.replaceState(null, '', '/census?year=' + y);
+  render();
+}
+
+// ── Events ──
+$('yearPrev').onclick = function() { setYear(year - 1); };
+$('yearNext').onclick = function() { setYear(year + 1); };
+$('newCampBtn').onclick = function() { openEditor(null); };
+$('cancelEditBtn').onclick = closeEditor;
+$('saveCampBtn').onclick = saveCampaign;
+$('cRoute').onchange = function() { if (!editingId) fillFromRoute(); buildVisTable(); };
+$('cMiles').oninput = function() { syncReadingsFromTable(); buildVisTable(); };
+$('cInterval').onchange = function() { syncReadingsFromTable(); buildVisTable(); };
+$('cVisOverride').oninput = updateVisTotal;
+$('visTableWrap').oninput = updateVisTotal;
+
+document.querySelector('main').addEventListener('click', function(ev) {
+  var btn = ev.target.closest('[data-act]');
+  if (!btn) return;
+  var act = btn.getAttribute('data-act');
+  var id = btn.getAttribute('data-id');
+  if (act === 'new') openEditor(null);
+  else if (act === 'edit') openEditor(campaigns.find(function(x) { return x.id === id; }));
+  else if (act === 'delete') deleteCampaign(id);
+  else if (act === 'log') spaGo('/activity#census-' + encodeURIComponent(id));
+  else if (act === 'tally') startTally(id);
+  else if (act === 'resume') openTally();
+  else if (act === 'discardTally') discardTally();
+  else if (act === 'link') linkEntry(id, btn.getAttribute('data-entry'));
+  else if (act === 'copy') {
+    var src = campaigns.find(function(x) { return x.id === id; });
+    if (src) copyFrom(src);
+  }
+});
+
+// ── Night tally ──
+// A tap-to-count screen for the drive: one big button per class, undo, and
+// "End of route" to save the run as a Census entry tied to the campaign.
+// The run in progress is kept in localStorage so a reload, a locked phone or
+// leaving the page doesn't lose it.
+var TALLY_KEY = 'censusTally';
+var TALLY_CLASSES = ['bucks', 'does', 'fawns', 'unknown'];
+var tally = null;     // { campId, start, counts: {bucks,...}, history: [k,...] }
+var wakeLock = null;
+var tickTimer = null;
+
+function loadTally() {
+  try {
+    var t = JSON.parse(localStorage.getItem(TALLY_KEY) || 'null');
+    if (t && t.campId && t.counts) return t;
+  } catch (e) { /* unreadable: no run in progress */ }
+  return null;
+}
+function storeTally() {
+  try {
+    if (tally) localStorage.setItem(TALLY_KEY, JSON.stringify(tally));
+    else localStorage.removeItem(TALLY_KEY);
+  } catch (e) { /* storage blocked: the tally still works for this visit */ }
+}
+
+function tallyTotal() {
+  return TALLY_CLASSES.reduce(function(s, k) { return s + (tally.counts[k] || 0); }, 0);
+}
+
+async function startTally(campId) {
+  var existing = loadTally();
+  if (existing && existing.campId !== campId && TALLY_CLASSES.some(function(k) { return existing.counts[k]; })) {
+    if (!(await appConfirm('Another run has deer tallied that haven’t been saved.', 'Start a new run and discard it?', 'Discard & start'))) return;
+  }
+  if (existing && existing.campId === campId) { tally = existing; }
+  else {
+    tally = { campId: campId, start: new Date().toISOString(), counts: { bucks: 0, does: 0, fawns: 0, unknown: 0 }, history: [] };
+    storeTally();
+  }
+  openTally();
+}
+
+function openTally() {
+  tally = tally || loadTally();
+  if (!tally) return;
+  var c = campaigns.find(function(x) { return x.id === tally.campId; });
+  if (!c) { tally = null; storeTally(); renderResume(); return; }
+  var done = runsFor(c).length;
+  $('tName').textContent = c.name || 'Census';
+  $('tally').dataset.count = String(done + 1);
+  $('tally').dataset.target = String(parseInt(c.targetCounts, 10) || 3);
+  $('tally').classList.remove('finishing');
+  $('tally').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  paintTally();
+  tick();
+  clearInterval(tickTimer);
+  tickTimer = setInterval(tick, 15000);
+  keepAwake();
+}
+
+function hideTally() {
+  $('tally').classList.remove('open');
+  document.body.style.overflow = '';
+  clearInterval(tickTimer);
+  releaseAwake();
+  renderResume();
+}
+
+function tick() {
+  if (!tally) return;
+  var mins = Math.max(0, Math.round((Date.now() - new Date(tally.start).getTime()) / 60000));
+  var t = $('tally');
+  $('tSub').textContent = 'Count ' + t.dataset.count + ' of ' + t.dataset.target + ' · started ' +
+    new Date(tally.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' · ' + mins + ' min';
+}
+
+function paintTally() {
+  TALLY_CLASSES.forEach(function(k) {
+    $('tc-' + k).textContent = tally.counts[k] || 0;
+    $('ts-' + k).textContent = tally.counts[k] || 0;
+  });
+  $('tTotal').textContent = tallyTotal();
+  $('ts-total').textContent = tallyTotal();
+  $('tUndo').disabled = !tally.history.length;
+}
+
+function bump(k, delta, btn) {
+  if (!tally || TALLY_CLASSES.indexOf(k) === -1) return;
+  if (delta < 0 && !tally.counts[k]) return;
+  tally.counts[k] = (tally.counts[k] || 0) + delta;
+  if (delta > 0) tally.history.push(k);
+  else {
+    // Taking one off removes that class's most recent tap from the undo trail
+    var i = tally.history.lastIndexOf(k);
+    if (i !== -1) tally.history.splice(i, 1);
+  }
+  storeTally();
+  paintTally();
+  try { if (navigator.vibrate) navigator.vibrate(delta > 0 ? 25 : [15, 40, 15]); } catch (e) { /* no haptics */ }
+  if (btn) { btn.classList.add('flash'); setTimeout(function() { btn.classList.remove('flash'); }, 120); }
+}
+
+function undo() {
+  if (!tally || !tally.history.length) return;
+  var k = tally.history.pop();
+  tally.counts[k] = Math.max(0, (tally.counts[k] || 0) - 1);
+  storeTally();
+  paintTally();
+}
+
+async function saveTally() {
+  var c = campaigns.find(function(x) { return x.id === tally.campId; });
+  if (!c) return;
+  var v = tally.counts;
+  var start = new Date(tally.start);
+  var pad = function(n) { return String(n).padStart(2, '0'); };
+  // Dated by the night the run started, even if it ends after midnight
+  var dt = start.getFullYear() + '-' + pad(start.getMonth() + 1) + '-' + pad(start.getDate()) +
+    'T' + pad(start.getHours()) + ':' + pad(start.getMinutes()) + ':' + pad(start.getSeconds());
+  var mins = Math.round((Date.now() - start.getTime()) / 60000);
+  var timeNote = 'Tallied ' + start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) +
+    ' – ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' (' + mins + ' min).';
+  var notes = $('tNotes').value.trim();
+  var entry = {
+    datetime: dt,
+    type: 'Census',
+    photos: [],
+    loc: null,
+    moon: moonPhaseIndex(new Date(dt.slice(0, 10) + 'T12:00:00')),
+    cost: '',
+    'ce-campaignId': c.id,
+    'ce-surveyType': c.surveyType || 'Spotlight Count',
+    'ce-species': c.species || 'White-tailed Deer',
+    'ce-routeId': routeName(c.routeId) ? c.routeId : '',
+    'ce-route': routeName(c.routeId) || '',
+    'ce-bucks': String(v.bucks || 0),
+    'ce-does': String(v.does || 0),
+    'ce-fawns': String(v.fawns || 0),
+    'ce-unknown': String(v.unknown || 0),
+    'ce-total': tallyTotal() + ' deer (' + (v.bucks || 0) + ' bucks / ' + (v.does || 0) + ' does / ' + (v.fawns || 0) + ' fawns' +
+      (v.unknown ? ' / ' + v.unknown + ' unknown' : '') + ')',
+    'ce-conditions': $('tConditions').value.trim(),
+    'ce-notes': notes ? notes + ' ' + timeNote : timeNote
+  };
+  var res = await fetch('/api/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) });
+  if (!res.ok) { appDialog('The count could not be saved. Your tally is kept — try again.', 'Not saved'); return; }
+  tally = null;
+  storeTally();
+  $('tConditions').value = '';
+  $('tNotes').value = '';
+  hideTally();
+  load();
+}
+
+async function discardTally() {
+  if (tally && tallyTotal() > 0 &&
+      !(await appConfirm('The ' + tallyTotal() + ' deer tallied on this run will be lost.', 'Discard this run?', 'Discard'))) return;
+  tally = null;
+  storeTally();
+  hideTally();
+}
+
+function renderResume() {
+  var box = $('resumeBar');
+  if (!box) return;
+  var t = loadTally();
+  var c = t && campaigns.find(function(x) { return x.id === t.campId; });
+  if (!c || $('tally').classList.contains('open')) { box.innerHTML = ''; return; }
+  var tot = TALLY_CLASSES.reduce(function(s, k) { return s + (t.counts[k] || 0); }, 0);
+  box.innerHTML = '<div class="resume-bar"><span style="flex:1">🔦 A run on <strong>' + escHtml(c.name || 'Census') +
+    '</strong> is in progress: ' + tot + ' deer tallied, not yet saved.</span>' +
+    '<button class="btn btn-primary" data-act="resume">Resume</button>' +
+    '<button class="btn btn-secondary" data-act="discardTally">Discard</button></div>';
+}
+
+// Keep the phone screen on while counting
+async function keepAwake() {
+  try {
+    if ('wakeLock' in navigator && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', function() { wakeLock = null; });
+    }
+  } catch (e) { wakeLock = null; /* not supported or refused: screen may sleep */ }
+}
+function releaseAwake() {
+  try { if (wakeLock) wakeLock.release(); } catch (e) { /* already released */ }
+  wakeLock = null;
+}
+document.addEventListener('visibilitychange', function() {
+  var el = document.getElementById('tally');
+  if (document.visibilityState === 'visible' && el && el.classList.contains('open')) keepAwake();
+});
+
+function moonPhaseIndex(date) {
+  var synodic = 29.53058867;
+  var days = (date.getTime() - Date.UTC(2000, 0, 6, 18, 14)) / 86400000;
+  var frac = (((days % synodic) + synodic) % synodic) / synodic;
+  return Math.round(frac * 8) % 8;
+}
+
+$('tally').addEventListener('click', function(ev) {
+  var el = ev.target.closest('[data-t]');
+  if (!el) return;
+  var t = el.getAttribute('data-t');
+  if (t === 'add') bump(el.getAttribute('data-k'), 1, el);
+  else if (t === 'sub') { ev.stopPropagation(); bump(el.getAttribute('data-k'), -1, el.closest('.tally-btn')); }
+  else if (t === 'undo') undo();
+  else if (t === 'hide') hideTally();
+  else if (t === 'finish') { $('tally').classList.add('finishing'); paintTally(); }
+  else if (t === 'back') $('tally').classList.remove('finishing');
+  else if (t === 'save') saveTally();
+  else if (t === 'discard') discardTally();
+});
+
+load();
+})();
+</script>
+<script src="/help.js"></script>
+</body>
+</html>

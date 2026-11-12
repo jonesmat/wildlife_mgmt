@@ -221,6 +221,10 @@ app.get('/aging', (req, res) => {
   res.sendFile(path.join(STATIC_DIR,'aging.html'));
 });
 
+app.get('/census', (req, res) => {
+  res.sendFile(path.join(STATIC_DIR,'census.html'));
+});
+
 app.get('/assets', (req, res) => {
   res.sendFile(path.join(STATIC_DIR,'assets.html'));
 });
